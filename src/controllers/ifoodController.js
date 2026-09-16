@@ -5,10 +5,30 @@ const { obterTaxaRepasse, obterNomeBairroCanonica } = require('../utils/rateReso
 // Buffer em memória dos últimos 100 eventos recebidos do Webhook
 const webhookEventsBuffer = [];
 
+const fs = require('node:fs');
+const CONFIG_FILE = '/tmp/homolog_config.json';
+
 // Modo da Homologação:
 // false = Modo Manual (o usuário clica para confirmar, despachar e cancelar)
 // true = Modo Automático para o Robô (responde confirmação e cancelamento nos prazos do teste automático)
 let autoMode = false;
+
+function getStoredAutoMode() {
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      const data = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+      if (typeof data.autoMode === 'boolean') return data.autoMode;
+    }
+  } catch (e) {}
+  return autoMode;
+}
+
+function setStoredAutoMode(val) {
+  autoMode = val;
+  try {
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify({ autoMode: val }), 'utf8');
+  } catch (e) {}
+}
 
 /**
  * Registra um evento no buffer de depuração
@@ -97,17 +117,19 @@ async function handleWebhook(req, res) {
       recordEvent(ev);
       await saveEventToDb(ev);
 
-      console.log(`🔔 [iFood Event] Código: ${code} | Pedido ID: ${orderId} | Modo Auto: ${autoMode}`);
+      const isAuto = getStoredAutoMode();
+      console.log(`🔔 [iFood Event] Código: ${code} | Pedido ID: ${orderId} | Modo Auto: ${isAuto}`);
 
       const isPlaced = code === 'PLACED' || code === 'PLC';
       const isConfirmed = code === 'CONFIRMED' || code === 'CFM';
       const isDispatched = code === 'DISPATCHED' || code === 'DSP';
-      const isCancelled = code === 'CANCELLED' || code === 'CAN' || code === 'ORDER_CANCELLATION_REQUESTED' || code === 'CPR';
+      const isCancelRequested = code === 'CANCELLATION_REQUESTED' || code === 'ORDER_CANCELLATION_REQUESTED' || code === 'CPR' || code === 'CAR' || code === 'HANDSHAKE_DISPUTE';
+      const isCancelled = code === 'CANCELLED' || code === 'CAN';
 
       if (isPlaced) {
         await processNewOrder(orderId);
         // Se o modo automático estiver ligado (para o robô do iFood homologar 100%):
-        if (autoMode) {
+        if (isAuto) {
           try {
             await ifoodService.confirmOrder(orderId);
             console.log(`🤖 [AutoMode] Pedido ${orderId} confirmado automaticamente para o robô de homologação!`);
@@ -120,17 +142,20 @@ async function handleWebhook(req, res) {
         await updateOrderStatus(orderId, 'confirmado');
       } else if (isDispatched) {
         await updateOrderStatus(orderId, 'em_entrega');
+      } else if (isCancelRequested) {
+        console.log(`🔔 [iFood Cancel Request] Evento de cancelamento ${code} recebido para o pedido ${orderId}!`);
+        await updateOrderStatus(orderId, 'cancelamento_solicitado');
+        
+        // Atende ao SLA de resposta ao cancelamento exigido pela homologação oficial do iFood:
+        try {
+          const cancelRes = await ifoodService.acceptCancellation(orderId);
+          console.log(`🤖 [Webhook SLA] Confirmação de cancelamento aceita para pedido ${orderId}:`, cancelRes);
+          await updateOrderStatus(orderId, 'cancelado');
+        } catch (errCancel) {
+          console.warn(`⚠️ Falha ao processar confirmação de cancelamento: ${errCancel.message}`);
+        }
       } else if (isCancelled) {
         await updateOrderStatus(orderId, 'cancelado');
-        // Se o robô disparou solicitação de cancelamento e o modo automático estiver ativo:
-        if (autoMode && (code === 'ORDER_CANCELLATION_REQUESTED' || code === 'CPR')) {
-          try {
-            await ifoodService.acceptCancellation(orderId);
-            console.log(`🤖 [AutoMode] Solicitação de cancelamento do pedido ${orderId} aceita com sucesso!`);
-          } catch (errCancel) {
-            console.warn(`⚠️ [AutoMode] Falha ao auto-aceitar cancelamento: ${errCancel.message}`);
-          }
-        }
       }
     } catch (err) {
       console.error(`❌ Erro ao processar evento ${ev.code || 'UNKNOWN'} (${ev.orderId}):`, err.message);
@@ -246,7 +271,7 @@ async function listRecentEvents(req, res) {
 
   return res.json({
     total: merged.length,
-    autoMode,
+    autoMode: getStoredAutoMode(),
     events: merged
   });
 }
@@ -321,15 +346,15 @@ async function cancelOrderAction(req, res) {
  * POST /api/ifood/config
  */
 function getConfig(req, res) {
-  return res.json({ autoMode });
+  return res.json({ autoMode: getStoredAutoMode() });
 }
 
 function setConfig(req, res) {
   if (typeof req.body?.autoMode === 'boolean') {
-    autoMode = req.body.autoMode;
-    console.log(`🔄 [Homologação] Modo alterado para: ${autoMode ? 'AUTOMÁTICO' : 'MANUAL'}`);
+    setStoredAutoMode(req.body.autoMode);
+    console.log(`🔄 [Homologação] Modo alterado para: ${req.body.autoMode ? 'AUTOMÁTICO' : 'MANUAL'}`);
   }
-  return res.json({ success: true, autoMode });
+  return res.json({ success: true, autoMode: getStoredAutoMode() });
 }
 
 /**
@@ -372,6 +397,20 @@ async function simulateEvent(req, res) {
   return res.json({ success: true, simulated: fakeEvent });
 }
 
+/**
+ * Consulta motivos válidos de cancelamento para um pedido
+ * GET /api/ifood/orders/reasons
+ */
+async function getCancellationReasonsAction(req, res) {
+  const orderId = req.query?.orderId;
+  try {
+    const reasons = await ifoodService.getCancellationReasons(orderId);
+    return res.json(reasons);
+  } catch (error) {
+    return res.json(500, { error: error.message });
+  }
+}
+
 module.exports = {
   checkStatus,
   handleWebhook,
@@ -379,6 +418,7 @@ module.exports = {
   confirmOrderAction,
   dispatchOrderAction,
   cancelOrderAction,
+  getCancellationReasonsAction,
   simulateEvent,
   pingPresenceAction,
   getConfig,

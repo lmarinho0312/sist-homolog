@@ -308,19 +308,35 @@
         </div>
         <h2 class="step-title">Cancelar Pedido (CAN)</h2>
         <p class="step-desc">
-          Trata eventos de cancelamento ou solicita o cancelamento do pedido no iFood.
+          Envia cancelamento com o motivo oficial exigido pelo iFood ou confirma cancelamento solicitado.
         </p>
       </div>
       <div>
-        <input type="text" id="orderIdCancel" placeholder="ID do Pedido (orderId)">
+        <input type="text" id="orderIdCancel" placeholder="ID do Pedido (orderId)" onchange="consultarMotivosParaPedido(this.value)">
+        <div style="margin-bottom: 8px;">
+          <label style="font-size: 11px; color: var(--text-muted); display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span>Motivo do Cancelamento:</span>
+            <a href="javascript:void(0)" onclick="consultarMotivosParaPedido()" style="color:#60a5fa; text-decoration:none; font-size:11px;">🔄 Atualizar Motivos</a>
+          </label>
+          <select id="selectCancelReason" style="width: 100%; background: #11151c; border: 1px solid var(--border-color); color: #fff; padding: 8px 10px; border-radius: 6px; font-size: 12px; margin-bottom: 8px;">
+            <option value="501">501 - Problemas no sistema</option>
+            <option value="502">502 - Pedido em duplicidade</option>
+            <option value="503">503 - Item ou cardápio indisponível</option>
+            <option value="504">504 - Restaurante sem entregador</option>
+            <option value="505">505 - Cardápio desatualizado</option>
+            <option value="506">506 - Dificuldade interna do restaurante</option>
+            <option value="507">507 - Cliente golpista / trote</option>
+          </select>
+        </div>
         <div style="display:flex; gap:8px;">
-          <button class="btn btn-danger" style="flex:1;" onclick="cancelarPedido('request')">
-            ✕ Solicitar (501)
+          <button class="btn btn-danger" style="flex:1; font-size:12px;" onclick="cancelarPedidoComMotivo()">
+            ✕ Solicitar Cancelamento
           </button>
-          <button class="btn btn-outline" style="flex:1;" onclick="cancelarPedido('accept')" title="Aceitar cancelamento solicitado">
+          <button class="btn btn-outline" style="flex:1; font-size:12px;" onclick="cancelarPedido('accept')" title="Aceitar cancelamento solicitado pelo cliente ou robô">
             ✓ Aceitar Cancelamento
           </button>
         </div>
+        <div id="cancelFeedback" style="display:none; margin-top:10px; padding:10px; border-radius:6px; font-size:12px; line-height:1.4;"></div>
       </div>
     </div>
 
@@ -558,18 +574,22 @@
         const orderIdStr = ev.orderId || '';
         const isPlaced = ev.code === 'PLACED' || ev.code === 'PLC';
         const isConfirmed = ev.code === 'CONFIRMED' || ev.code === 'CFM';
-        const isCancelled = ev.code === 'CANCELLED' || ev.code === 'CAN' || ev.code === 'ORDER_CANCELLATION_REQUESTED' || ev.code === 'CPR';
+        const isCancelRequested = ev.code === 'CANCELLATION_REQUESTED' || ev.code === 'ORDER_CANCELLATION_REQUESTED' || ev.code === 'CPR' || ev.code === 'CAR';
+        const isCancelled = ev.code === 'CANCELLED' || ev.code === 'CAN';
         const isDispatched = ev.code === 'DISPATCHED' || ev.code === 'DSP';
 
-        const cor = isPlaced ? '#3b82f6' : isConfirmed ? '#10b981' : isCancelled ? '#ef4444' : isDispatched ? '#8b5cf6' : '#f59e0b';
+        const cor = isPlaced ? '#3b82f6' : isConfirmed ? '#10b981' : isCancelRequested ? '#f59e0b' : isCancelled ? '#ef4444' : isDispatched ? '#8b5cf6' : '#9ca3af';
 
         return `
-        <tr>
+        <tr style="${isCancelRequested ? 'background:rgba(245,158,11,0.08);' : ''}">
           <td>${ev.receivedAt ? new Date(ev.receivedAt).toLocaleTimeString() : '-'}</td>
-          <td><strong style="color:${cor};">${ev.code}</strong></td>
+          <td>
+            <strong style="color:${cor};">${ev.code}</strong>
+            ${isCancelRequested ? '<br><span style="font-size:11px; color:#f59e0b; font-weight:600;">⚠️ Cancelamento Solicitado</span>' : ''}
+          </td>
           <td>
             <div style="display:flex; align-items:center; gap:6px;">
-              <input type="text" readonly value="${orderIdStr}" style="margin:0; width:290px; font-family:monospace; font-size:12px; padding:4px 8px; background:#0f1218; border:1px solid #374151; color:#93c5fd; user-select:all;" onclick="this.select()">
+              <input type="text" readonly value="${orderIdStr}" style="margin:0; width:280px; font-family:monospace; font-size:12px; padding:4px 8px; background:#0f1218; border:1px solid #374151; color:#93c5fd; user-select:all;" onclick="this.select()">
               <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; white-space:nowrap;" onclick="copiarTexto('${orderIdStr}', this)">📋 Copiar</button>
               <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; white-space:nowrap;" onclick="preencherCards('${orderIdStr}')" title="Preencher nos formulários acima">✍️ Usar</button>
             </div>
@@ -577,9 +597,13 @@
           <td>${ev.merchantId || '-'}</td>
           <td>
             <div class="action-group">
-              <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; border-color:rgba(16,185,129,0.4); color:#10b981;" onclick="confirmarPedido('${orderIdStr}')">Confirmar (CFM)</button>
-              <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; border-color:rgba(234,29,44,0.4); color:#ea1d2c;" onclick="despacharPedido('${orderIdStr}')">Despachar (DSP)</button>
-              <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; border-color:rgba(239,68,68,0.4); color:#ef4444;" onclick="cancelarPedidoRapido('${orderIdStr}')">Cancelar</button>
+              ${isCancelRequested ? `
+                <button class="btn btn-success" style="padding:4px 10px; font-size:11px; font-weight:bold;" onclick="aceitarCancelamentoDireto('${orderIdStr}')">✓ Aceitar Cancelamento</button>
+              ` : `
+                <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; border-color:rgba(16,185,129,0.4); color:#10b981;" onclick="confirmarPedido('${orderIdStr}')">Confirmar (CFM)</button>
+                <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; border-color:rgba(234,29,44,0.4); color:#ea1d2c;" onclick="despacharPedido('${orderIdStr}')">Despachar (DSP)</button>
+                <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; border-color:rgba(239,68,68,0.4); color:#ef4444;" onclick="preencherCards('${orderIdStr}')" title="Cancelar com motivo">Cancelar...</button>
+              `}
             </div>
           </td>
         </tr>
@@ -624,7 +648,33 @@
       document.getElementById('orderIdConfirm').value = orderId;
       document.getElementById('orderIdCancel').value = orderId;
       document.getElementById('orderIdDispatch').value = orderId;
+      consultarMotivosParaPedido(orderId);
       window.scrollTo({ top: 180, behavior: 'smooth' });
+    }
+
+    // ── Consulta de Motivos Oficiais do Pedido ────────────────────────────────
+    async function consultarMotivosParaPedido(orderId) {
+      const id = orderId || document.getElementById('orderIdCancel').value.trim();
+      const select = document.getElementById('selectCancelReason');
+      if (!select) return;
+
+      try {
+        const url = id ? `/api/ifood/orders/reasons?orderId=${encodeURIComponent(id)}` : '/api/ifood/orders/reasons';
+        const res = await fetch(url);
+        if (res.ok) {
+          const reasons = await res.json();
+          const list = Array.isArray(reasons) ? reasons : (Array.isArray(reasons?.reasons) ? reasons.reasons : []);
+          if (list.length > 0) {
+            select.innerHTML = list.map(r => {
+              const code = r.code || r.cancelCodeId;
+              const desc = r.description || '';
+              return `<option value="${code}">${code} - ${desc}</option>`;
+            }).join('');
+          }
+        }
+      } catch (e) {
+        console.warn('Aviso ao consultar motivos:', e);
+      }
     }
 
     // ── Ações de Pedido (Confirmar, Despachar, Cancelar) ──────────────────────
@@ -652,27 +702,65 @@
       }
     }
 
-    async function cancelarPedidoRapido(orderId) {
-      const id = orderId || document.getElementById('orderIdCancel').value.trim();
-      if (!id) return alert('Por favor, informe o ID do pedido');
+    async function cancelarPedidoComMotivo() {
+      const id = document.getElementById('orderIdCancel').value.trim();
+      if (!id) return alert('Por favor, informe o ID do pedido (orderId)');
       
-      const confirmou = confirm(`Deseja enviar solicitação de cancelamento para o pedido:\n${id}?`);
-      if (!confirmou) return;
+      const select = document.getElementById('selectCancelReason');
+      const selectedCode = select ? select.value : '501';
+      const selectedText = select && select.selectedOptions[0] ? select.selectedOptions[0].text : '501 - Problemas no sistema';
+
+      const feedback = document.getElementById('cancelFeedback');
+      feedback.style.display = 'block';
+      feedback.style.background = '#1e293b';
+      feedback.style.color = '#93c5fd';
+      feedback.innerHTML = `⏳ Enviando solicitação de cancelamento com motivo: <strong>${selectedText}</strong>...`;
 
       try {
         const res = await fetch('/api/ifood/orders/cancel', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: id, actionType: 'request', reason: '501', cancellationCode: '501' })
+          body: JSON.stringify({
+            orderId: id,
+            actionType: 'request',
+            reason: selectedCode,
+            cancellationCode: selectedCode
+          })
         });
         const data = await res.json();
         if (res.ok) {
-          alert('✅ Cancelamento enviado com sucesso no iFood (CAN)!');
+          feedback.style.background = '#064e3b';
+          feedback.style.color = '#a7f3d0';
+          feedback.innerHTML = `✅ <strong>Sucesso!</strong> Cancelamento solicitado no iFood!<br><strong>Motivo identificado:</strong> ${selectedText}<br><strong>Status iFood:</strong> 202 Accepted (CAN)`;
           document.getElementById('badgeEtapa3').className = 'badge badge-success';
-          document.getElementById('badgeEtapa3').innerText = '✓ Cancelado';
+          document.getElementById('badgeEtapa3').innerText = '✓ Cancelado (' + selectedCode + ')';
           carregarEventos();
         } else {
-          alert('❌ Erro no cancelamento: ' + (data.error || JSON.stringify(data)));
+          feedback.style.background = '#7f1d1d';
+          feedback.style.color = '#fecaca';
+          feedback.innerHTML = `❌ <strong>Erro no cancelamento:</strong> ${data.error || JSON.stringify(data)}`;
+        }
+      } catch (e) {
+        feedback.style.background = '#7f1d1d';
+        feedback.style.color = '#fecaca';
+        feedback.innerHTML = `❌ <strong>Erro de rede:</strong> ${e.message}`;
+      }
+    }
+
+    async function aceitarCancelamentoDireto(orderId) {
+      if (!orderId) return alert('ID inválido');
+      try {
+        const res = await fetch('/api/ifood/orders/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId, actionType: 'accept' })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert('✅ Cancelamento aceito com sucesso no iFood!');
+          carregarEventos();
+        } else {
+          alert('❌ Erro ao aceitar cancelamento: ' + (data.error || JSON.stringify(data)));
         }
       } catch (e) {
         alert('Erro: ' + e.message);
@@ -683,11 +771,19 @@
       const id = document.getElementById('orderIdCancel').value.trim();
       if (!id) return alert('Por favor, informe o ID do pedido');
 
+      const select = document.getElementById('selectCancelReason');
+      const selectedCode = select ? select.value : '501';
+
       try {
         const res = await fetch('/api/ifood/orders/cancel', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: id, actionType: tipo || 'request', reason: '501', cancellationCode: '501' })
+          body: JSON.stringify({
+            orderId: id,
+            actionType: tipo || 'request',
+            reason: selectedCode,
+            cancellationCode: selectedCode
+          })
         });
         const data = await res.json();
         if (res.ok) {

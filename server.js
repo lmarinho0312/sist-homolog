@@ -95,6 +95,7 @@ registerRoute('GET', '/api/ifood/events', ifoodController.listRecentEvents);
 registerRoute('POST', '/api/ifood/orders/confirm', ifoodController.confirmOrderAction);
 registerRoute('POST', '/api/ifood/orders/dispatch', ifoodController.dispatchOrderAction);
 registerRoute('POST', '/api/ifood/orders/cancel', ifoodController.cancelOrderAction);
+registerRoute('GET', '/api/ifood/orders/reasons', ifoodController.getCancellationReasonsAction);
 registerRoute('POST', '/api/ifood/simulate', ifoodController.simulateEvent);
 registerRoute('GET', '/api/ifood/ping', ifoodController.pingPresenceAction);
 registerRoute('POST', '/api/ifood/ping', ifoodController.pingPresenceAction);

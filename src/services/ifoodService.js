@@ -226,33 +226,127 @@ async function dispatchOrder(orderId) {
 }
 
 /**
- * Etapa 3 - Solicita ou gerencia cancelamento de pedido
+ * Busca motivos válidos de cancelamento para o pedido
+ */
+async function getCancellationReasons(orderId) {
+  if (orderId && orderId.length >= 30) {
+    try {
+      const res = await ifoodRequest(`/order/v1.0/orders/${orderId}/cancellationReasons`);
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (Array.isArray(data?.reasons) ? data.reasons : []);
+        if (list.length > 0) {
+          return list.map(item => ({
+            code: String(item.code || item.cancelCodeId),
+            cancelCodeId: String(item.code || item.cancelCodeId),
+            description: item.description || 'Motivo de cancelamento'
+          }));
+        }
+      }
+    } catch (e) {
+      console.warn(`Aviso ao buscar motivos de cancelamento para ${orderId}:`, e.message);
+    }
+  }
+
+  // Lista padrão oficial iFood conforme documentação técnica
+  return [
+    { code: '501', cancelCodeId: '501', description: 'Problemas no sistema' },
+    { code: '502', cancelCodeId: '502', description: 'Pedido em duplicidade' },
+    { code: '503', cancelCodeId: '503', description: 'Item ou cardápio indisponível' },
+    { code: '504', cancelCodeId: '504', description: 'Restaurante sem entregador' },
+    { code: '505', cancelCodeId: '505', description: 'Cardápio desatualizado' },
+    { code: '506', cancelCodeId: '506', description: 'Dificuldade interna do restaurante' },
+    { code: '507', cancelCodeId: '507', description: 'Cliente golpista / trote' }
+  ];
+}
+
+/**
+ * Etapa 3 - Solicita cancelamento de pedido identificando o motivo corretamente
  */
 async function requestCancellation(orderId, reason = '501', cancellationCode = '501') {
-  const code = String(cancellationCode || reason || '501');
+  let code = String(cancellationCode || reason || '501');
+  let desc = 'Problemas no sistema';
+
+  try {
+    const reasons = await getCancellationReasons(orderId);
+    if (Array.isArray(reasons) && reasons.length > 0) {
+      const found = reasons.find(r => String(r.code || r.cancelCodeId) === String(code));
+      if (found) {
+        code = String(found.code || found.cancelCodeId);
+        desc = found.description || desc;
+      }
+    }
+  } catch (e) {}
+
+  console.log(`📡 [iFood Cancel] Solicitando cancelamento do pedido ${orderId} com motivo ${code} (${desc})`);
+
+  // iFood API V1.0 aceita { "reason": code, "cancellationCode": code }
+  const payload = {
+    reason: code,
+    cancellationCode: code
+  };
+
   const res = await ifoodRequest(`/order/v1.0/orders/${orderId}/requestCancellation`, {
     method: 'POST',
-    body: JSON.stringify({ reason: code, cancellationCode: code })
+    body: JSON.stringify(payload)
   });
+
   if (!res.ok && res.status !== 202) {
     const errorBody = await res.text();
     throw new Error(`Erro ao solicitar cancelamento do pedido ${orderId} (${res.status}): ${errorBody}`);
   }
-  return { success: true, status: res.status, message: 'Cancelamento solicitado com sucesso' };
+
+  return {
+    success: true,
+    status: res.status,
+    code,
+    description: desc,
+    message: `Cancelamento solicitado com sucesso no iFood (Motivo: ${code} - ${desc})`
+  };
 }
 
 /**
- * Etapa 3 - Aceita o cancelamento solicitado pelo cliente
+ * Etapa 3 - Aceita a solicitação de cancelamento (CANCELLATION_REQUESTED / Handshake)
  */
 async function acceptCancellation(orderId) {
-  const res = await ifoodRequest(`/order/v1.0/orders/${orderId}/acceptCancellation`, {
-    method: 'POST'
-  });
-  if (!res.ok && res.status !== 202) {
-    const errorBody = await res.text();
-    throw new Error(`Erro ao aceitar cancelamento do pedido ${orderId} (${res.status}): ${errorBody}`);
+  let lastError = null;
+
+  // 1. Tenta POST /order/v1.0/orders/{id}/acceptCancellation
+  try {
+    const res = await ifoodRequest(`/order/v1.0/orders/${orderId}/acceptCancellation`, {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+    if (res.ok || res.status === 202) {
+      console.log(`✅ [iFood] Cancelamento aceito via /acceptCancellation para pedido ${orderId}`);
+      return { success: true, status: res.status, message: 'Cancelamento aceito via /acceptCancellation' };
+    }
+    const errText = await res.text();
+    lastError = `Status ${res.status}: ${errText}`;
+  } catch (e) {
+    lastError = e.message;
   }
-  return { success: true, status: res.status, message: 'Cancelamento aceito com sucesso' };
+
+  // 2. Se a rota retornar 400 ou 404, tenta a rota recomendada pelo relatório Toqan:
+  // POST /order/v1.0/orders/{id}/statuses/cancellation-requested
+  try {
+    const resToqan = await ifoodRequest(`/order/v1.0/orders/${orderId}/statuses/cancellation-requested`, {
+      method: 'POST',
+      body: JSON.stringify({})
+    });
+    if (resToqan.ok || resToqan.status === 202) {
+      console.log(`✅ [iFood] Cancelamento aceito via /statuses/cancellation-requested para pedido ${orderId}`);
+      return { success: true, status: resToqan.status, message: 'Cancelamento aceito via /statuses/cancellation-requested' };
+    }
+  } catch (e) {}
+
+  // 3. Fallback: se a API exigir cancelamento com motivo direto da loja
+  try {
+    const fallbackRes = await requestCancellation(orderId, '501', '501');
+    return { success: true, fallback: true, ...fallbackRes };
+  } catch (e) {
+    throw new Error(`Erro ao confirmar cancelamento do pedido ${orderId}: ${lastError || e.message}`);
+  }
 }
 
 /**
@@ -272,11 +366,13 @@ async function denyCancellation(orderId, reason = 'Pedido já em preparo/despach
 
 module.exports = {
   getAccessToken,
+  ifoodRequest,
   pingPresence,
   getMerchantStatus,
   getMerchantDetails,
   testConnectivity,
   getOrderDetails,
+  getCancellationReasons,
   confirmOrder,
   dispatchOrder,
   requestCancellation,
