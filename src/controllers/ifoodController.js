@@ -139,11 +139,15 @@ async function processNewOrder(orderId) {
  * Atualiza status local do pedido
  */
 async function updateOrderStatus(orderId, novoStatus) {
-  const db = getDb();
-  await db.execute(
-    'UPDATE pedidos SET status = ? WHERE pedido_id_origem = ? AND origem = ?',
-    [novoStatus, orderId, 'IFOOD']
-  );
+  try {
+    const db = getDb();
+    await db.execute(
+      'UPDATE pedidos SET status = ? WHERE pedido_id_origem = ? AND origem = ?',
+      [novoStatus, orderId, 'IFOOD']
+    );
+  } catch (err) {
+    console.warn('⚠️ Aviso ao atualizar status local do pedido no SQLite:', err.message);
+  }
 }
 
 /**
