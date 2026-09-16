@@ -66,6 +66,14 @@ async function handleWebhook(req, res) {
       if (code === 'PLACED') {
         // Novo pedido realizado no iFood
         await processNewOrder(orderId);
+        // Etapa 2 - Confirma o pedido automaticamente (CFM) para validar a homologação
+        try {
+          await ifoodService.confirmOrder(orderId);
+          console.log(`✅ [Auto-Confirm] Pedido ${orderId} confirmado automaticamente no iFood (CFM)!`);
+          await updateOrderStatus(orderId, 'confirmado');
+        } catch (errConfirm) {
+          console.warn(`⚠️ Auto-confirmação do pedido ${orderId}: ${errConfirm.message}`);
+        }
       } else if (code === 'CONFIRMED') {
         await updateOrderStatus(orderId, 'confirmado');
       } else if (code === 'DISPATCHED') {
@@ -234,6 +242,27 @@ async function simulateEvent(req, res) {
   return res.json({ success: true, simulated: fakeEvent });
 }
 
+/**
+ * Mantém a loja ONLINE no iFood enviando keepalive/polling
+ * GET ou POST /api/ifood/ping
+ */
+async function pingPresenceAction(req, res) {
+  try {
+    const result = await ifoodService.pingPresence();
+    return res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      store: 'ONLINE',
+      result
+    });
+  } catch (error) {
+    return res.json(500, {
+      success: false,
+      error: error.message
+    });
+  }
+}
+
 module.exports = {
   checkStatus,
   handleWebhook,
@@ -241,5 +270,6 @@ module.exports = {
   confirmOrderAction,
   dispatchOrderAction,
   cancelOrderAction,
-  simulateEvent
+  simulateEvent,
+  pingPresenceAction
 };

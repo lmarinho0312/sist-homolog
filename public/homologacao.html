@@ -527,8 +527,20 @@
       }
     }
 
-    // Atualiza eventos periodicamente a cada 4 segundos
-    setInterval(carregarEventos, 4000);
+    // Mantém a loja sempre ONLINE na rede do iFood automaticamente
+    async function manterOnline() {
+      try {
+        await fetch('/api/ifood/ping');
+      } catch (e) {
+        console.warn('Erro no keepAlive:', e);
+      }
+    }
+    // Dispara keepAlive a cada 20 segundos para garantir status ONLINE permanente
+    manterOnline();
+    setInterval(manterOnline, 20000);
+
+    // Atualiza eventos periodicamente a cada 3 segundos
+    setInterval(carregarEventos, 3000);
     carregarEventos();
   </script>
 </body>

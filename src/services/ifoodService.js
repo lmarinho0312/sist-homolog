@@ -114,6 +114,21 @@ async function getMerchantDetails(merchantId = config.IFOOD_MERCHANT_ID) {
 }
 
 /**
+ * Mantém a presença do aplicativo ativa no iFood (deixa a loja ONLINE)
+ * O iFood exige um polling/ping a cada 30 segundos para manter a validação 'is-connected' em OK
+ */
+async function pingPresence() {
+  const merchantId = config.IFOOD_MERCHANT_ID;
+  if (!merchantId) return null;
+  const res = await ifoodRequest('/order/v1.0/events:polling?excludeHeartbeat=false', {
+    headers: {
+      'x-polling-merchants': merchantId
+    }
+  });
+  return { status: res.status, ok: res.ok || res.status === 204 };
+}
+
+/**
  * Validação completa da Etapa 1 (Conectividade)
  */
 async function testConnectivity() {
@@ -123,11 +138,21 @@ async function testConnectivity() {
   let merchantDetails = null;
 
   if (merchantId) {
+    // 1. Envia ping de presença primeiro para ativar o status ONLINE imediatamente no iFood
+    try {
+      await pingPresence();
+    } catch (e) {
+      console.warn('⚠️ Falha ao registrar presença no iFood:', e.message);
+    }
+
+    // 2. Consulta o status da loja
     try {
       merchantStatus = await getMerchantStatus(merchantId);
     } catch (e) {
       merchantStatus = { error: e.message };
     }
+
+    // 3. Consulta os detalhes cadastrais da loja
     try {
       merchantDetails = await getMerchantDetails(merchantId);
     } catch (e) {
@@ -135,10 +160,17 @@ async function testConnectivity() {
     }
   }
 
+  const deliveryStatus = Array.isArray(merchantStatus) 
+    ? merchantStatus.find(s => s.operation === 'delivery') 
+    : null;
+  const isOnline = deliveryStatus?.state === 'OK' && deliveryStatus?.available === true;
+
   return {
     ok: true,
     etapa: 1,
     descricao: 'Conectividade e Autenticação OAuth2',
+    isOnline,
+    storeState: deliveryStatus?.state || 'UNKNOWN',
     timestamp: new Date().toISOString(),
     auth: {
       authenticated: !!token,
@@ -239,6 +271,7 @@ async function denyCancellation(orderId, reason = 'Pedido já em preparo/despach
 
 module.exports = {
   getAccessToken,
+  pingPresence,
   getMerchantStatus,
   getMerchantDetails,
   testConnectivity,

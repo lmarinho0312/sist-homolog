@@ -96,6 +96,8 @@ registerRoute('POST', '/api/ifood/orders/confirm', ifoodController.confirmOrderA
 registerRoute('POST', '/api/ifood/orders/dispatch', ifoodController.dispatchOrderAction);
 registerRoute('POST', '/api/ifood/orders/cancel', ifoodController.cancelOrderAction);
 registerRoute('POST', '/api/ifood/simulate', ifoodController.simulateEvent);
+registerRoute('GET', '/api/ifood/ping', ifoodController.pingPresenceAction);
+registerRoute('POST', '/api/ifood/ping', ifoodController.pingPresenceAction);
 
 // ── Handler principal (usado pela Vercel e pelo servidor local) ────────────────
 async function requestHandler(req, res) {
