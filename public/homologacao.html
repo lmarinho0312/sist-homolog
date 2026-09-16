@@ -507,25 +507,79 @@
           return;
         }
 
-        tbody.innerHTML = data.events.map(ev => `
+        tbody.innerHTML = data.events.map(ev => {
+          const hasOrder = ev.orderId && ev.orderId !== 'undefined';
+          const orderIdStr = hasOrder ? ev.orderId : '';
+          return `
           <tr>
             <td>${ev.receivedAt ? new Date(ev.receivedAt).toLocaleTimeString() : '-'}</td>
-            <td><strong style="color:${ev.code === 'PLACED' ? '#3b82f6' : ev.code === 'CONFIRMED' ? '#10b981' : ev.code === 'CANCELLED' ? '#ef4444' : '#f59e0b'}">${ev.code}</strong></td>
-            <td><code>${ev.orderId}</code></td>
+            <td><strong style="color:${ev.code === 'PLACED' || ev.code === 'PLC' ? '#3b82f6' : ev.code === 'CONFIRMED' || ev.code === 'CFM' ? '#10b981' : ev.code === 'CANCELLED' || ev.code === 'CAN' ? '#ef4444' : '#f59e0b'}">${ev.code}</strong></td>
+            <td>
+              ${hasOrder ? `
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <input type="text" readonly value="${orderIdStr}" style="margin:0; width:290px; font-family:monospace; font-size:12px; padding:4px 8px; background:#0f1218; border:1px solid #374151; color:#93c5fd; user-select:all;" onclick="this.select()">
+                  <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; white-space:nowrap;" onclick="copiarTexto('${orderIdStr}', this)">📋 Copiar</button>
+                  <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; white-space:nowrap;" onclick="preencherCards('${orderIdStr}')" title="Preencher este ID nos campos acima">✍️ Usar</button>
+                </div>
+              ` : `<span style="color:var(--text-muted);">-</span>`}
+            </td>
             <td>${ev.merchantId || '-'}</td>
             <td>
-              <div class="action-group">
-                <button class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="confirmarPedido('${ev.orderId}')">Confirmar (CFM)</button>
-                <button class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="despacharPedido('${ev.orderId}')">Despachar (DSP)</button>
-                <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; color:#ef4444;" onclick="cancelarPedido('${ev.orderId}')">Cancelar</button>
-              </div>
+              ${hasOrder ? `
+                <div class="action-group">
+                  <button class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="confirmarPedido('${orderIdStr}')">Confirmar (CFM)</button>
+                  <button class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="despacharPedido('${orderIdStr}')">Despachar (DSP)</button>
+                  <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; color:#ef4444;" onclick="cancelarPedido('${orderIdStr}')">Cancelar</button>
+                </div>
+              ` : `<span style="color:var(--text-muted);">-</span>`}
             </td>
           </tr>
-        `).join('');
+        `;
+        }).join('');
       } catch (err) {
         console.error('Erro ao carregar eventos:', err);
       }
     }
+
+    function copiarTexto(texto, btn) {
+      if (!texto || texto === 'undefined') return alert('ID não disponível');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(texto).then(() => {
+          if (btn) {
+            const original = btn.innerText;
+            btn.innerText = '✓ Copiado!';
+            btn.style.color = '#10b981';
+            btn.style.borderColor = '#10b981';
+            setTimeout(() => {
+              btn.innerText = original;
+              btn.style.color = '';
+              btn.style.borderColor = '';
+            }, 1500);
+          }
+        }).catch(() => fallbackCopiar(texto));
+      } else {
+        fallbackCopiar(texto);
+      }
+    }
+
+    function fallbackCopiar(texto) {
+      const area = document.createElement('textarea');
+      area.value = texto;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand('copy');
+      document.body.removeChild(area);
+      alert('ID copiado: ' + texto);
+    }
+
+    function preencherCards(orderId) {
+      if (!orderId) return;
+      document.getElementById('orderIdConfirm').value = orderId;
+      document.getElementById('orderIdCancel').value = orderId;
+      document.getElementById('orderIdDispatch').value = orderId;
+      window.scrollTo({ top: 180, behavior: 'smooth' });
+    }
+
 
     // Mantém a loja sempre ONLINE na rede do iFood automaticamente
     async function manterOnline() {
