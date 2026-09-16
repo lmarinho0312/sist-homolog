@@ -1,0 +1,40 @@
+# Dependências do Node
+node_modules/
+
+# Banco de dados local e credenciais (não vai para produção)
+data/
+*.sqlite
+*.db
+.turso_credentials.json
+
+# Variáveis de ambiente (NUNCA commitar!)
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Vercel
+# Arquivos temporários e executáveis locais
+scratch/
+SpoolerMonitor-Balcao.zip
+SpoolerMonitor-Balcao/
+console.error*
+# Spooler Agent local cache
+agent/processed_cache.json
+agent/processados/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.swp
+*.swo
+
+.vercel
+.env*

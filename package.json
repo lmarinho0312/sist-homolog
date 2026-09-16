@@ -1,0 +1,24 @@
+{
+  "name": "sistrastreamento-homologacao",
+  "version": "1.0.0",
+  "description": "Sistema de Rastreamento Interno de Entregas - MVP",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "db:init": "node src/database/initDb.js",
+    "db:seed": "node src/database/seed.js"
+  },
+  "keywords": [
+    "rastreamento",
+    "entregas",
+    "traccar",
+    "leaflet",
+    "sqlite",
+    "turso"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@libsql/client": "^0.14.0"
+  }
+}

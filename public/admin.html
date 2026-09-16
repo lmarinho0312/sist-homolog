@@ -1,0 +1,3410 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Ao Ponto Carnes — Painel Operacional da Cozinha</title>
+  <link rel="icon" type="image/png" href="/assets/logo-transparent.png">
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+  <!-- Design System CSS -->
+  <link rel="stylesheet" href="/css/design-system.css">
+
+  <!-- Lucide Icons (Zero Emojis / SVG Icons) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Estilos Estruturais do Painel Desktop */
+    body {
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      display: flex;
+    }
+
+    /* SIDEBAR */
+    .app-sidebar {
+      width: 240px;
+      height: 100vh;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      z-index: 1000;
+      flex-shrink: 0;
+    }
+
+    .sidebar-brand {
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      border-bottom: 1px solid var(--border-subtle);
+      gap: 8px;
+    }
+
+    .brand-logo-img {
+      max-width: 140px;
+      height: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      overflow-y: auto;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      border: 1px solid transparent;
+      user-select: none;
+    }
+
+    .nav-item:hover {
+      background: var(--bg-surface-elevated);
+      color: var(--text-primary);
+    }
+
+    .nav-item.active {
+      background: linear-gradient(135deg, var(--brand-gold-light), var(--brand-gold));
+      color: var(--text-inverse);
+      font-weight: 700;
+      box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+    }
+
+    .nav-icon {
+      font-size: 16px;
+      width: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sidebar-footer {
+      padding: 16px;
+      border-top: 1px solid var(--border-subtle);
+      background: var(--bg-surface-card);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .system-status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--status-rota-text);
+    }
+
+    .status-dot-live {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulseDot 1.5s infinite;
+    }
+
+    /* MAIN CONTENT */
+    .app-main {
+      flex: 1;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-app);
+      overflow: hidden;
+    }
+
+    /* HEADER */
+    .app-header {
+      padding: 16px 28px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .header-greeting-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .header-greeting-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .live-clock-badge {
+      text-align: right;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+
+    .live-clock-date {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .role-badge {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-medium);
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* WORKSPACE BODY */
+    .app-body {
+      flex: 1;
+      padding: 24px 28px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* SEÇÕES DE VISÃO (CORREÇÃO DE ALTERNÂNCIA E LAYOUT) */
+    .view-section {
+      display: none !important;
+      flex-direction: column !important;
+      width: 100% !important;
+      flex: 1 !important;
+      min-height: 0 !important;
+      gap: 20px !important;
+    }
+
+    .view-section.active {
+      display: flex !important;
+      flex-direction: column !important;
+    }
+
+    /* As visões com muito conteúdo vertical (Fechamento, Entregadores, Histórico) devem expandir livremente para scroll natural da página inteira */
+    #view-fechamento.active,
+    #view-motoboys.active,
+    #view-historico.active {
+      flex: 0 0 auto !important;
+      min-height: min-content !important;
+      height: auto !important;
+      padding-bottom: 70px !important;
+    }
+
+    /* MAP TILE DARK THEME (Zero Watermark) */
+    .map-container.map-dark-tiles .leaflet-tile-pane {
+      filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3);
+      -webkit-filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3);
+    }
+
+    /* DASHBOARD GRID (2 COLUMNS) */
+    .dashboard-split-grid {
+      display: grid;
+      grid-template-columns: 460px 1fr;
+      gap: 20px;
+      flex: 1;
+      min-height: 480px;
+    }
+
+    .panel-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-surface-card);
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .panel-body-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    /* TABS FILTER */
+    .filter-pills-bar {
+      display: flex;
+      gap: 6px;
+      padding: 10px 16px;
+      background: var(--bg-surface-elevated);
+      border-bottom: 1px solid var(--border-subtle);
+      overflow-x: auto;
+    }
+
+    .filter-pill {
+      padding: 5px 12px;
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      background: transparent;
+      border: 1px solid transparent;
+      transition: all var(--transition-fast);
+      white-space: nowrap;
+    }
+
+    .filter-pill:hover {
+      color: var(--text-primary);
+    }
+
+    .filter-pill.active {
+      background: var(--bg-surface);
+      color: var(--brand-gold-light);
+      border-color: var(--border-gold);
+    }
+
+    /* KANBAN BOARD VIEW */
+    .kanban-board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      flex: 1;
+    }
+
+    .kanban-col {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .kanban-col-header {
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .kanban-col-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* POPUP LEAFLET CUSTOM */
+    .leaflet-popup-content-wrapper {
+      background: var(--bg-surface) !important;
+      color: var(--text-primary) !important;
+      border: 1px solid var(--border-gold);
+      border-radius: var(--radius-md) !important;
+      padding: 4px !important;
+      box-shadow: var(--shadow-lg) !important;
+    }
+    .leaflet-popup-tip {
+      background: var(--bg-surface) !important;
+    }
+
+    /* TELA DE AUTENTICAÇÃO DO ADMIN (COZINHA) */
+    .admin-auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at center, #181c26 0%, #0b0d12 100%);
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      backdrop-filter: blur(8px);
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+
+    .admin-auth-card {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-gold);
+      border-radius: var(--radius-xl);
+      padding: 38px 32px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+      text-align: center;
+    }
+
+    .admin-auth-logo {
+      max-width: 190px;
+      height: auto;
+      margin-bottom: 16px;
+    }
+
+    .admin-auth-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .admin-auth-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    /* GRUPOS DE ENTREGA: VELOZ & SPEED */
+    .badge-grupo-pedido {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 4px;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s ease;
+    }
+    .badge-grupo-pedido:hover {
+      filter: brightness(1.2);
+      transform: translateY(-1px);
+    }
+    .badge-grupo-veloz {
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.4);
+    }
+    .badge-grupo-speed {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+    .btn-grupo-selecionar {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 4px 8px;
+      border-radius: 5px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s ease;
+    }
+    .btn-grupo-selecionar:hover {
+      transform: scale(1.05);
+    }
+    .btn-grupo-speed {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #000;
+      box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+    }
+    .btn-grupo-veloz {
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    }
+    .badge-pendente-grupo {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px dashed rgba(239, 68, 68, 0.5);
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      animation: pulse 2s infinite;
+    }
+  </style>
+<body>
+
+  <!-- ========================================================================
+       TELA DE AUTENTICAÇÃO OBRIGATÓRIA (LOGIN DA COZINHA / ADMIN)
+       ======================================================================== -->
+  <div id="adminAuthOverlay" class="admin-auth-overlay">
+    <div class="admin-auth-card">
+      <img src="/assets/logo-dark-theme.png" alt="Ao Ponto Carnes" class="admin-auth-logo" onerror="this.src='/assets/logo.png'">
+      <h2 class="admin-auth-title">Painel da Cozinha</h2>
+      <p class="admin-auth-sub">Insira suas credenciais de acesso operacional</p>
+
+      <form id="formAdminLogin" onsubmit="realizarLoginAdmin(event)" style="text-align: left;">
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label class="form-label" for="inpAdminUsuario" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 6px;">Usuário</label>
+          <input type="text" id="inpAdminUsuario" class="form-input" placeholder="Ex: admin" required autocomplete="username" style="width: 100%;">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 18px;">
+          <label class="form-label" for="inpAdminSenha" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 6px;">Senha</label>
+          <input type="password" id="inpAdminSenha" class="form-input" placeholder="Digite sua senha" required autocomplete="current-password" style="width: 100%;">
+        </div>
+
+        <div id="msgErroAdminLogin" style="display: none; padding: 10px; border-radius: var(--radius-sm); background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #ef4444; font-size: 12px; margin-bottom: 14px; text-align: center;">
+        </div>
+
+        <button type="submit" class="btn btn-gold" id="btnAdminLoginSubmit" style="width: 100%; padding: 14px; font-size: 14px; font-weight: 800; border: none; cursor: pointer;">
+          <span style="display: flex; align-items: center; justify-content: center; gap: 8px;"><i data-lucide="lock" style="width: 16px; height: 16px;"></i> ENTRAR NO PAINEL</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       SIDEBAR LATERAL (IDENTIDADE AO PONTO CARNES)
+       ======================================================================== -->
+  <aside class="app-sidebar">
+    <div class="sidebar-brand">
+      <img src="/assets/logo-dark-theme.png" alt="Ao Ponto Carnes" class="brand-logo-img" onerror="this.src='/assets/logo.png'">
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-item active" id="nav-inicio" onclick="alternarVisao('inicio')">
+        <span class="nav-icon"><i data-lucide="home"></i></span>
+        <span>Início</span>
+      </div>
+      <div class="nav-item" id="nav-pedidos" onclick="alternarVisao('pedidos')">
+        <span class="nav-icon"><i data-lucide="clipboard-list"></i></span>
+        <span>Pedidos</span>
+      </div>
+      <div class="nav-item" id="nav-entregas" onclick="alternarVisao('entregas')">
+        <span class="nav-icon"><i data-lucide="map"></i></span>
+        <span>Mapa & Rotas</span>
+      </div>
+      <div class="nav-item" id="nav-motoboys" onclick="alternarVisao('motoboys')">
+        <span class="nav-icon"><i data-lucide="bike"></i></span>
+        <span>Motoboys</span>
+      </div>
+      <div class="nav-item" id="nav-historico" onclick="alternarVisao('historico')">
+        <span class="nav-icon"><i data-lucide="history"></i></span>
+        <span>Histórico</span>
+      </div>
+      <div class="nav-item" id="nav-fechamento" onclick="alternarVisao('fechamento')">
+        <span class="nav-icon"><i data-lucide="receipt"></i></span>
+        <span>Fechamento</span>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="system-status-indicator">
+        <span class="status-dot-live"></span>
+        <span id="txtStatusConexao">Sistema Online</span>
+      </div>
+      <div style="font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between;">
+        <span>v1.2.0 • Ao Ponto</span>
+        <span id="pingInfo" style="display: none;"></span>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-subtle);">
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: var(--brand-gold-light);">
+          <i data-lucide="chef-hat" style="width: 14px; height: 14px;"></i>
+          <span id="lblAdminLogado">Cozinha</span>
+        </div>
+        <button class="btn btn-logout btn-sm" onclick="realizarLogoutAdmin()" style="padding: 3px 8px; font-size: 11px;" title="Sair do painel">
+          <i data-lucide="log-out" style="width: 12px; height: 12px;"></i>
+          <span>Sair</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ========================================================================
+       CONTEÚDO PRINCIPAL (HEADER + CORPO OPERACIONAL)
+       ======================================================================== -->
+  <main class="app-main">
+    <!-- HEADER -->
+    <header class="app-header">
+      <div>
+        <h1 class="header-greeting-title" id="greetingText">Bom dia, Equipe!</h1>
+        <p class="header-greeting-sub">Aqui está o resumo operacional das entregas de hoje.</p>
+      </div>
+
+      <div class="header-actions">
+        <!-- Relógio Digital -->
+        <div class="live-clock-badge">
+          <div id="liveClock">--:--:--</div>
+          <div class="live-clock-date" id="liveDate">Hoje</div>
+        </div>
+
+        <!-- Perfil Cozinha -->
+        <div class="role-badge">
+          <i data-lucide="chef-hat" style="width: 15px; height: 15px; color: var(--accent-primary);"></i>
+          <span id="badgeAdminNome">Cozinha</span>
+        </div>
+
+        <!-- AÇÃO PRIMÁRIA SÓLIDA DE DESTAQUE -->
+        <button class="btn btn-gold btn-sm" onclick="abrirModalNovoPedido()" title="Lançar Novo Pedido Manualmente">
+          <i data-lucide="plus"></i>
+          <span>Novo Pedido</span>
+        </button>
+
+        <!-- AÇÕES SECUNDÁRIAS / OUTLINE -->
+        <div class="header-actions-group">
+          <button class="btn btn-secondary btn-sm" onclick="abrirModalTabelaTaxas()" title="Visualizar tabelas de taxas por grupo (SPEED e VELOZ)">
+            <i data-lucide="coins"></i>
+            <span>Taxas</span>
+          </button>
+
+          <button class="btn btn-secondary btn-sm" onclick="abrirModalAlterarSenha()" title="Alterar Senha de Acesso">
+            <i data-lucide="key"></i>
+            <span>Senha</span>
+          </button>
+
+          <button class="btn btn-secondary btn-sm" onclick="limparPendentesAntigos()" title="Ignorar e expirar pedidos pendentes de datas anteriores">
+            <i data-lucide="trash-2"></i>
+            <span>Limpar</span>
+          </button>
+
+          <button class="btn btn-secondary btn-sm" onclick="carregarTudo(true)" title="Atualizar dados manualmente agora">
+            <i data-lucide="refresh-cw"></i>
+            <span>Atualizar</span>
+          </button>
+        </div>
+
+        <!-- SEPARADOR E BOTÃO SAIR ISOLADO -->
+        <div class="header-divider"></div>
+
+        <button class="btn btn-logout btn-sm" onclick="realizarLogoutAdmin()" title="Sair do painel da cozinha">
+          <i data-lucide="log-out"></i>
+          <span>Sair</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- CORPO DA APLICAÇÃO -->
+    <div class="app-body">
+
+      <!-- ====================================================================
+           VISÃO 1: INÍCIO (DASHBOARD COM KPIS, LISTA E MAPA)
+           ==================================================================== -->
+      <section id="view-inicio" class="view-section active">
+        <!-- 4 KPI STATS CARDS -->
+        <div class="stats-container">
+          <!-- 1. Pedidos em preparo -->
+          <div class="stat-box stat-preparo">
+            <div class="stat-icon-wrap">
+              <i data-lucide="shopping-cart"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">Pedidos em preparo</span>
+              <div class="stat-value">
+                <span id="kpiPreparo">0</span>
+                <span class="stat-sub" id="kpiPreparoSub">de 0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Em rota -->
+          <div class="stat-box stat-rota">
+            <div class="stat-icon-wrap">
+              <i data-lucide="bike"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">Em rota</span>
+              <div class="stat-value">
+                <span id="kpiRota">0</span>
+                <span class="stat-sub" id="kpiRotaSub">de 0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Entregues hoje -->
+          <div class="stat-box stat-entregues">
+            <div class="stat-icon-wrap">
+              <i data-lucide="check-circle"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">Entregues hoje</span>
+              <div class="stat-value">
+                <span id="kpiEntregues">0</span>
+                <span class="stat-sub" id="kpiEntreguesSub">de 0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Faturamento hoje -->
+          <div class="stat-box stat-faturamento">
+            <div class="stat-icon-wrap">
+              <i data-lucide="wallet"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">Faturamento hoje</span>
+              <div class="stat-value" id="kpiFaturamento">R$ 0,00</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- GRID DIVIDIDO (PEDIDOS EM ANDAMENTO + MAPA INTERATIVO) -->
+        <div class="dashboard-split-grid">
+          
+          <!-- COLUNA ESQUERDA: LISTA DE PEDIDOS EM ANDAMENTO -->
+          <div class="panel-card">
+            <div class="panel-header">
+              <span class="panel-title">Pedidos em andamento</span>
+              <a href="javascript:void(0)" onclick="alternarVisao('pedidos')" style="font-size: 12px; color: var(--brand-gold); text-decoration: none; font-weight: 700;">Ver todos &gt;</a>
+            </div>
+
+            <!-- Filtros rápidos -->
+            <div class="filter-pills-bar">
+              <button class="filter-pill active" onclick="filtrarStatusLista('todos', this)">Todos</button>
+              <button class="filter-pill" onclick="filtrarStatusLista('disponivel', this)">No Balcão</button>
+              <button class="filter-pill" onclick="filtrarStatusLista('em_rota', this)">Em rota</button>
+              <button class="filter-pill" onclick="filtrarStatusLista('entregue', this)">Entregues</button>
+            </div>
+
+            <div class="panel-body-scroll" id="containerPedidosLista">
+              <!-- Renderizado via JavaScript -->
+              <div class="skeleton" style="height: 68px; margin-bottom: 10px;"></div>
+              <div class="skeleton" style="height: 68px; margin-bottom: 10px;"></div>
+              <div class="skeleton" style="height: 68px;"></div>
+            </div>
+          </div>
+
+          <!-- COLUNA DIREITA: ENTREGAS NO MAPA -->
+          <div class="panel-card">
+            <div class="panel-header">
+              <span class="panel-title">Entregas no mapa</span>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <select id="selectFiltroMapa" class="form-select" style="padding: 4px 10px; font-size: 12px; width: auto;" onchange="atualizarMapa()">
+                  <option value="todos">Todos os motoboys</option>
+                  <option value="em_rota">Apenas em rota</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="flex: 1; position: relative;">
+              <div id="mapDashboard" class="map-container map-dark-tiles"></div>
+
+              <!-- CARD FLUTUANTE DE ENTREGA EM DESTAQUE NO MAPA -->
+              <div class="map-floating-card" id="mapFloatingCard" style="display: none;">
+                <div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <strong style="font-size: 14px;" id="floatingCardNum">#8830</strong>
+                    <span class="status-badge badge-rota" id="floatingCardStatus">Em rota</span>
+                  </div>
+                  <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;" id="floatingCardAddr">R. Feliciano Sodré, 520 - Várzea</div>
+                  <div style="font-size: 11px; color: var(--brand-gold); font-weight: 700; margin-top: 2px; display: inline-flex; align-items: center; gap: 4px;" id="floatingCardEta"><i data-lucide="clock" style="width: 12px; height: 12px;"></i> ETA 12 min</div>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="abrirDetalhesDoCardFlutuante()">Detalhes &gt;</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           VISÃO 2: KANBAN OPERACIONAL DE PEDIDOS
+           ==================================================================== -->
+      <section id="view-pedidos" class="view-section">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+          <div>
+            <h2 class="text-title">Fluxo Operacional de Pedidos</h2>
+            <p class="text-subtitle">Acompanhe o ciclo de produção e saída das comandas em tempo real.</p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <button class="btn btn-gold btn-sm" onclick="abrirModalNovoPedido()" title="Lançar Novo Pedido Manualmente" style="font-weight: 800;">
+              <i data-lucide="plus"></i>
+              <span>Novo Pedido</span>
+            </button>
+            <div class="search-box" style="width: 280px;">
+              <span class="search-icon"><i data-lucide="search" style="width: 15px; height: 15px;"></i></span>
+              <input type="text" id="inputBuscaPedidos" class="form-input" placeholder="Buscar pedido, cliente ou endereço..." oninput="filtrarPedidosKanban()">
+            </div>
+          </div>
+        </div>
+
+        <div class="kanban-board">
+          <!-- Coluna 1: No Balcão (Aguardando Retirada) -->
+          <div class="kanban-col">
+            <div class="kanban-col-header" style="border-top: 3px solid #3b82f6;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="package" style="width: 16px; height: 16px; color: #60a5fa;"></i>
+                <span>No Balcão (Aguardando)</span>
+              </div>
+              <span class="status-badge badge-retirada" id="countKanbanAguardando">0</span>
+            </div>
+            <div class="kanban-col-body" id="colKanbanAguardando">
+              <!-- Renderizado via JS -->
+            </div>
+          </div>
+
+          <!-- Coluna 2: Em Rota de Entrega -->
+          <div class="kanban-col">
+            <div class="kanban-col-header" style="border-top: 3px solid var(--brand-gold);">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="bike" style="width: 16px; height: 16px; color: var(--accent-primary);"></i>
+                <span>Em Rota de Entrega</span>
+              </div>
+              <span class="status-badge badge-rota" id="countKanbanRota">0</span>
+            </div>
+            <div class="kanban-col-body" id="colKanbanRota">
+              <!-- Renderizado via JS -->
+            </div>
+          </div>
+
+          <!-- Coluna 3: Entregues Hoje -->
+          <div class="kanban-col">
+            <div class="kanban-col-header" style="border-top: 3px solid #10b981;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="check-circle" style="width: 16px; height: 16px; color: #34d399;"></i>
+                <span>Entregues Hoje</span>
+              </div>
+              <span class="status-badge badge-entregue" id="countKanbanEntregues">0</span>
+            </div>
+            <div class="kanban-col-body" id="colKanbanEntregues">
+              <!-- Renderizado via JS -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           VISÃO 3: MAPA FULLSCREEN & ROTAS
+           ==================================================================== -->
+      <section id="view-entregas" class="view-section">
+        <div class="map-container map-dark-tiles" id="mapFullscreen" style="flex: 1;"></div>
+      </section>
+
+      <!-- ====================================================================
+           VISÃO 4: GESTÃO DE MOTOBOYS (PROTEGIDO POR SENHA)
+           ==================================================================== -->
+      <section id="view-motoboys" class="view-section">
+        <!-- BLOQUEIO POR SENHA -->
+        <div id="motoboysLockScreen" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 400px; text-align: center; padding: 20px; width: 100%;">
+          <div class="panel-card" style="max-width: 440px; width: 100%; padding: 34px 28px; border: 1px solid var(--border-gold); box-shadow: 0 16px 36px rgba(0,0,0,0.6);">
+            <div style="margin-bottom: 12px; display: flex; justify-content: center; color: var(--accent-primary);">
+              <i data-lucide="lock" style="width: 42px; height: 42px;"></i>
+            </div>
+            <h3 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin-bottom: 6px;">Gestão de Entregadores</h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Esta área permite gerenciar grupos (VELOZ / SPEED) e dados cadastrais. Digite a senha administrativa:</p>
+            <form onsubmit="autenticarAbaMotoboys(event)" style="display: flex; flex-direction: column; gap: 12px;">
+              <input type="password" id="inpSenhaAbaMotoboys" class="form-input" placeholder="Senha do Administrador" style="text-align: center; font-size: 15px; letter-spacing: 2px;" required autofocus>
+              <div id="msgErroSenhaMotoboy" style="color: #ef4444; font-size: 12px; display: none; font-weight: 600;"></div>
+              <button type="submit" id="btnDesbloquearMotoboys" class="btn btn-gold" style="width: 100%; font-weight: 800;">
+                <i data-lucide="unlock"></i>
+                <span>DESBLOQUEAR ACESSO</span>
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- CONTEÚDO DA GESTÃO DE MOTOBOYS (EXIBIDO APÓS DESBLOQUEIO) -->
+        <div id="motoboysContentScreen" style="display: none; flex-direction: column; gap: 16px; width: 100%;">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <h2 class="text-title">Equipe de Entregadores</h2>
+              <p class="text-subtitle">Gestão cadastral, separação por grupos (<strong style="color: #60a5fa;">VELOZ</strong> / <strong style="color: #fbbf24;">SPEED</strong>) e conectividade GPS.</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <!-- Filtro de Grupo -->
+              <div style="display: flex; gap: 4px;">
+                <button class="filter-pill active" id="fmgTodos" onclick="filtrarGrupoMotoboys('todos', this)">Todos</button>
+                <button class="filter-pill" id="fmgVeloz" onclick="filtrarGrupoMotoboys('VELOZ', this)">VELOZ</button>
+                <button class="filter-pill" id="fmgSpeed" onclick="filtrarGrupoMotoboys('SPEED', this)">SPEED</button>
+              </div>
+              <button class="btn btn-gold btn-sm" onclick="abrirModalCadastrarMotoboy()">
+                <i data-lucide="plus"></i>
+                <span>Novo Entregador</span>
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="abrirModalTabelaTaxas()" title="Visualizar e editar taxas de entrega por bairro">
+                <i data-lucide="coins"></i>
+                <span>Tabela de Taxas</span>
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="bloquearAbaMotoboys()" title="Bloquear aba novamente">
+                <i data-lucide="lock"></i>
+                <span>Bloquear</span>
+              </button>
+            </div>
+          </div>
+          <div id="gridMotoboys" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px;">
+            <!-- Renderizado via JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           VISÃO 5: HISTÓRICO DE ENTREGAS
+           ==================================================================== -->
+      <section id="view-historico" class="view-section">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+          <div>
+            <h2 class="text-title">Histórico de Entregas</h2>
+            <p class="text-subtitle">Registro completo com tempos de percurso e auditoria GPS.</p>
+          </div>
+          <div class="search-box" style="width: 320px;">
+            <span class="search-icon"><i data-lucide="search" style="width: 15px; height: 15px;"></i></span>
+            <input type="text" id="inputBuscaHistorico" class="form-input" placeholder="Buscar no histórico..." oninput="filtrarHistorico()">
+          </div>
+        </div>
+        <div class="panel-card" style="flex: 1; overflow-y: auto;">
+          <div id="containerHistorico" style="padding: 16px;">
+            <!-- Renderizado via JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           VISÃO 6: FECHAMENTO DE TAXAS & REPASSE
+           ==================================================================== -->
+      <section id="view-fechamento" class="view-section">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <h2 class="text-title" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="receipt" style="color: var(--accent-primary);"></i>
+              <span>Fechamento de Taxas & Repasse</span>
+            </h2>
+            <p class="text-subtitle">Controle de entregas e repasses calculados pela <strong style="color: #34d399;">Tabela Oficial Ao Ponto por Bairro</strong> (58 bairros cadastrados).</p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <!-- Filtro de Período -->
+            <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+              <button class="filter-pill active" id="fpHoje" onclick="selecionarPeriodoFechamento('hoje', this)">Hoje</button>
+              <button class="filter-pill" id="fpOntem" onclick="selecionarPeriodoFechamento('ontem', this)">Ontem</button>
+              <button class="filter-pill" id="fpSemana" onclick="selecionarPeriodoFechamento('semana', this)">Esta Semana</button>
+              <button class="filter-pill" id="fpMes" onclick="selecionarPeriodoFechamento('mes', this)">Este Mês</button>
+              <button class="filter-pill" id="fpPersonalizado" onclick="selecionarPeriodoFechamento('personalizado', this)">
+                <i data-lucide="calendar" style="width: 12px; height: 12px;"></i> Personalizado
+              </button>
+              <button class="filter-pill" id="fpTodos" onclick="selecionarPeriodoFechamento('todos', this)">Todos</button>
+            </div>
+            <!-- Filtro de Grupo de Entrega -->
+            <div style="display: flex; gap: 4px;">
+              <button class="filter-pill active grupo-fech-pill" id="fpgTodos" onclick="selecionarGrupoFechamento('todos', this)">Todos Grupos</button>
+              <button class="filter-pill grupo-fech-pill" id="fpgVeloz" onclick="selecionarGrupoFechamento('VELOZ', this)">VELOZ</button>
+              <button class="filter-pill grupo-fech-pill" id="fpgSpeed" onclick="selecionarGrupoFechamento('SPEED', this)">SPEED</button>
+            </div>
+            <!-- Filtro por Motoboy -->
+            <select id="selectFiltroMotoboy" class="form-select" style="padding: 4px 10px; font-size: 12px; width: auto;" onchange="carregarFechamento()">
+              <option value="todos">Todos os Motoboys</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="abrirModalTabelaTaxas()" title="Consultar taxas oficiais por bairro">
+              <i data-lucide="coins"></i>
+              <span>Ver Taxas</span>
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="carregarFechamento()">
+              <i data-lucide="refresh-cw"></i>
+              <span>Atualizar</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Barra de Seleção de Período Personalizado -->
+        <div id="boxPeriodoPersonalizado" style="display: none; align-items: center; justify-content: space-between; gap: 12px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: var(--radius-md); padding: 10px 16px; margin-bottom: 16px; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-size: 13px; font-weight: 800; color: #fbbf24; display: flex; align-items: center; gap: 6px;">
+              <i data-lucide="calendar" style="width: 14px; height: 14px;"></i> Período Personalizado:
+            </span>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <label for="inpFechDataInicio" style="font-size: 11px; font-weight: 700; color: var(--text-muted);">De:</label>
+              <input type="date" id="inpFechDataInicio" class="form-input" style="padding: 5px 8px; font-size: 12px; width: 140px;" onchange="carregarFechamento()">
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <label for="inpFechDataFim" style="font-size: 11px; font-weight: 700; color: var(--text-muted);">Até:</label>
+              <input type="date" id="inpFechDataFim" class="form-input" style="padding: 5px 8px; font-size: 12px; width: 140px;" onchange="carregarFechamento()">
+            </div>
+            <button class="btn btn-gold btn-sm" onclick="carregarFechamento()" style="padding: 5px 12px; font-size: 11px; font-weight: 800;">
+              <i data-lucide="search"></i>
+              <span>Consultar Período</span>
+            </button>
+          </div>
+          <span id="fechamentoPeriodoLabel" style="font-size: 12px; font-weight: 700; color: #34d399;"></span>
+        </div>
+
+        <!-- KPI Cards do Fechamento -->
+        <div class="stats-container" style="margin-bottom: 16px;">
+          <div class="stat-box stat-preparo">
+            <div class="stat-icon-wrap">
+              <i data-lucide="package"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">Entregas no Período</span>
+              <div class="stat-value"><span id="fechKpiEntregas">0</span></div>
+            </div>
+          </div>
+          <div class="stat-box stat-entregues">
+            <div class="stat-icon-wrap">
+              <i data-lucide="wallet"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">Total a Pagar (R$)</span>
+              <div class="stat-value"><span id="fechKpiTotal" style="color: #34d399;">R$ 0,00</span></div>
+            </div>
+          </div>
+          <div class="stat-box stat-rota">
+            <div class="stat-icon-wrap">
+              <i data-lucide="bike"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">Entregadores Ativos</span>
+              <div class="stat-value"><span id="fechKpiAtivos">0</span></div>
+            </div>
+          </div>
+          <div class="stat-box stat-faturamento">
+            <div class="stat-icon-wrap">
+              <i data-lucide="trending-up"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">Taxa Média por Entrega</span>
+              <div class="stat-value"><span id="fechKpiMedia">R$ 0,00</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resumo por Motoboy -->
+        <div class="panel-card" style="margin-bottom: 16px;">
+          <div class="panel-header">
+            <span class="panel-title">Resumo por Entregador</span>
+          </div>
+          <div id="containerFechamentoMotoboys" style="padding: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px;">
+            <div class="empty-state"><div class="empty-state-title">Selecione um período</div></div>
+          </div>
+        </div>
+
+        <!-- Tabela Analítica de Entregas -->
+        <div class="panel-card" style="margin-bottom: 24px;">
+          <div class="panel-header">
+            <span class="panel-title">Detalhamento de Entregas</span>
+            <button class="btn btn-secondary btn-sm" onclick="imprimirFechamento()">
+              <i data-lucide="printer"></i>
+              <span>Imprimir</span>
+            </button>
+          </div>
+          <div id="containerFechamentoEntregas" style="padding: 16px; overflow-x: auto;">
+            <div class="empty-state"><div class="empty-state-title">Aguardando seleção de período</div></div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ========================================================================
+       DRAWER / MODAL DE DETALHES DO PEDIDO
+       ======================================================================== -->
+  <div class="drawer-backdrop" id="drawerPedido" onclick="fecharDetalhesPedido(event)">
+    <div class="drawer-panel" onclick="event.stopPropagation()">
+      <div class="drawer-header">
+        <div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <h3 style="font-size: 18px; font-weight: 800;" id="dtlNumeroPedido">#--</h3>
+            <span class="origem-badge origem-manual" id="dtlOrigem">ORIGEM</span>
+            <span class="status-badge badge-preparo" id="dtlStatus">--</span>
+          </div>
+          <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;" id="dtlHorario">Criado às --:--</div>
+        </div>
+        <button class="btn btn-secondary btn-icon" onclick="fecharDetalhesPedido()">✕</button>
+      </div>
+
+      <div class="drawer-body">
+        <!-- DADOS DO CLIENTE & CONTATO -->
+        <div class="card card-elevated">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Cliente & Destino</span>
+            <button class="btn btn-gold btn-sm" id="btnWhatsappCliente" onclick="abrirWhatsappCliente()">
+              <i data-lucide="message-circle"></i>
+              <span>WhatsApp</span>
+            </button>
+          </div>
+          <div style="font-size: 16px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px;" id="dtlClienteNome">--</div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap;">
+            <div style="font-size: 13px; color: var(--brand-gold-light); display: flex; align-items: center; gap: 4px;" id="dtlClienteTelefone">--</div>
+            <div style="font-size: 12px; font-weight: 700; color: #fbbf24; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); padding: 2px 8px; border-radius: var(--radius-sm); font-family: monospace; display: none; align-items: center; gap: 4px;" id="dtlClienteLocalizador">--</div>
+          </div>
+          <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.4; display: flex; align-items: flex-start; gap: 6px;" id="dtlClienteEndereco">--</div>
+        </div>
+
+        <!-- ITENS DA COMANDA -->
+        <div class="card">
+          <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 12px;">Itens da Comanda</span>
+          <div id="dtlItensLista" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Itens -->
+          </div>
+
+          <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 13px; color: var(--text-muted);">Taxa de entrega: <strong id="dtlTaxaValor" style="color: var(--text-primary);">R$ 0,00</strong></span>
+            <div style="text-align: right;">
+              <span style="font-size: 11px; color: var(--text-muted); display: block;">Total do Pedido</span>
+              <strong style="font-size: 18px; color: var(--brand-gold-light);" id="dtlTotalValor">R$ 0,00</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- MOTOBOY RESPONSÁVEL -->
+        <div class="card">
+          <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 10px;">Entregador Responsável</span>
+          <div id="dtlMotoboyInfo" style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--bg-surface-elevated); border: 1px solid var(--border-medium); display: flex; align-items: center; justify-content: center; color: var(--accent-primary);">
+                <i data-lucide="bike" style="width: 20px; height: 20px;"></i>
+              </div>
+              <div>
+                <div style="font-weight: 700; font-size: 14px;" id="dtlMotoboyNome">Aguardando atribuição</div>
+                <div style="font-size: 12px; color: var(--text-muted);" id="dtlMotoboyTelefone">--</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="drawer-footer" id="dtlFooterAcoes">
+        <!-- Ações dinâmicas de acordo com o status atual -->
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE ALTERAR SENHA DO ADMIN -->
+  <div class="modal-confirm-overlay" id="modalAlterarSenha" style="display: none; align-items: center; justify-content: center; z-index: 99990;">
+    <div class="modal-confirm-box" style="max-width: 400px; text-align: left;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+        <h3 style="font-size: 17px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="key" style="color: var(--accent-primary); width: 18px; height: 18px;"></i>
+          <span>Alterar Senha da Cozinha</span>
+        </h3>
+        <button class="btn btn-secondary btn-icon" onclick="fecharModalAlterarSenha()">✕</button>
+      </div>
+      <form id="formAlterarSenhaAdmin" onsubmit="salvarNovaSenhaAdmin(event)">
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label" for="inpSenhaAtualAdmin" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Senha Atual</label>
+          <input type="password" id="inpSenhaAtualAdmin" class="form-input" placeholder="Digite sua senha atual" required style="width: 100%;">
+        </div>
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label class="form-label" for="inpNovaSenhaAdmin" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Nova Senha</label>
+          <input type="password" id="inpNovaSenhaAdmin" class="form-input" placeholder="Mínimo 4 dígitos" minlength="4" required style="width: 100%;">
+        </div>
+        <div id="msgErroAlterarSenha" style="display: none; padding: 8px; border-radius: var(--radius-sm); background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #ef4444; font-size: 12px; margin-bottom: 12px; text-align: center;"></div>
+        <div style="display: flex; gap: 10px;">
+          <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="fecharModalAlterarSenha()">Cancelar</button>
+          <button type="submit" class="btn btn-gold" id="btnSalvarSenhaAdmin" style="flex: 1;">SALVAR SENHA</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL DE LANÇAR NOVO PEDIDO MANUAL -->
+  <div class="modal-confirm-overlay" id="modalNovoPedido" style="display: none; align-items: center; justify-content: center; z-index: 99990;">
+    <div class="modal-confirm-box" style="max-width: 540px; text-align: left; max-height: 90vh; overflow-y: auto;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
+        <h3 style="font-size: 17px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="plus-circle" style="color: var(--accent-primary); width: 18px; height: 18px;"></i>
+          <span>Lançar Novo Pedido</span>
+        </h3>
+        <button class="btn btn-secondary btn-icon" onclick="fecharModalNovoPedido()">✕</button>
+      </div>
+
+      <form id="formNovoPedidoManual" onsubmit="salvarNovoPedidoManual(event)">
+        <!-- Linha 1: Origem, Número e Grupo -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+          <div>
+            <label class="form-label" for="inpNovoOrigem" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Origem</label>
+            <select id="inpNovoOrigem" class="form-input" style="width: 100%;">
+              <option value="WHATSAPP" selected>WhatsApp</option>
+              <option value="IFOOD">iFood</option>
+              <option value="99FOOD">99Food</option>
+              <option value="BALCAO">Balcão / Telefone</option>
+              <option value="OUTRO">Outro</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="inpNovoNumero" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Nº Pedido *</label>
+            <input type="text" id="inpNovoNumero" class="form-input" placeholder="Ex: 506031" required style="width: 100%;">
+          </div>
+          <div>
+            <label class="form-label" for="inpNovoGrupo" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Grupo Destino</label>
+            <select id="inpNovoGrupo" class="form-input" style="width: 100%; font-weight: 700;">
+              <option value="">Aguardar</option>
+              <option value="VELOZ">VELOZ</option>
+              <option value="SPEED">SPEED</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Linha 2: Cliente e Telefone -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+          <div>
+            <label class="form-label" for="inpNovoCliente" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Nome do Cliente *</label>
+            <input type="text" id="inpNovoCliente" class="form-input" placeholder="Ex: Mariana Silva" required style="width: 100%;">
+          </div>
+          <div>
+            <label class="form-label" for="inpNovoTelefone" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Telefone / WhatsApp</label>
+            <input type="text" id="inpNovoTelefone" class="form-input" placeholder="(73) 99999-9999" style="width: 100%;">
+          </div>
+        </div>
+
+        <!-- Linha 3: Endereço -->
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label" for="inpNovoEndereco" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Endereço de Entrega (Rua, Nº, Compl.) *</label>
+          <input type="text" id="inpNovoEndereco" class="form-input" placeholder="Ex: Av. ACM, 123, Apto 201" required style="width: 100%;">
+        </div>
+
+        <!-- Linha 4: Bairro e Taxa de Entrega -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+          <div>
+            <label class="form-label" for="inpNovoBairro" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Bairro *</label>
+            <input type="text" id="inpNovoBairro" class="form-input" placeholder="Ex: Centro, Barra" required style="width: 100%;">
+          </div>
+          <div>
+            <label class="form-label" for="inpNovoTaxa" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Taxa Entrega (R$)</label>
+            <input type="number" id="inpNovoTaxa" class="form-input" placeholder="6.00" step="0.50" min="0" value="6.00" style="width: 100%;">
+          </div>
+        </div>
+
+        <!-- Linha 5: Código Localizador / PIN (Opcional) -->
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label" for="inpNovoLocalizador" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Código de Confirmação / PIN (se houver no app)</label>
+          <input type="text" id="inpNovoLocalizador" class="form-input" placeholder="Ex: 4892 (opcional)" style="width: 100%;">
+        </div>
+
+        <!-- Linha 6: Itens e Observações -->
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label" for="inpNovoItens" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Itens do Pedido (opcional)</label>
+          <textarea id="inpNovoItens" class="form-input" rows="2" placeholder="1x Picanha na Brasa&#10;1x Refrigerante Lata" style="width: 100%; resize: vertical;"></textarea>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label class="form-label" for="inpNovoObservacoes" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Observações da Entrega (opcional)</label>
+          <input type="text" id="inpNovoObservacoes" class="form-input" placeholder="Ex: Deixar na portaria, troco para 50" style="width: 100%;">
+        </div>
+
+        <div id="msgErroNovoPedido" style="display: none; padding: 8px; border-radius: var(--radius-sm); background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #ef4444; font-size: 12px; margin-bottom: 12px; text-align: center;"></div>
+
+        <div style="display: flex; gap: 10px;">
+          <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="fecharModalNovoPedido()">Cancelar</button>
+          <button type="submit" class="btn btn-gold" id="btnSalvarNovoPedido" style="flex: 1; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+            <i data-lucide="plus"></i>
+            <span>Lançar Pedido</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL DE EDIÇÃO DE MOTOBOY -->
+  <div class="modal-confirm-overlay" id="modalEditarMotoboy" style="display: none; align-items: center; justify-content: center; z-index: 99990;">
+    <div class="modal-confirm-box" style="max-width: 440px; text-align: left;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
+        <h3 style="font-size: 17px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="user-cog" style="color: var(--accent-primary); width: 18px; height: 18px;"></i>
+          <span>Editar Entregador</span>
+        </h3>
+        <button class="btn btn-secondary btn-icon" onclick="fecharModalEditarMotoboy()">✕</button>
+      </div>
+
+      <form id="formEditarMotoboy" onsubmit="salvarEdicaoMotoboy(event)">
+        <input type="hidden" id="inpEditMotoboyId">
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label" for="inpEditMotoboyNome" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Nome Completo *</label>
+          <input type="text" id="inpEditMotoboyNome" class="form-input" required style="width: 100%;">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label" for="inpEditMotoboyTel" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Telefone / WhatsApp *</label>
+          <input type="text" id="inpEditMotoboyTel" class="form-input" required style="width: 100%;">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label" for="inpEditMotoboyGrupo" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Grupo Responsável *</label>
+          <select id="inpEditMotoboyGrupo" class="form-input" style="width: 100%; font-weight: 800;">
+            <option value="VELOZ">VELOZ (Tabela Padrão)</option>
+            <option value="SPEED">SPEED (Tabela Speed)</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label" for="inpEditMotoboySenha" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Redefinir Senha do App (em branco para manter)</label>
+          <input type="password" id="inpEditMotoboySenha" class="form-input" placeholder="Nova senha (opcional)" style="width: 100%;">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label class="form-label" for="inpEditMotoboyDeviceId" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">ID Rastreador Traccar</label>
+          <input type="text" id="inpEditMotoboyDeviceId" class="form-input" style="width: 100%;">
+        </div>
+
+        <div id="msgErroEditMotoboy" style="display: none; padding: 8px; border-radius: var(--radius-sm); background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #ef4444; font-size: 12px; margin-bottom: 12px; text-align: center;"></div>
+
+        <div style="display: flex; gap: 10px;">
+          <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="fecharModalEditarMotoboy()">Cancelar</button>
+          <button type="submit" class="btn btn-gold" id="btnSalvarEditMotoboy" style="flex: 1; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+            <i data-lucide="save"></i>
+            <span>Salvar Alterações</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL DE CADASTRO DE NOVO MOTOBOY -->
+  <div class="modal-confirm-overlay" id="modalCadastrarMotoboy" style="display: none; align-items: center; justify-content: center; z-index: 99990;">
+    <div class="modal-confirm-box" style="max-width: 440px; text-align: left;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
+        <h3 style="font-size: 17px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="user-plus" style="color: var(--accent-primary); width: 18px; height: 18px;"></i>
+          <span>Cadastrar Novo Entregador</span>
+        </h3>
+        <button class="btn btn-secondary btn-icon" onclick="fecharModalCadastrarMotoboy()">✕</button>
+      </div>
+
+      <form id="formCadastrarMotoboy" onsubmit="salvarCadastroMotoboy(event)">
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label" for="inpCadMotoboyNome" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Nome Completo *</label>
+          <input type="text" id="inpCadMotoboyNome" class="form-input" placeholder="Ex: Gabriel Santos" required style="width: 100%;">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label" for="inpCadMotoboyTel" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Telefone / WhatsApp (Login) *</label>
+          <input type="text" id="inpCadMotoboyTel" class="form-input" placeholder="Ex: 21999998888" required style="width: 100%;">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label" for="inpCadMotoboyGrupo" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Grupo Responsável *</label>
+          <select id="inpCadMotoboyGrupo" class="form-input" style="width: 100%; font-weight: 800;">
+            <option value="VELOZ" selected>VELOZ (Tabela Padrão)</option>
+            <option value="SPEED">SPEED (Tabela Speed)</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label" for="inpCadMotoboySenha" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Senha do App *</label>
+          <input type="password" id="inpCadMotoboySenha" class="form-input" placeholder="Senha de login do entregador" required style="width: 100%;">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label class="form-label" for="inpCadMotoboyDeviceId" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">ID Rastreador Traccar (Opcional)</label>
+          <input type="text" id="inpCadMotoboyDeviceId" class="form-input" placeholder="Deixe em branco para usar telefone" style="width: 100%;">
+        </div>
+
+        <div id="msgErroCadMotoboy" style="display: none; padding: 8px; border-radius: var(--radius-sm); background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #ef4444; font-size: 12px; margin-bottom: 12px; text-align: center;"></div>
+
+        <div style="display: flex; gap: 10px;">
+          <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="fecharModalCadastrarMotoboy()">Cancelar</button>
+          <button type="submit" class="btn btn-gold" id="btnSalvarCadMotoboy" style="flex: 1; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+            <i data-lucide="user-plus"></i>
+            <span>Cadastrar Entregador</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL DE TABELA DE TAXAS (VELOZ & SPEED) -->
+  <div class="modal-confirm-overlay" id="modalTabelaTaxas" style="display: none; align-items: center; justify-content: center; z-index: 99990;">
+    <div class="modal-confirm-box" style="max-width: 650px; width: 95%; max-height: 85vh; display: flex; flex-direction: column; text-align: left; padding: 20px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
+        <h3 style="font-size: 18px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="coins" style="color: var(--accent-primary); width: 20px; height: 20px;"></i>
+          <span>Tabelas de Taxas de Entrega</span>
+        </h3>
+        <button class="btn btn-secondary btn-icon" onclick="fecharModalTabelaTaxas()">✕</button>
+      </div>
+
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap;">
+        <div style="display: flex; gap: 6px;">
+          <button class="filter-pill active" id="tabTaxaSpeed" onclick="alternarAbaTaxas('SPEED')">Tabela SPEED</button>
+          <button class="filter-pill" id="tabTaxaVeloz" onclick="alternarAbaTaxas('VELOZ')">Tabela VELOZ</button>
+        </div>
+        <div class="search-box" style="width: 220px;">
+          <span class="search-icon"><i data-lucide="search" style="width: 14px; height: 14px;"></i></span>
+          <input type="text" id="inputBuscaTaxa" class="form-input" placeholder="Buscar bairro..." oninput="renderizarTabelaTaxas()" style="padding-top: 4px; padding-bottom: 4px;">
+        </div>
+      </div>
+
+      <div style="flex: 1; overflow-y: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-bottom: 12px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+          <thead style="background: rgba(255,255,255,0.03); position: sticky; top: 0; z-index: 2; border-bottom: 1px solid var(--border-subtle);">
+            <tr>
+              <th style="padding: 10px 12px; text-align: left; font-weight: 800; color: var(--text-muted);">Bairro / Região</th>
+              <th style="padding: 10px 12px; text-align: right; font-weight: 800; color: var(--text-muted); width: 140px;">Taxa Oficial (R$)</th>
+              <th style="padding: 10px 12px; text-align: right; font-weight: 800; color: var(--text-muted); width: 80px;">Ação</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyTaxas">
+            <!-- Renderizado via JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid var(--border-subtle);">
+        <span id="lblCountTaxas" style="font-size: 11px; color: var(--text-muted);">Taxas calculadas automaticamente para cada grupo.</span>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="fecharModalTabelaTaxas()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE ATRIBUIÇÃO MANUAL DE ENTREGADOR -->
+  <div class="modal-confirm-overlay" id="modalAtribuirEntregador" style="display: none; align-items: center; justify-content: center; z-index: 99995;">
+    <div class="modal-confirm-box" style="max-width: 480px; width: 95%; text-align: left; padding: 22px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
+        <h3 style="font-size: 17px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="bike" style="color: var(--accent-primary); width: 18px; height: 18px;"></i>
+          <span>Atribuir Entrega a um Motoboy</span>
+        </h3>
+        <button class="btn btn-secondary btn-icon" onclick="fecharModalAtribuirEntregador()">✕</button>
+      </div>
+
+      <div id="atribuirPedidoInfoCard" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+        <!-- Preenchido via JS: Pedido, Cliente, Endereço, Grupo -->
+      </div>
+
+      <form id="formAtribuirEntregador" onsubmit="confirmarAtribuicaoEntregador(event)">
+        <input type="hidden" id="inpAtribuirPedidoId">
+
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label class="form-label" for="selectAtribuirMotoboy" style="font-size: 12px; font-weight: 800; color: var(--text-primary); display: block; margin-bottom: 6px;">
+            Selecione o Entregador Disponível *
+          </label>
+          <select id="selectAtribuirMotoboy" class="form-select" required style="width: 100%; padding: 10px; font-size: 13px; font-weight: 700; background: var(--bg-surface-elevated); color: var(--text-primary); border: 1px solid var(--border-subtle); border-radius: 6px;">
+            <!-- Opções geradas via JS -->
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 18px;">
+          <label class="form-label" for="selectAtribuirStatus" style="font-size: 12px; font-weight: 800; color: var(--text-muted); display: block; margin-bottom: 6px;">
+            Status Inicial
+          </label>
+          <select id="selectAtribuirStatus" class="form-select" style="width: 100%; padding: 8px; font-size: 13px; background: var(--bg-surface-elevated); color: var(--text-primary); border: 1px solid var(--border-subtle); border-radius: 6px;">
+            <option value="em_rota" selected>Em Rota (saiu para entrega)</option>
+            <option value="aguardando_retirada">Pronto no Balcão (aguardando motoboy retirar)</option>
+          </select>
+        </div>
+
+        <div id="msgErroAtribuir" style="display: none; padding: 8px; border-radius: var(--radius-sm); background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #ef4444; font-size: 12px; margin-bottom: 14px; text-align: center;"></div>
+
+        <div style="display: flex; gap: 10px;">
+          <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="fecharModalAtribuirEntregador()">Cancelar</button>
+          <button type="submit" class="btn btn-gold" id="btnConfirmarAtribuicao" style="flex: 1.3; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+            <i data-lucide="check"></i>
+            <span>Confirmar</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- LÓGICA FRONT-END OPERACIONAL -->
+  <script>
+    // Estado Global da Aplicação
+    const state = {
+      admin: null,
+      visaoAtual: 'inicio',
+      filtroLista: 'todos',
+      pedidos: [],
+      motoboys: [],
+      stats: {},
+      selectedPedidoId: null,
+      pedidoDetalheCache: null,
+      mapDashboard: null,
+      mapFullscreen: null,
+      markersDashboard: {},
+      markersFullscreen: {},
+      pollingTimer: null,
+      restauranteCoords: [-22.4123, -42.9664] // Teresópolis - RJ (Ao Ponto Carnes)
+    };
+
+    // Helper SVG Icons Centralizado
+    const SVG_ICONS = {
+      bike: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg>',
+      mapPin: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
+      phone: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+      clock: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+      check: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+      alert: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+      edit: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',
+      message: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>',
+      map: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></svg>',
+      utensils: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2v6a3 3 0 0 1-3 3 3 3 0 0 1-3-3V2"/><path d="M15 2v14a4 4 0 0 1-4 4H9"/><path d="M6 2v20"/><path d="M6 6h4"/></svg>'
+    };
+
+    // Inicialização protegida por Autenticação
+    document.addEventListener('DOMContentLoaded', () => {
+      verificarAutenticacaoAdmin();
+      if (window.lucide) lucide.createIcons();
+    });
+
+    function verificarAutenticacaoAdmin() {
+      const sessaoStr = localStorage.getItem('adminSession');
+      const overlay = document.getElementById('adminAuthOverlay');
+      if (sessaoStr) {
+        try {
+          state.admin = JSON.parse(sessaoStr);
+          if (!state.admin || !state.admin.usuario) throw new Error();
+
+          // Atualizar identificação do admin logado
+          const nomeCurto = state.admin.nome || state.admin.usuario;
+          const badgeNome = document.getElementById('badgeAdminNome');
+          const lblLogado = document.getElementById('lblAdminLogado');
+          if (badgeNome) badgeNome.textContent = nomeCurto;
+          if (lblLogado) lblLogado.textContent = nomeCurto;
+
+          // Ocultar tela de login com transição suave
+          if (overlay) {
+            overlay.style.opacity = '0';
+            overlay.style.visibility = 'hidden';
+            setTimeout(() => { overlay.style.display = 'none'; }, 300);
+          }
+
+          iniciarSistemaAdmin();
+          return;
+        } catch (e) {
+          localStorage.removeItem('adminSession');
+        }
+      }
+
+      // Se não autenticado, exibir tela de login
+      if (overlay) {
+        overlay.style.display = 'flex';
+        overlay.style.opacity = '1';
+        overlay.style.visibility = 'visible';
+        setTimeout(() => {
+          const inp = document.getElementById('inpAdminUsuario');
+          if (inp) inp.focus();
+        }, 150);
+      }
+    }
+
+    function iniciarSistemaAdmin() {
+      iniciarRelogio();
+      iniciarMapaDashboard();
+      carregarTudo();
+
+      // Polling inteligente estrito a cada 5 segundos
+      if (state.pollingTimer) clearInterval(state.pollingTimer);
+      state.pollingTimer = setInterval(() => {
+        carregarTudo(false);
+      }, 5000);
+    }
+
+    // Relógio dinâmico e saudação
+    function iniciarRelogio() {
+      function atualizar() {
+        const agora = new Date();
+        const horaStr = agora.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+        const dataStr = agora.toLocaleDateString('pt-BR', { 
+          timeZone: 'America/Sao_Paulo',
+          weekday: 'short', 
+          day: 'numeric', 
+          month: 'short' 
+        });
+
+        const clockEl = document.getElementById('liveClock');
+        const dateEl = document.getElementById('liveDate');
+        if (clockEl) clockEl.textContent = horaStr;
+        if (dateEl) dateEl.textContent = dataStr.charAt(0).toUpperCase() + dataStr.slice(1);
+
+        // Saudação dinâmica
+        const h = agora.getHours();
+        const greetingEl = document.getElementById('greetingText');
+        if (greetingEl) {
+          if (h >= 5 && h < 12) greetingEl.textContent = 'Bom dia, Equipe!';
+          else if (h >= 12 && h < 18) greetingEl.textContent = 'Boa tarde, Equipe!';
+          else greetingEl.textContent = 'Boa noite, Equipe!';
+        }
+      }
+      atualizar();
+      setInterval(atualizar, 1000);
+    }
+
+    // ── Helper para escape de HTML ──────────────────────────────────────────
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // ── Normalização de texto para busca sem acento ─────────────────────────
+    function normalizarTexto(str) {
+      return String(str || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+        .replace(/^#+/, '')  // remove # do início
+        .toLowerCase()
+        .trim();
+    }
+
+    function formatarTelefone(tel) {
+      if (!tel) return '';
+      const limpo = String(tel).replace(/\D/g, '');
+      if (limpo.startsWith('0800')) {
+        if (limpo.length >= 11) {
+          return `${limpo.slice(0, 4)} ${limpo.slice(4, 7)} ${limpo.slice(7)}`;
+        }
+        return limpo;
+      }
+      if (limpo.startsWith('0') && limpo.length === 11) {
+        return `(${limpo.slice(0, 3)}) ${limpo.slice(3, 7)}-${limpo.slice(7)}`;
+      }
+      if (limpo.length === 11) {
+        return `(${limpo.slice(0, 2)}) ${limpo.slice(2, 7)}-${limpo.slice(7)}`;
+      }
+      if (limpo.length === 10) {
+        return `(${limpo.slice(0, 2)}) ${limpo.slice(2, 6)}-${limpo.slice(6)}`;
+      }
+      return tel;
+    }
+
+    function pedidoCorrespondeBusca(p, termo) {
+      if (!termo) return true;
+      const t = normalizarTexto(termo);
+      return (
+        normalizarTexto(p.numero_pedido).includes(t) ||
+        normalizarTexto(p.cliente).includes(t) ||
+        normalizarTexto(p.endereco).includes(t) ||
+        normalizarTexto(p.bairro).includes(t) ||
+        normalizarTexto(p.localizador).includes(t) ||
+        normalizarTexto(p.telefone_cliente).includes(t) ||
+        normalizarTexto(p.texto_bruto).includes(t) ||
+        normalizarTexto(p.origem).includes(t) ||
+        (p.motoboy && normalizarTexto(p.motoboy.nome).includes(t))
+      );
+    }
+
+    // Alternar visões da sidebar (Layout estável e sem glitch)
+    function alternarVisao(visao) {
+      state.visaoAtual = visao;
+
+      // Atualizar classes da sidebar
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      const activeNav = document.getElementById('nav-' + visao);
+      if (activeNav) activeNav.classList.add('active');
+
+      // Alternar seções ativas de forma limpa (sem forçar flex-direction: row)
+      ['inicio', 'pedidos', 'entregas', 'motoboys', 'historico', 'fechamento'].forEach(v => {
+        const sec = document.getElementById('view-' + v);
+        if (sec) {
+          sec.style.display = ''; // Limpa estilo inline para prevalecer .view-section
+          if (v === visao) {
+            sec.classList.add('active');
+          } else {
+            sec.classList.remove('active');
+          }
+        }
+      });
+
+      // Tratar redimensionamento dos mapas Leaflet ao ficarem visíveis
+      if (visao === 'inicio' && state.mapDashboard) {
+        setTimeout(() => {
+          if (state.mapDashboard) state.mapDashboard.invalidateSize(true);
+        }, 150);
+      } else if (visao === 'entregas') {
+        if (!state.mapFullscreen) {
+          iniciarMapaFullscreen();
+        }
+        setTimeout(() => {
+          if (state.mapFullscreen) state.mapFullscreen.invalidateSize(true);
+        }, 150);
+      } else if (visao === 'motoboys') {
+        verificarAbaMotoboysDesbloqueada();
+      } else if (visao === 'fechamento') {
+        // Popular select de motoboys e carregar dados automaticamente
+        popularSelectMotoboys();
+        carregarFechamento();
+      }
+    }
+
+    // Carregar todos os dados (Stats, Pedidos, Motoboys) com anti-cache absoluto
+    async function carregarTudo(showLoadingToast = false) {
+      try {
+        const t = Date.now();
+        const [statsRes, pedidosRes, mapaRes, motoboysRes] = await Promise.all([
+          fetch(`/api/admin/stats?_t=${t}`, { cache: 'no-store' }).then(r => r.json()).catch(() => null),
+          fetch(`/api/admin/pedidos?_t=${t}`, { cache: 'no-store' }).then(r => r.json()).catch(() => null),
+          fetch(`/api/admin/posicoes-mapa?_t=${t}`, { cache: 'no-store' }).then(r => r.json()).catch(() => null),
+          fetch(`/api/admin/motoboys?_t=${t}`, { cache: 'no-store' }).then(r => r.json()).catch(() => null)
+        ]);
+
+        if (statsRes && statsRes.success) {
+          state.stats = statsRes.stats;
+          renderizarStats();
+        }
+
+        if (pedidosRes && pedidosRes.success) {
+          state.pedidos = pedidosRes.pedidos || [];
+          // Preservar termos de busca ativos ao recarregar (não resetar filtros durante polling)
+          const termoBuscaKanban = (document.getElementById('inputBuscaPedidos')?.value || '').trim();
+          const termoBuscaHistorico = (document.getElementById('inputBuscaHistorico')?.value || '').trim();
+          renderizarListaPedidos();
+          renderizarKanban(normalizarTexto(termoBuscaKanban));
+          renderizarHistorico(normalizarTexto(termoBuscaHistorico));
+        }
+
+        if (mapaRes && mapaRes.success) {
+          state.motoboysMapa = mapaRes.data || [];
+          atualizarMarcadoresMapa();
+        }
+
+        if (motoboysRes && motoboysRes.success) {
+          state.motoboys = motoboysRes.motoboys || [];
+          renderizarMotoboys();
+        }
+
+        if (showLoadingToast) {
+          showToast('Dados operacionais atualizados com sucesso!', 'success');
+        }
+      } catch (err) {
+        console.error('Erro ao carregar dados operacionais:', err);
+      }
+    }
+
+    // Renderizar Indicadores de Topo (KPIs)
+    function renderizarStats() {
+      const s = state.stats;
+      const preparoEl = document.getElementById('kpiPreparo');
+      const preparoSubEl = document.getElementById('kpiPreparoSub');
+      const rotaEl = document.getElementById('kpiRota');
+      const rotaSubEl = document.getElementById('kpiRotaSub');
+      const entreguesEl = document.getElementById('kpiEntregues');
+      const entreguesSubEl = document.getElementById('kpiEntreguesSub');
+      const faturamentoEl = document.getElementById('kpiFaturamento');
+
+      const countBalcao = s.pedidos_aguardando !== undefined ? s.pedidos_aguardando : (s.pedidos_em_preparo || 0);
+      if (preparoEl) preparoEl.textContent = countBalcao;
+      if (preparoSubEl) preparoSubEl.textContent = `de ${s.total_pedidos || 0}`;
+
+      if (rotaEl) rotaEl.textContent = s.pedidos_em_rota || 0;
+      if (rotaSubEl) rotaSubEl.textContent = `de ${s.total_pedidos || 0}`;
+
+      if (entreguesEl) entreguesEl.textContent = s.pedidos_entregues || 0;
+      if (entreguesSubEl) entreguesSubEl.textContent = `de ${s.total_pedidos || 0}`;
+
+      if (faturamentoEl) {
+        faturamentoEl.textContent = 'R$ ' + (s.faturamento_hoje || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+      }
+    }
+
+    // Renderizar Lista da Coluna Esquerda do Dashboard
+    function renderizarListaPedidos() {
+      const container = document.getElementById('containerPedidosLista');
+      if (!container) return;
+
+      let lista = state.pedidos;
+      if (state.filtroLista !== 'todos') {
+        if (state.filtroLista === 'disponivel') {
+          lista = lista.filter(p => (p.status === 'disponivel' || p.status === 'aguardando_retirada' || p.status === 'pronto' || p.status === 'em_preparo') && !p.motoboy_id && p.status !== 'entregue');
+        } else {
+          lista = lista.filter(p => p.status === state.filtroLista);
+        }
+      }
+
+      if (lista.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon" style="display: flex; justify-content: center; color: var(--text-muted);">${SVG_ICONS.utensils}</div>
+            <div class="empty-state-title">Nenhum pedido encontrado</div>
+            <div class="empty-state-desc">Não há pedidos com esse filtro no momento.</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = lista.map(p => {
+        const isSelected = p.id === state.selectedPedidoId ? 'selected' : '';
+        const badgeInfo = obterBadgeStatus(p.status);
+        const horaStr = p.criado_em ? p.criado_em.substring(11, 16) : '--:--';
+        const taxaStr = p.taxa_entrega > 0 ? `R$ ${p.taxa_entrega.toFixed(2).replace('.', ',')}` : 'Grátis';
+        const statusBorderClass = `status-border-${badgeInfo.classe.replace('badge-', '')}`;
+
+        let grupoHtml = '';
+        if (!p.grupo) {
+          grupoHtml = `
+            <div style="margin-top: 6px; padding: 6px 8px; background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.35); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; gap: 6px;" onclick="event.stopPropagation()">
+              <span style="font-size: 10px; font-weight: 800; color: #fbbf24;">DESTINAR:</span>
+              <div style="display: flex; gap: 4px;">
+                <button class="btn-grupo-selecionar btn-grupo-speed" onclick="definirGrupoPedido(${p.id}, 'SPEED'); event.stopPropagation();" title="Destinar entrega ao grupo SPEED">SPEED</button>
+                <button class="btn-grupo-selecionar btn-grupo-veloz" onclick="definirGrupoPedido(${p.id}, 'VELOZ'); event.stopPropagation();" title="Destinar entrega ao grupo VELOZ">VELOZ</button>
+              </div>
+            </div>
+          `;
+        } else {
+          const isSpeed = p.grupo === 'SPEED';
+          grupoHtml = `
+            <span class="badge-grupo-pedido ${isSpeed ? 'badge-grupo-speed' : 'badge-grupo-veloz'}" onclick="alternarGrupoPedido(${p.id}, '${p.grupo}'); event.stopPropagation();" title="Clique para transferir de grupo">
+              ${isSpeed ? 'SPEED' : 'VELOZ'} ⇄
+            </span>
+          `;
+        }
+
+        return `
+          <div class="order-card ${isSelected} ${statusBorderClass}" onclick="selecionarPedido(${p.id})">
+            <div class="order-card-row">
+              <div class="order-num-time">
+                <span class="order-number">#${p.numero_pedido}</span>
+                <span class="order-time">${horaStr}</span>
+                <span class="status-badge ${badgeInfo.classe}">${badgeInfo.label}</span>
+              </div>
+              <div style="display: flex; gap: 4px; align-items: center;">
+                ${p.grupo ? grupoHtml : ''}
+                <span class="origem-badge ${obterOrigemClasse(p.origem)}">${obterOrigemNome(p.origem, p.texto_bruto)}</span>
+              </div>
+            </div>
+
+            <div class="order-address">
+              ${SVG_ICONS.mapPin}
+              <span>${escapeHtml(p.endereco)} ${p.bairro ? '— ' + escapeHtml(p.bairro) : ''}</span>
+            </div>
+
+            ${!p.grupo ? grupoHtml : ''}
+
+            <div class="order-meta">
+              <span class="order-motoboy">
+                ${SVG_ICONS.bike}
+                <span>${p.motoboy ? escapeHtml(p.motoboy.nome) : 'Aguardando motoboy'}</span>
+              </span>
+              <span class="order-price">${taxaStr}</span>
+            </div>
+
+            <div style="margin-top: 8px; display: flex; gap: 6px;" onclick="event.stopPropagation()">
+              <button class="btn btn-sm ${p.motoboy ? 'btn-secondary' : 'btn-gold'}" onclick="abrirModalAtribuirEntregador(${p.id}); event.stopPropagation();" style="font-size: 11px; padding: 4px 8px; font-weight: 700; width: 100%; justify-content: center; display: inline-flex; align-items: center; gap: 6px;">
+                ${SVG_ICONS.bike}
+                <span>${p.motoboy ? 'Trocar (' + escapeHtml(p.motoboy.nome) + ')' : 'Atribuir Entregador'}</span>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Helper de Badges Semânticos
+    function obterBadgeStatus(status) {
+      switch (status) {
+        case 'disponivel':
+        case 'aguardando_retirada':
+        case 'pronto':
+        case 'em_preparo': return { label: 'Disponível no Balcão', classe: 'badge-retirada' };
+        case 'em_rota': return { label: 'Em rota', classe: 'badge-rota' };
+        case 'entregue': return { label: 'Entregue', classe: 'badge-entregue' };
+        default: return { label: status, classe: 'badge-retirada' };
+      }
+    }
+
+    function obterOrigemClasse(origem) {
+      const o = (origem || '').toLowerCase();
+      if (o.includes('ifood')) return 'origem-ifood';
+      if (o.includes('99')) return 'origem-99food';
+      if (o.includes('cardapio')) return 'origem-cardapio_web';
+      return 'origem-manual';
+    }
+
+    function obterOrigemNome(origem, textoBruto) {
+      const o = (origem || '').toUpperCase();
+      const txt = (textoBruto || '').toUpperCase();
+
+      let subloja = '';
+      if (txt.includes('COMIDAS BRASILEIRAS') || txt.includes('COMIDA BRASILEIRA')) {
+        subloja = ' • Brasileira';
+      } else if (txt.includes('BURGER') || txt.includes('SANDUICH') || txt.includes('SANDUÏCH')) {
+        subloja = ' • Burgers';
+      } else if (txt.includes('AO PONTO CARNES') || txt.includes('AO PONTO CARNE')) {
+        subloja = ' • Carnes';
+      }
+
+      if (o.includes('IFOOD')) return `iFood${subloja}`;
+      if (o.includes('99')) return `99 Food${subloja}`;
+      if (o.includes('CARDAPIO')) return `Cardápio${subloja}`;
+      return subloja ? `Balcão${subloja}` : 'Balcão';
+    }
+
+    function filtrarStatusLista(status, btn) {
+      state.filtroLista = status;
+      document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      renderizarListaPedidos();
+    }
+
+    // Selecionar Pedido para Foco no Mapa e Card Flutuante
+    function selecionarPedido(pedidoId) {
+      state.selectedPedidoId = pedidoId;
+      renderizarListaPedidos();
+
+      const p = state.pedidos.find(item => item.id === pedidoId);
+      if (!p) return;
+
+      const card = document.getElementById('mapFloatingCard');
+      const numEl = document.getElementById('floatingCardNum');
+      const statusEl = document.getElementById('floatingCardStatus');
+      const addrEl = document.getElementById('floatingCardAddr');
+      const etaEl = document.getElementById('floatingCardEta');
+
+      if (card) {
+        card.style.display = 'flex';
+        if (numEl) numEl.textContent = `#${p.numero_pedido}`;
+        if (statusEl) {
+          const badge = obterBadgeStatus(p.status);
+          statusEl.textContent = badge.label;
+          statusEl.className = `status-badge ${badge.classe}`;
+        }
+        if (addrEl) addrEl.textContent = `${p.endereco} ${p.bairro ? '— ' + p.bairro : ''}`;
+        if (etaEl) etaEl.innerHTML = `${SVG_ICONS.clock} <span>${p.tempo_decorrido_minutos} min decorridos</span>`;
+      }
+
+      // Focar motoboy no mapa se houver
+      if (p.motoboy && state.markersDashboard[p.motoboy.id]) {
+        const marker = state.markersDashboard[p.motoboy.id];
+        state.mapDashboard.setView(marker.getLatLng(), 15, { animate: true });
+        marker.openPopup();
+      }
+    }
+
+    function abrirDetalhesDoCardFlutuante() {
+      if (state.selectedPedidoId) {
+        abrirDetalhesPedido(state.selectedPedidoId);
+      }
+    }
+
+    // MAPA DASHBOARD (LEAFLET DARK COM TERESÓPOLIS - ZERO WATERMARK)
+    function iniciarMapaDashboard() {
+      const container = document.getElementById('mapDashboard');
+      if (!container || state.mapDashboard) return;
+
+      state.mapDashboard = L.map('mapDashboard', {
+        center: state.restauranteCoords,
+        zoom: 14,
+        zoomControl: false
+      });
+
+      L.control.zoom({ position: 'bottomright' }).addTo(state.mapDashboard);
+
+      // TileLayer OpenStreetMap (com filtro dark CSS map-dark-tiles)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19
+      }).addTo(state.mapDashboard);
+
+      // Marcador da Loja Ao Ponto Carnes (Chama / Fogo SVG)
+      const flameSvg = `<svg viewBox="0 0 24 24" width="22" height="22" fill="#f59e0b" stroke="#f59e0b" stroke-width="1"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>`;
+      const flameIcon = L.divIcon({
+        className: 'custom-icon',
+        html: `<div class="marker-restaurant" title="Ao Ponto Carnes — Loja Matriz">${flameSvg}</div>`,
+        iconSize: [44, 44],
+        iconAnchor: [22, 22]
+      });
+
+      L.marker(state.restauranteCoords, { icon: flameIcon })
+        .bindPopup(`
+          <div style="padding: 6px 8px; text-align: center;">
+            <strong style="color: var(--brand-gold-light); font-size: 14px;">AO PONTO CARNES</strong><br>
+            <span style="font-size: 11px; color: var(--text-muted);">Loja Matriz • Teresópolis/RJ</span>
+          </div>
+        `)
+        .addTo(state.mapDashboard);
+    }
+
+    // MAPA FULLSCREEN (VISÃO 3)
+    function iniciarMapaFullscreen() {
+      const container = document.getElementById('mapFullscreen');
+      if (!container || state.mapFullscreen) return;
+
+      state.mapFullscreen = L.map('mapFullscreen', {
+        center: state.restauranteCoords,
+        zoom: 14
+      });
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19
+      }).addTo(state.mapFullscreen);
+
+      const flameSvg = `<svg viewBox="0 0 24 24" width="22" height="22" fill="#f59e0b" stroke="#f59e0b" stroke-width="1"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>`;
+      const flameIcon = L.divIcon({
+        className: 'custom-icon',
+        html: `<div class="marker-restaurant" title="Ao Ponto Carnes — Loja Matriz">${flameSvg}</div>`,
+        iconSize: [44, 44],
+        iconAnchor: [22, 22]
+      });
+
+      L.marker(state.restauranteCoords, { icon: flameIcon })
+        .bindPopup(`
+          <div style="padding: 6px 8px; text-align: center;">
+            <strong style="color: var(--brand-gold-light); font-size: 14px;">AO PONTO CARNES</strong><br>
+            <span style="font-size: 11px; color: var(--text-muted);">Loja Matriz • Teresópolis/RJ</span>
+          </div>
+        `)
+        .addTo(state.mapFullscreen);
+    }
+
+    // Atualizar Filtro do Mapa (chamado pelo selectFiltroMapa)
+    function atualizarMapa() {
+      atualizarMarcadoresMapa();
+    }
+
+    // Atualizar Marcadores dos Motoboys no Mapa
+    function atualizarMarcadoresMapa() {
+      if (!state.motoboysMapa || !state.mapDashboard) return;
+
+      const filtroEl = document.getElementById('selectFiltroMapa');
+      const filtro = filtroEl ? filtroEl.value : 'todos';
+      const bikeMarkerSvg = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg>`;
+
+      state.motoboysMapa.forEach(m => {
+        if (!m.latitude || !m.longitude) return;
+
+        const isEmRota = m.status_motoboy === 'em_rota';
+
+        if (filtro === 'em_rota' && !isEmRota) {
+          if (state.markersDashboard[m.motoboy_id]) {
+            state.mapDashboard.removeLayer(state.markersDashboard[m.motoboy_id]);
+            delete state.markersDashboard[m.motoboy_id];
+          }
+          return;
+        }
+
+        const iconHtml = `<div class="marker-motoboy ${isEmRota ? 'active' : 'idle'}">${bikeMarkerSvg}</div>`;
+        const customIcon = L.divIcon({
+          className: 'custom-icon',
+          html: iconHtml,
+          iconSize: [40, 40],
+          iconAnchor: [20, 20]
+        });
+
+        const popupHtml = `
+          <div style="padding: 8px 10px; min-width: 180px;">
+            <div style="font-weight: 800; font-size: 13px; color: var(--brand-gold-light); display: flex; align-items: center; gap: 6px;">
+              ${bikeMarkerSvg}
+              <span>${escapeHtml(m.nome)}</span>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">${escapeHtml(m.telefone)} • ${Math.round(m.speed || 0)} km/h</div>
+            <div style="font-size: 11px; margin-top: 6px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.1);">
+              ${isEmRota ? `<strong>Em rota:</strong> #${(m.pedidos_numeros || []).join(', #')}` : '<em>Disponível no balcão</em>'}
+            </div>
+          </div>
+        `;
+
+        if (state.markersDashboard[m.motoboy_id]) {
+          state.markersDashboard[m.motoboy_id].setLatLng([m.latitude, m.longitude]);
+          state.markersDashboard[m.motoboy_id].getPopup().setContent(popupHtml);
+        } else {
+          const marker = L.marker([m.latitude, m.longitude], { icon: customIcon })
+            .bindPopup(popupHtml)
+            .addTo(state.mapDashboard);
+
+          state.markersDashboard[m.motoboy_id] = marker;
+        }
+      });
+    }
+
+    // FILTRAR E RENDERIZAR KANBAN DE PEDIDOS
+    function filtrarPedidosKanban() {
+      const termo = (document.getElementById('inputBuscaPedidos')?.value || '').trim();
+      renderizarKanban(normalizarTexto(termo));
+    }
+
+    function renderizarKanban(filtroTexto = '') {
+      const colAguardando = document.getElementById('colKanbanAguardando');
+      const colRota = document.getElementById('colKanbanRota');
+      const colEntregues = document.getElementById('colKanbanEntregues');
+
+      if (!colAguardando || !colRota || !colEntregues) return;
+
+      let lista = state.pedidos;
+      if (filtroTexto) {
+        lista = lista.filter(p => pedidoCorrespondeBusca(p, filtroTexto));
+      }
+
+      const aguardando = lista.filter(p => (p.status === 'disponivel' || p.status === 'aguardando_retirada' || p.status === 'pronto' || p.status === 'em_preparo') && !p.motoboy_id && p.status !== 'entregue');
+      const rota = lista.filter(p => p.status === 'em_rota');
+      const entregues = lista.filter(p => p.status === 'entregue');
+
+      document.getElementById('countKanbanAguardando').textContent = aguardando.length;
+      document.getElementById('countKanbanRota').textContent = rota.length;
+      document.getElementById('countKanbanEntregues').textContent = entregues.length;
+
+      colAguardando.innerHTML = aguardando.map(p => cardKanbanHtml(p, 'aguardando')).join('') || emptyKanbanHtml('Sem pedidos aguardando no balcão');
+      colRota.innerHTML = rota.map(p => cardKanbanHtml(p, 'rota')).join('') || emptyKanbanHtml('Nenhuma entrega em rota');
+      colEntregues.innerHTML = entregues.map(p => cardKanbanHtml(p, 'entregue')).join('') || emptyKanbanHtml('Nenhuma entrega finalizada hoje');
+    }
+
+    function cardKanbanHtml(p, colTipo) {
+      const taxaStr = p.taxa_entrega > 0 ? `R$ ${p.taxa_entrega.toFixed(2).replace('.', ',')}` : 'Grátis';
+      const borderClass = colTipo === 'aguardando' ? 'status-border-preparo' : (colTipo === 'rota' ? 'status-border-rota' : 'status-border-entregue');
+      let botaoAcao = '';
+
+      if (colTipo === 'aguardando') {
+        botaoAcao = `
+          <div style="margin-top: 8px; display: flex; gap: 6px;">
+            <button class="btn btn-secondary btn-sm" style="flex: 1;" onclick="abrirDetalhesPedido(${p.id})">Detalhes</button>
+            <button class="btn btn-gold btn-sm" style="flex: 1.3; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 6px;" onclick="abrirModalAtribuirEntregador(${p.id})">
+              ${SVG_ICONS.bike}
+              <span>Atribuir</span>
+            </button>
+          </div>
+        `;
+      } else if (colTipo === 'rota') {
+        botaoAcao = `
+          <div style="margin-top: 8px; display: flex; gap: 5px;">
+            <button class="btn btn-secondary btn-sm" style="flex: 1; padding: 4px 6px; font-size: 11px;" onclick="abrirDetalhesPedido(${p.id})">Rota</button>
+            <button class="btn btn-secondary btn-sm" style="flex: 1; padding: 4px 6px; font-size: 11px;" onclick="abrirModalAtribuirEntregador(${p.id})" title="Substituir entregador">Trocar</button>
+            <button class="btn btn-success btn-sm" style="flex: 1; padding: 4px 6px; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="alterarStatusPedido(${p.id}, 'entregue')">
+              ${SVG_ICONS.check}
+              <span>Concluir</span>
+            </button>
+          </div>
+        `;
+      } else if (colTipo === 'entregue') {
+        botaoAcao = `<button class="btn btn-secondary btn-sm" style="width: 100%; margin-top: 8px;" onclick="abrirDetalhesPedido(${p.id})">Ver Resumo</button>`;
+      }
+
+      let motoboyInfo = '';
+      if (colTipo === 'rota' || colTipo === 'entregue') {
+        const nomeEntregador = p.motoboy ? p.motoboy.nome : (p.motoboy_nome || 'Sem motoboy');
+        motoboyInfo = `
+          <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px; display: flex; align-items: center; gap: 6px;">
+            ${SVG_ICONS.bike}
+            <span>Entregador: <strong style="color: var(--brand-gold-light); font-weight: 700;">${escapeHtml(nomeEntregador)}</strong></span>
+          </div>
+        `;
+      }
+
+      let grupoKanban = '';
+      if (!p.grupo) {
+        grupoKanban = `
+          <div style="margin: 8px 0 6px; padding: 6px 8px; background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.35); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+            <span style="font-size: 10px; font-weight: 800; color: #fbbf24;">DESTINAR:</span>
+            <div style="display: flex; gap: 4px;">
+              <button class="btn-grupo-selecionar btn-grupo-speed" onclick="definirGrupoPedido(${p.id}, 'SPEED'); event.stopPropagation();" title="Destinar ao grupo SPEED">SPEED</button>
+              <button class="btn-grupo-selecionar btn-grupo-veloz" onclick="definirGrupoPedido(${p.id}, 'VELOZ'); event.stopPropagation();" title="Destinar ao grupo VELOZ">VELOZ</button>
+            </div>
+          </div>
+        `;
+      } else {
+        const isSpeed = p.grupo === 'SPEED';
+        grupoKanban = `
+          <span class="badge-grupo-pedido ${isSpeed ? 'badge-grupo-speed' : 'badge-grupo-veloz'}" onclick="alternarGrupoPedido(${p.id}, '${p.grupo}')" title="Clique para transferir de grupo">
+            ${isSpeed ? 'SPEED' : 'VELOZ'} ⇄
+          </span>
+        `;
+      }
+
+      return `
+        <div class="order-card ${borderClass}" style="margin-bottom: 0;">
+          <div class="order-card-row">
+            <strong class="order-number">#${p.numero_pedido}</strong>
+            <div style="display: flex; gap: 4px; align-items: center;">
+              ${p.grupo ? grupoKanban : ''}
+              ${p.localizador ? `<span style="font-size: 10px; font-weight: 700; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); padding: 1px 6px; border-radius: 4px; font-family: monospace;">PIN: ${p.localizador}</span>` : ''}
+              <span class="origem-badge ${obterOrigemClasse(p.origem)}">${obterOrigemNome(p.origem, p.texto_bruto)}</span>
+            </div>
+          </div>
+          <div style="font-size: 13px; font-weight: 700; color: var(--text-primary);">${escapeHtml(p.cliente)}</div>
+          <div class="order-address">${SVG_ICONS.mapPin} <span>${escapeHtml(p.endereco)}</span></div>
+          ${!p.grupo ? grupoKanban : ''}
+          ${motoboyInfo}
+          <div class="order-meta">
+            <span style="display: flex; align-items: center; gap: 4px;">${SVG_ICONS.clock} <span>${p.tempo_decorrido_minutos} min</span></span>
+            <span class="order-price">${taxaStr}</span>
+          </div>
+          ${botaoAcao}
+        </div>
+      `;
+    }
+
+    function emptyKanbanHtml(msg) {
+      return `<div style="text-align: center; color: var(--text-muted); padding: 30px 10px; font-size: 12px;">${msg}</div>`;
+    }
+
+    // RENDERIZAR GESTÃO DE MOTOBOYS
+    function renderizarMotoboys() {
+      const container = document.getElementById('gridMotoboys');
+      if (!container) return;
+
+      const todos = state.motoboys || [];
+      const countVeloz = todos.filter(m => (m.grupo || 'VELOZ').toUpperCase() === 'VELOZ').length;
+      const countSpeed = todos.filter(m => (m.grupo || 'VELOZ').toUpperCase() === 'SPEED').length;
+
+      const btnT = document.getElementById('fmgTodos');
+      const btnV = document.getElementById('fmgVeloz');
+      const btnS = document.getElementById('fmgSpeed');
+      if (btnT) btnT.textContent = `Todos (${todos.length})`;
+      if (btnV) btnV.textContent = `VELOZ (${countVeloz})`;
+      if (btnS) btnS.textContent = `SPEED (${countSpeed})`;
+
+      let lista = todos;
+      if (state.filtroGrupoMotoboys && state.filtroGrupoMotoboys !== 'todos') {
+        lista = lista.filter(m => (m.grupo || 'VELOZ').toUpperCase() === state.filtroGrupoMotoboys.toUpperCase());
+      }
+
+      if (lista.length === 0) {
+        container.innerHTML = `<div class="empty-state" style="grid-column: 1/-1;"><div class="empty-state-title">Nenhum entregador encontrado neste grupo</div></div>`;
+        return;
+      }
+
+      container.innerHTML = lista.map(m => {
+        const isOnline = m.status !== 'offline';
+        const isSpeed = (m.grupo || 'VELOZ').toUpperCase() === 'SPEED';
+        const statusBadge = m.status === 'em_rota' 
+          ? `<span class="status-badge badge-rota">Em Rota (${m.qtd_pedidos})</span>`
+          : (isOnline ? `<span class="status-badge badge-retirada">Disponível</span>` : `<span class="status-badge badge-problema">Offline</span>`);
+
+        return `
+          <div class="card card-elevated" style="display: flex; flex-direction: column; gap: 12px; border-top: 3px solid ${isSpeed ? '#f59e0b' : '#3b82f6'};">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 42px; height: 42px; border-radius: 50%; background: var(--bg-card-hover); border: 2px solid ${isOnline ? 'var(--status-entregue)' : 'var(--border-subtle)'}; display: flex; align-items: center; justify-content: center; color: var(--accent-primary);">
+                  ${SVG_ICONS.bike}
+                </div>
+                <div>
+                  <strong style="font-size: 15px; display: block;">${escapeHtml(m.nome)}</strong>
+                  <span style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px;">
+                    ${SVG_ICONS.phone} <span>${formatarTelefone(m.telefone)}</span>
+                  </span>
+                </div>
+              </div>
+              ${statusBadge}
+            </div>
+
+            <!-- Seletor de Grupo do Entregador -->
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: var(--bg-surface); border-radius: var(--radius-sm);">
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-muted);">Grupo da Equipe:</span>
+              <select style="background: #181d27; color: ${isSpeed ? '#fbbf24' : '#60a5fa'}; font-weight: 800; border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; padding: 3px 8px; font-size: 12px; cursor: pointer;" onchange="alterarGrupoMotoboyDirect(${m.id}, this.value)">
+                <option value="VELOZ" ${!isSpeed ? 'selected' : ''}>VELOZ</option>
+                <option value="SPEED" ${isSpeed ? 'selected' : ''}>SPEED</option>
+              </select>
+            </div>
+
+            <div style="background: var(--bg-surface); padding: 10px 12px; border-radius: var(--radius-sm); font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between;">
+              <span>Velocidade: <strong style="color: var(--text-primary);">${m.velocidade} km/h</strong></span>
+              <span>GPS: <strong style="color: ${m.latitude ? 'var(--status-rota-text)' : 'var(--text-faint)'};">${m.latitude ? 'Ativo' : 'Pendente'}</strong></span>
+            </div>
+
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-secondary btn-sm" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="abrirModalEditarMotoboy(${m.id})">
+                ${SVG_ICONS.edit}
+                <span>Editar</span>
+              </button>
+              <button class="btn btn-secondary btn-sm" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="abrirWhatsappMotoboy('${m.telefone}')">
+                ${SVG_ICONS.message}
+                <span>WhatsApp</span>
+              </button>
+              <button class="btn btn-gold btn-sm" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="focarMotoboyNoMapa(${m.id})">
+                ${SVG_ICONS.map}
+                <span>Mapa</span>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // FILTRAR E RENDERIZAR HISTÓRICO
+    function filtrarHistorico() {
+      const termo = (document.getElementById('inputBuscaHistorico')?.value || '').trim();
+      renderizarHistorico(normalizarTexto(termo));
+    }
+
+    function renderizarHistorico(filtroTexto = '') {
+      const container = document.getElementById('containerHistorico');
+      if (!container) return;
+
+      let entregues = state.pedidos.filter(p => p.status === 'entregue');
+      if (filtroTexto) {
+        entregues = entregues.filter(e => pedidoCorrespondeBusca(e, filtroTexto));
+      }
+
+      if (entregues.length === 0) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-state-title">Nenhuma entrega no histórico</div></div>`;
+        return;
+      }
+
+      container.innerHTML = entregues.map(e => `
+        <div class="order-card status-border-entregue" style="margin-bottom: 8px;">
+          <div class="order-card-row">
+            <div class="order-num-time">
+              <strong class="order-number">#${e.numero_pedido}</strong>
+              <span class="status-badge badge-entregue">Entregue</span>
+              <span class="origem-badge ${obterOrigemClasse(e.origem)}">${obterOrigemNome(e.origem, e.texto_bruto)}</span>
+            </div>
+            <span style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px;">
+              ${SVG_ICONS.clock} <span>Concluído em ${e.tempo_decorrido_minutos} min</span>
+            </span>
+          </div>
+          <div style="font-size: 13px; color: var(--text-secondary); margin: 4px 0;">
+            <strong>${escapeHtml(e.cliente)}</strong> — <span>${escapeHtml(e.endereco)}</span>
+          </div>
+          <div class="order-meta">
+            <span style="display: flex; align-items: center; gap: 4px;">
+              ${SVG_ICONS.bike}
+              <span>Entregador: <strong>${escapeHtml(e.motoboy ? e.motoboy.nome : 'Sem motoboy')}</strong></span>
+            </span>
+            <span class="order-price">Taxa: R$ ${(e.taxa_repasse !== undefined ? e.taxa_repasse : (e.taxa_entrega || 10)).toFixed(2).replace('.', ',')}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ABRIR DETALHES DO PEDIDO NO DRAWER
+    async function abrirDetalhesPedido(pedidoId) {
+      try {
+        const res = await fetch(`/api/pedidos/detalhes?id=${pedidoId}`);
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          const p = data.pedido;
+          state.pedidoDetalheCache = p;
+
+          document.getElementById('dtlNumeroPedido').textContent = `#${p.numero_pedido}`;
+          document.getElementById('dtlOrigem').textContent = obterOrigemNome(p.origem, p.texto_bruto);
+          document.getElementById('dtlOrigem').className = `origem-badge ${obterOrigemClasse(p.origem)}`;
+
+          const badge = obterBadgeStatus(p.status);
+          document.getElementById('dtlStatus').textContent = badge.label;
+          document.getElementById('dtlStatus').className = `status-badge ${badge.classe}`;
+
+          document.getElementById('dtlHorario').textContent = p.criado_em ? `Criado às ${p.criado_em.substring(11, 16)}` : 'Horário não informado';
+
+          document.getElementById('dtlClienteNome').textContent = p.cliente.nome;
+          const tel = p.cliente.telefone || p.telefone_cliente;
+          document.getElementById('dtlClienteTelefone').innerHTML = `${SVG_ICONS.phone} <span>${tel ? formatarTelefone(tel) : 'Telefone não informado'}</span>`;
+          const loc = p.cliente.localizador || p.localizador;
+          const elLoc = document.getElementById('dtlClienteLocalizador');
+          if (elLoc) {
+            if (loc) {
+              elLoc.innerHTML = `<span>PIN: ${escapeHtml(loc)}</span>`;
+              elLoc.style.display = 'inline-flex';
+            } else {
+              elLoc.style.display = 'none';
+            }
+          }
+          document.getElementById('dtlClienteEndereco').innerHTML = `${SVG_ICONS.mapPin} <span>${escapeHtml(p.cliente.endereco)}${p.cliente.bairro ? ' — ' + escapeHtml(p.cliente.bairro) : ''}</span>`;
+
+          // Itens
+          const itensContainer = document.getElementById('dtlItensLista');
+          itensContainer.innerHTML = p.itens.map(it => `
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; font-size: 13px;">
+              <div>
+                <strong style="color: var(--text-primary);">${it.qtd}x ${escapeHtml(it.nome)}</strong>
+                ${it.obs ? `<div style="font-size: 11px; color: var(--brand-gold);">${escapeHtml(it.obs)}</div>` : ''}
+              </div>
+              <span style="color: var(--text-secondary); font-weight: 600;">${it.preco > 0 ? `R$ ${(it.preco * it.qtd).toFixed(2).replace('.', ',')}` : 'Incluso'}</span>
+            </div>
+          `).join('');
+
+          document.getElementById('dtlTaxaValor').textContent = `R$ ${p.financeiro.taxa_entrega.toFixed(2).replace('.', ',')}`;
+          document.getElementById('dtlTotalValor').textContent = `R$ ${p.financeiro.total.toFixed(2).replace('.', ',')}`;
+
+          // Motoboy
+          if (p.motoboy) {
+            document.getElementById('dtlMotoboyNome').textContent = p.motoboy.nome;
+            document.getElementById('dtlMotoboyTelefone').textContent = p.motoboy.telefone;
+          } else {
+            document.getElementById('dtlMotoboyNome').textContent = 'Aguardando atribuição';
+            document.getElementById('dtlMotoboyTelefone').textContent = 'Nenhum entregador associado';
+          }
+
+          // Rodapé de Ações
+          renderizarAcoesDrawer(p);
+
+          // Abrir gaveta
+          document.getElementById('drawerPedido').classList.add('open');
+        }
+      } catch (err) {
+        console.error('Erro ao abrir detalhes:', err);
+        showToast('Falha ao carregar detalhes do pedido.', 'error');
+      }
+    }
+
+    function fecharDetalhesPedido(e) {
+      if (e && e.target && e.target.id !== 'drawerPedido') return;
+      document.getElementById('drawerPedido').classList.remove('open');
+    }
+
+    function renderizarAcoesDrawer(p) {
+      const footer = document.getElementById('dtlFooterAcoes');
+      if (!footer) return;
+
+      if (p.status === 'disponivel' || p.status === 'aguardando_retirada' || p.status === 'pronto' || p.status === 'em_preparo') {
+        footer.innerHTML = `
+          <button class="btn btn-secondary" style="flex: 1;" onclick="fecharDetalhesPedido()">Fechar</button>
+          <button class="btn btn-secondary" style="flex: 1; border-color: rgba(239, 68, 68, 0.4); color: #ef4444;" onclick="cancelarPedidoDrawer(${p.id})">Cancelar Pedido</button>
+          <button class="btn btn-gold" style="flex: 1.4; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 6px;" onclick="abrirModalAtribuirEntregador(${p.id})">
+            ${SVG_ICONS.bike}
+            <span>Atribuir Entregador</span>
+          </button>
+        `;
+      } else if (p.status === 'em_rota') {
+        footer.innerHTML = `
+          <button class="btn btn-secondary" style="flex: 1;" onclick="fecharDetalhesPedido()">Fechar</button>
+          <button class="btn btn-secondary" style="flex: 1.1;" onclick="abrirModalAtribuirEntregador(${p.id})" title="Substituir entregador">Trocar Entregador</button>
+          <button class="btn btn-success" style="flex: 1.2; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 6px;" onclick="alterarStatusPedido(${p.id}, 'entregue')">
+            ${SVG_ICONS.check}
+            <span>Concluir Entrega</span>
+          </button>
+        `;
+      } else {
+        footer.innerHTML = `
+          <button class="btn btn-secondary" style="flex: 1;" onclick="fecharDetalhesPedido()">Fechar</button>
+        `;
+      }
+    }
+
+    async function cancelarPedidoDrawer(pedidoId) {
+      if (!confirm('Deseja realmente cancelar este pedido e removê-lo da fila ativa?')) return;
+      await alterarStatusPedido(pedidoId, 'cancelado');
+    }
+
+    async function limparPendentesAntigos() {
+      try {
+        const res = await fetch('/api/admin/pedidos/limpar-pendentes-antigos', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, 'success');
+          carregarTudo(true);
+        } else {
+          showToast(data.message || 'Erro ao limpar pendentes antigos.', 'error');
+        }
+      } catch (e) {
+        showToast('Erro de conexão ao limpar pedidos antigos.', 'error');
+      }
+    }
+
+    // Alterar Status do Pedido via API
+    async function alterarStatusPedido(pedidoId, novoStatus) {
+      try {
+        const res = await fetch('/api/pedidos/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pedido_id: pedidoId, status: novoStatus })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(`Pedido atualizado para "${novoStatus}"!`, 'success');
+          fecharDetalhesPedido();
+          carregarTudo();
+        } else {
+          showToast(data.message || 'Não foi possível alterar o status.', 'error');
+        }
+      } catch (err) {
+        showToast('Erro de conexão ao alterar status.', 'error');
+      }
+    }
+
+    // Ações de Contato
+    function abrirWhatsappCliente() {
+      if (!state.pedidoDetalheCache || !state.pedidoDetalheCache.cliente.telefone) return;
+      const tel = state.pedidoDetalheCache.cliente.telefone.replace(/\D/g, '');
+      const msg = encodeURIComponent(`Olá, ${state.pedidoDetalheCache.cliente.nome}! Aqui é da Ao Ponto Carnes referente ao seu pedido #${state.pedidoDetalheCache.numero_pedido}.`);
+      window.open(`https://wa.me/55${tel}?text=${msg}`, '_blank');
+    }
+
+    function abrirWhatsappMotoboy(telefone) {
+      const tel = telefone.replace(/\D/g, '');
+      window.open(`https://wa.me/55${tel}?text=${encodeURIComponent('Olá! Mensagem da cozinha da Ao Ponto Carnes.')}`, '_blank');
+    }
+
+    function focarMotoboyNoMapa(motoboyId) {
+      alternarVisao('inicio');
+      const marker = state.markersDashboard[motoboyId];
+      if (marker && state.mapDashboard) {
+        state.mapDashboard.setView(marker.getLatLng(), 16, { animate: true });
+        marker.openPopup();
+      }
+    }
+
+    // Helper Toast
+    function showToast(mensagem, tipo = 'success') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${tipo}`;
+      toast.innerHTML = `<span style="display: flex; align-items: center;">${tipo === 'success' ? SVG_ICONS.check : SVG_ICONS.alert}</span><span>${mensagem}</span>`;
+
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // =========================================================================
+    // FUNÇÕES DE AUTENTICAÇÃO E SESSÃO DO ADMIN / COZINHA
+    // =========================================================================
+    async function realizarLoginAdmin(event) {
+      event.preventDefault();
+      const usuario = document.getElementById('inpAdminUsuario').value.trim();
+      const senha = document.getElementById('inpAdminSenha').value;
+      const btnSubmit = document.getElementById('btnAdminLoginSubmit');
+      const msgErro = document.getElementById('msgErroAdminLogin');
+
+      if (!usuario || !senha) return;
+
+      btnSubmit.disabled = true;
+      btnSubmit.innerHTML = '<span>Autenticando...</span>';
+      msgErro.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/auth/admin-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usuario, senha })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          localStorage.setItem('adminSession', JSON.stringify(data.admin));
+          state.admin = data.admin;
+          verificarAutenticacaoAdmin();
+          showToast(`Bem-vindo(a), ${data.admin.nome || data.admin.usuario}!`, 'success');
+        } else {
+          msgErro.textContent = data.message || 'Usuário ou senha incorretos.';
+          msgErro.style.display = 'block';
+        }
+      } catch (err) {
+        msgErro.textContent = 'Erro de conexão com o servidor.';
+        msgErro.style.display = 'block';
+      } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = '<span>ENTRAR NO PAINEL</span>';
+      }
+    }
+
+    function realizarLogoutAdmin() {
+      if (!confirm('Deseja realmente sair do painel da cozinha?')) return;
+      localStorage.removeItem('adminSession');
+      state.admin = null;
+      if (state.pollingTimer) clearInterval(state.pollingTimer);
+
+      const overlay = document.getElementById('adminAuthOverlay');
+      if (overlay) {
+        document.getElementById('inpAdminSenha').value = '';
+        overlay.style.display = 'flex';
+        overlay.style.opacity = '1';
+        overlay.style.visibility = 'visible';
+        setTimeout(() => {
+          document.getElementById('inpAdminUsuario').focus();
+        }, 150);
+      }
+      showToast('Sessão encerrada com sucesso.', 'success');
+    }
+
+    function abrirModalAlterarSenha() {
+      const modal = document.getElementById('modalAlterarSenha');
+      if (modal) {
+        modal.style.display = 'flex';
+        document.getElementById('inpSenhaAtualAdmin').value = '';
+        document.getElementById('inpNovaSenhaAdmin').value = '';
+        document.getElementById('msgErroAlterarSenha').style.display = 'none';
+        setTimeout(() => {
+          document.getElementById('inpSenhaAtualAdmin').focus();
+        }, 100);
+      }
+    }
+
+    function fecharModalAlterarSenha() {
+      const modal = document.getElementById('modalAlterarSenha');
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function salvarNovaSenhaAdmin(event) {
+      event.preventDefault();
+      const senha_atual = document.getElementById('inpSenhaAtualAdmin').value;
+      const nova_senha = document.getElementById('inpNovaSenhaAdmin').value;
+      const msgErro = document.getElementById('msgErroAlterarSenha');
+      const btn = document.getElementById('btnSalvarSenhaAdmin');
+
+      if (!state.admin || !state.admin.usuario) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Salvando...';
+      msgErro.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/auth/admin-alterar-senha', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            usuario: state.admin.usuario,
+            senha_atual,
+            nova_senha
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast('Senha alterada com sucesso!', 'success');
+          fecharModalAlterarSenha();
+        } else {
+          msgErro.textContent = data.message || 'Não foi possível alterar a senha.';
+          msgErro.style.display = 'block';
+        }
+      } catch (err) {
+        msgErro.textContent = 'Erro ao conectar ao servidor.';
+        msgErro.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'SALVAR SENHA';
+      }
+    }
+
+    // ── NOVO PEDIDO MANUAL ───────────────────────────────────────────────────
+    function abrirModalNovoPedido() {
+      const modal = document.getElementById('modalNovoPedido');
+      if (modal) {
+        modal.style.display = 'flex';
+        document.getElementById('inpNovoNumero').value = '';
+        document.getElementById('inpNovoCliente').value = '';
+        document.getElementById('inpNovoTelefone').value = '';
+        document.getElementById('inpNovoEndereco').value = '';
+        document.getElementById('inpNovoBairro').value = '';
+        document.getElementById('inpNovoTaxa').value = '6.00';
+        document.getElementById('inpNovoLocalizador').value = '';
+        document.getElementById('inpNovoItens').value = '';
+        document.getElementById('inpNovoObservacoes').value = '';
+        document.getElementById('msgErroNovoPedido').style.display = 'none';
+        setTimeout(() => {
+          document.getElementById('inpNovoNumero').focus();
+        }, 100);
+      }
+    }
+
+    function fecharModalNovoPedido() {
+      const modal = document.getElementById('modalNovoPedido');
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function salvarNovoPedidoManual(event) {
+      event.preventDefault();
+      const btn = document.getElementById('btnSalvarNovoPedido');
+      const msgErro = document.getElementById('msgErroNovoPedido');
+
+      const payload = {
+        origem: document.getElementById('inpNovoOrigem').value,
+        numero_pedido: document.getElementById('inpNovoNumero').value.trim(),
+        grupo: document.getElementById('inpNovoGrupo').value || null,
+        cliente: document.getElementById('inpNovoCliente').value.trim(),
+        telefone_cliente: document.getElementById('inpNovoTelefone').value.trim(),
+        endereco: document.getElementById('inpNovoEndereco').value.trim(),
+        bairro: document.getElementById('inpNovoBairro').value.trim(),
+        taxa_entrega: parseFloat(document.getElementById('inpNovoTaxa').value) || 0,
+        localizador: document.getElementById('inpNovoLocalizador').value.trim(),
+        itens: document.getElementById('inpNovoItens').value.trim(),
+        observacoes: document.getElementById('inpNovoObservacoes').value.trim()
+      };
+
+      if (!payload.numero_pedido) {
+        msgErro.textContent = 'Informe o número do pedido ou comanda.';
+        msgErro.style.display = 'block';
+        return;
+      }
+      if (!payload.cliente) {
+        msgErro.textContent = 'Informe o nome do cliente.';
+        msgErro.style.display = 'block';
+        return;
+      }
+      if (!payload.endereco) {
+        msgErro.textContent = 'Informe o endereço de entrega.';
+        msgErro.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Lançando...';
+      msgErro.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/admin/pedidos/manual', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(`Pedido #${payload.numero_pedido} lançado com sucesso!`, 'success');
+          fecharModalNovoPedido();
+          carregarTudo(true);
+        } else {
+          msgErro.textContent = data.message || 'Erro ao lançar pedido manual.';
+          msgErro.style.display = 'block';
+        }
+      } catch (err) {
+        msgErro.textContent = 'Erro ao conectar ao servidor.';
+        msgErro.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Lançar Pedido';
+      }
+    }
+
+    // ── FECHAMENTO DE TAXAS & REPASSE ────────────────────────────────────────
+    let periodoFechamentoAtivo = 'hoje';
+    let grupoFechamentoAtivo = 'todos';
+
+    function popularSelectMotoboys() {
+      const sel = document.getElementById('selectFiltroMotoboy');
+      if (!sel) return;
+      const motoboys = state.motoboys || [];
+      sel.innerHTML = '<option value="todos">Todos os Motoboys</option>';
+      motoboys.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = `${m.nome} (${(m.grupo || 'VELOZ').toUpperCase()})`;
+        sel.appendChild(opt);
+      });
+    }
+
+    function selecionarPeriodoFechamento(periodo, btn) {
+      periodoFechamentoAtivo = periodo;
+      document.querySelectorAll('#view-fechamento .filter-pill').forEach(b => {
+        if (b.id && b.id.startsWith('fp')) {
+          b.classList.remove('active');
+        }
+      });
+      if (btn) btn.classList.add('active');
+
+      const boxPersonalizado = document.getElementById('boxPeriodoPersonalizado');
+      if (periodo === 'personalizado') {
+        if (boxPersonalizado) boxPersonalizado.style.display = 'flex';
+        const inpIni = document.getElementById('inpFechDataInicio');
+        const inpFim = document.getElementById('inpFechDataFim');
+        const hoje = new Date();
+        const yyyy = hoje.getFullYear();
+        const mm = String(hoje.getMonth() + 1).padStart(2, '0');
+        const dd = String(hoje.getDate()).padStart(2, '0');
+        const hojeStr = `${yyyy}-${mm}-${dd}`;
+        const inicioMesStr = `${yyyy}-${mm}-01`;
+        if (inpIni && !inpIni.value) inpIni.value = inicioMesStr;
+        if (inpFim && !inpFim.value) inpFim.value = hojeStr;
+      } else {
+        if (boxPersonalizado) boxPersonalizado.style.display = 'none';
+      }
+      carregarFechamento();
+    }
+
+    function selecionarGrupoFechamento(grupo, btn) {
+      grupoFechamentoAtivo = grupo;
+      document.querySelectorAll('#view-fechamento .grupo-fech-pill').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      carregarFechamento();
+    }
+
+    async function carregarFechamento() {
+      const motoboyId = document.getElementById('selectFiltroMotoboy')?.value || 'todos';
+      const t = Date.now();
+      let extraParams = '';
+      if (periodoFechamentoAtivo === 'personalizado') {
+        const dtIni = document.getElementById('inpFechDataInicio')?.value || '';
+        const dtFim = document.getElementById('inpFechDataFim')?.value || '';
+        extraParams = `&data_inicio=${encodeURIComponent(dtIni)}&data_fim=${encodeURIComponent(dtFim)}`;
+      }
+      try {
+        const res = await fetch(`/api/admin/fechamento?periodo=${periodoFechamentoAtivo}&motoboy_id=${motoboyId}&grupo=${grupoFechamentoAtivo}${extraParams}&_t=${t}`, { cache: 'no-store' });
+        const data = await res.json();
+        if (data.success) {
+          renderizarFechamento(data);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar fechamento:', err);
+      }
+    }
+
+    function formatarDataHoraFechamento(dtStr) {
+      if (!dtStr) return '—';
+      const clean = dtStr.replace('T', ' ');
+      const partes = clean.split(' ');
+      const dataPart = partes[0] || '';
+      const horaPart = partes[1] || '';
+      const dp = dataPart.split('-');
+      const horaFmt = horaPart ? horaPart.substring(0, 5) : '';
+      if (dp.length === 3) {
+        return `${dp[2]}/${dp[1]} ${horaFmt}`.trim();
+      }
+      return horaFmt || dtStr.substring(0, 16);
+    }
+
+    function renderizarFechamento(data) {
+      const k = data.kpis || {};
+      // KPIs
+      const kpiEntregas = document.getElementById('fechKpiEntregas');
+      const kpiTotal = document.getElementById('fechKpiTotal');
+      const kpiAtivos = document.getElementById('fechKpiAtivos');
+      const kpiMedia = document.getElementById('fechKpiMedia');
+      if (kpiEntregas) kpiEntregas.textContent = k.total_entregas || 0;
+      if (kpiTotal) kpiTotal.textContent = 'R$ ' + (k.total_taxas || 0).toFixed(2).replace('.', ',');
+      if (kpiAtivos) kpiAtivos.textContent = k.entregadores_ativos || 0;
+      if (kpiMedia) kpiMedia.textContent = 'R$ ' + (k.media_taxa || 0).toFixed(2).replace('.', ',');
+
+      // Rótulo do Período
+      let labelPeriodo = 'Hoje';
+      if (periodoFechamentoAtivo === 'ontem') labelPeriodo = 'Ontem';
+      else if (periodoFechamentoAtivo === 'semana') labelPeriodo = 'Esta Semana';
+      else if (periodoFechamentoAtivo === 'mes') labelPeriodo = 'Este Mês';
+      else if (periodoFechamentoAtivo === 'todos') labelPeriodo = 'Histórico Completo';
+      else if (periodoFechamentoAtivo === 'personalizado') {
+        const dtIni = document.getElementById('inpFechDataInicio')?.value || '';
+        const dtFim = document.getElementById('inpFechDataFim')?.value || '';
+        if (dtIni && dtFim) {
+          const [y1, m1, d1] = dtIni.split('-');
+          const [y2, m2, d2] = dtFim.split('-');
+          labelPeriodo = `${d1}/${m1}/${y1} a ${d2}/${m2}/${y2}`;
+        } else if (dtIni) {
+          const [y1, m1, d1] = dtIni.split('-');
+          labelPeriodo = `A partir de ${d1}/${m1}/${y1}`;
+        } else if (dtFim) {
+          const [y2, m2, d2] = dtFim.split('-');
+          labelPeriodo = `Até ${d2}/${m2}/${y2}`;
+        } else {
+          labelPeriodo = 'Personalizado';
+        }
+      }
+
+      const lblInfo = document.getElementById('fechamentoPeriodoLabel');
+      if (lblInfo) {
+        if (periodoFechamentoAtivo === 'personalizado') {
+          lblInfo.textContent = `Filtrando: ${labelPeriodo}`;
+        } else {
+          lblInfo.textContent = '';
+        }
+      }
+
+      // Cards por Motoboy
+      const contMotoboys = document.getElementById('containerFechamentoMotoboys');
+      if (contMotoboys) {
+        if (!data.por_motoboy || data.por_motoboy.length === 0) {
+          contMotoboys.innerHTML = `<div class="empty-state"><div class="empty-state-title">Nenhuma entrega no período (${labelPeriodo})</div></div>`;
+        } else {
+          contMotoboys.innerHTML = data.por_motoboy.map(m => {
+            const totalFmt = m.total_taxas.toFixed(2).replace('.', ',');
+            const isSpeed = (m.grupo || 'VELOZ').toUpperCase() === 'SPEED';
+            const msgWhats = encodeURIComponent(
+              `Fechamento — ${labelPeriodo}:\n` +
+              `Grupo: ${isSpeed ? 'SPEED' : 'VELOZ'}\n` +
+              `Entregas: ${m.total_entregas}\n` +
+              `Total a receber: R$ ${totalFmt}\n` +
+              `Ao Ponto Carnes — Teresópolis`
+            );
+            const tel = (m.telefone || '').replace(/\D/g, '');
+            return `
+              <div class="card card-elevated" style="display: flex; flex-direction: column; gap: 12px; border-top: 3px solid ${isSpeed ? '#f59e0b' : '#3b82f6'};">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <strong style="font-size: 15px;">${escapeHtml(m.nome)}</strong>
+                      <span class="badge-grupo-pedido ${isSpeed ? 'badge-grupo-speed' : 'badge-grupo-veloz'}">${isSpeed ? 'SPEED' : 'VELOZ'}</span>
+                    </div>
+                    <span style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px;">
+                      ${SVG_ICONS.phone} <span>${formatarTelefone(m.telefone)}</span>
+                    </span>
+                  </div>
+                  <span style="font-size: 22px; font-weight: 800; color: #34d399;">R$ ${totalFmt}</span>
+                </div>
+                <div style="background: var(--bg-surface); padding: 10px 12px; border-radius: var(--radius-sm); font-size: 13px; display: flex; justify-content: space-between;">
+                  <span><strong>${m.total_entregas}</strong> entregas</span>
+                  <span style="color: var(--text-muted);">${isSpeed ? 'Tabela Speed' : 'Tabela Oficial Veloz'}</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                  <a class="btn btn-success btn-sm" style="flex: 1; text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;" href="https://wa.me/55${tel}?text=${msgWhats}" target="_blank">
+                    ${SVG_ICONS.message}
+                    <span>WhatsApp</span>
+                  </a>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+
+      // Tabela analítica de entregas
+      const contEntregas = document.getElementById('containerFechamentoEntregas');
+      if (contEntregas) {
+        if (!data.entregas_detalhadas || data.entregas_detalhadas.length === 0) {
+          contEntregas.innerHTML = `<div class="empty-state"><div class="empty-state-title">Nenhuma entrega no período (${labelPeriodo})</div></div>`;
+        } else {
+          contEntregas.innerHTML = `
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <thead>
+                <tr style="border-bottom: 2px solid var(--border-subtle); color: var(--text-muted);">
+                  <th style="padding: 8px 4px; text-align: left;">#Pedido</th>
+                  <th style="padding: 8px 4px; text-align: left;">Grupo</th>
+                  <th style="padding: 8px 4px; text-align: left;">Cliente</th>
+                  <th style="padding: 8px 4px; text-align: left;">Bairro</th>
+                  <th style="padding: 8px 4px; text-align: left;">Motoboy</th>
+                  <th style="padding: 8px 4px; text-align: left;">Horário</th>
+                  <th style="padding: 8px 4px; text-align: right; color: #34d399;">Taxa</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${data.entregas_detalhadas.map(e => {
+                  const isSpeed = (e.grupo || 'VELOZ').toUpperCase() === 'SPEED';
+                  return `
+                    <tr style="border-bottom: 1px solid var(--border-subtle);">
+                      <td style="padding: 8px 4px; font-weight: 700;">#${e.numero_pedido}</td>
+                      <td style="padding: 8px 4px;">
+                        <span class="badge-grupo-pedido ${isSpeed ? 'badge-grupo-speed' : 'badge-grupo-veloz'}">${isSpeed ? 'SPEED' : 'VELOZ'}</span>
+                      </td>
+                      <td style="padding: 8px 4px;">${escapeHtml(e.cliente || '—')}</td>
+                      <td style="padding: 8px 4px; color: var(--text-muted);">${escapeHtml(e.bairro || '—')}</td>
+                      <td style="padding: 8px 4px;">${escapeHtml(e.motoboy ? e.motoboy.nome : '—')}</td>
+                      <td style="padding: 8px 4px; color: var(--text-muted);">${formatarDataHoraFechamento(e.data_fim || e.data_inicio)}</td>
+                      <td style="padding: 8px 4px; text-align: right; font-weight: 700; color: #34d399;">R$ ${e.taxa_repasse.toFixed(2).replace('.', ',')}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          `;
+        }
+      }
+    }
+
+    function imprimirFechamento() {
+      window.print();
+    }
+
+    // ── GESTÃO DE MOTOBOYS & GRUPOS (PROTEGIDO POR SENHA) ────────────────────
+    function filtrarGrupoMotoboys(grupo, btn) {
+      state.filtroGrupoMotoboys = grupo;
+      document.querySelectorAll('#view-motoboys .filter-pill').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      renderizarMotoboys();
+    }
+
+    function verificarAbaMotoboysDesbloqueada() {
+      const unlocked = sessionStorage.getItem('motoboys_unlocked') === 'true';
+      const lockScreen = document.getElementById('motoboysLockScreen');
+      const contentScreen = document.getElementById('motoboysContentScreen');
+      if (unlocked) {
+        if (lockScreen) lockScreen.style.display = 'none';
+        if (contentScreen) contentScreen.style.display = 'flex';
+        renderizarMotoboys();
+      } else {
+        if (lockScreen) lockScreen.style.display = 'flex';
+        if (contentScreen) contentScreen.style.display = 'none';
+        const inp = document.getElementById('inpSenhaAbaMotoboys');
+        if (inp) setTimeout(() => inp.focus(), 100);
+      }
+    }
+
+    async function autenticarAbaMotoboys(e) {
+      if (e) e.preventDefault();
+      const inp = document.getElementById('inpSenhaAbaMotoboys');
+      const msgErro = document.getElementById('msgErroSenhaMotoboy');
+      const btn = document.getElementById('btnDesbloquearMotoboys');
+      const senha = (inp ? inp.value : '').trim();
+
+      if (!senha) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Verificando...';
+      if (msgErro) msgErro.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/admin/motoboys/verificar-senha', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ senha })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          sessionStorage.setItem('motoboys_unlocked', 'true');
+          sessionStorage.setItem('admin_motoboy_pass', senha);
+          showToast('Acesso liberado à gestão de entregadores!', 'success');
+          if (inp) inp.value = '';
+          verificarAbaMotoboysDesbloqueada();
+        } else {
+          if (msgErro) {
+            msgErro.textContent = data.message || 'Senha incorreta.';
+            msgErro.style.display = 'block';
+          }
+          showToast('Senha administrativa incorreta.', 'error');
+        }
+      } catch (err) {
+        if (msgErro) {
+          msgErro.textContent = 'Erro de comunicação com o servidor.';
+          msgErro.style.display = 'block';
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'DESBLOQUEAR ACESSO';
+      }
+    }
+
+    function bloquearAbaMotoboys() {
+      sessionStorage.removeItem('motoboys_unlocked');
+      sessionStorage.removeItem('admin_motoboy_pass');
+      showToast('Aba de entregadores bloqueada com sucesso.', 'info');
+      verificarAbaMotoboysDesbloqueada();
+    }
+
+    async function alterarGrupoMotoboyDirect(motoboyId, novoGrupo) {
+      const senhaAdmin = sessionStorage.getItem('admin_motoboy_pass') || 'boijoaocarnes01';
+      try {
+        const res = await fetch('/api/admin/motoboys/atualizar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: motoboyId,
+            grupo: novoGrupo,
+            senha_admin: senhaAdmin
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(`Entregador alterado para o grupo ${novoGrupo}!`, 'success');
+          carregarTudo(false);
+        } else {
+          showToast(data.message || 'Erro ao alterar grupo.', 'error');
+          carregarTudo(false);
+        }
+      } catch (e) {
+        showToast('Erro ao atualizar grupo do entregador.', 'error');
+      }
+    }
+
+    // Modal de Edição de Motoboy
+    function abrirModalEditarMotoboy(motoboyId) {
+      const m = (state.motoboys || []).find(item => item.id === motoboyId);
+      if (!m) return;
+
+      document.getElementById('inpEditMotoboyId').value = m.id;
+      document.getElementById('inpEditMotoboyNome').value = m.nome;
+      document.getElementById('inpEditMotoboyTel').value = m.telefone;
+      document.getElementById('inpEditMotoboyGrupo').value = (m.grupo || 'VELOZ').toUpperCase();
+      document.getElementById('inpEditMotoboySenha').value = '';
+      document.getElementById('inpEditMotoboyDeviceId').value = m.traccar_device_id || '';
+      document.getElementById('msgErroEditMotoboy').style.display = 'none';
+
+      document.getElementById('modalEditarMotoboy').style.display = 'flex';
+    }
+
+    function fecharModalEditarMotoboy() {
+      const modal = document.getElementById('modalEditarMotoboy');
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function salvarEdicaoMotoboy(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnSalvarEditMotoboy');
+      const msgErro = document.getElementById('msgErroEditMotoboy');
+      const senhaAdmin = sessionStorage.getItem('admin_motoboy_pass') || 'boijoaocarnes01';
+
+      const payload = {
+        id: Number(document.getElementById('inpEditMotoboyId').value),
+        nome: document.getElementById('inpEditMotoboyNome').value.trim(),
+        telefone: document.getElementById('inpEditMotoboyTel').value.trim(),
+        grupo: document.getElementById('inpEditMotoboyGrupo').value,
+        senha: document.getElementById('inpEditMotoboySenha').value.trim() || undefined,
+        traccar_device_id: document.getElementById('inpEditMotoboyDeviceId').value.trim() || undefined,
+        senha_admin: senhaAdmin
+      };
+
+      btn.disabled = true;
+      btn.textContent = 'Salvando...';
+      msgErro.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/admin/motoboys/atualizar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(data.message, 'success');
+          fecharModalEditarMotoboy();
+          carregarTudo(false);
+        } else {
+          msgErro.textContent = data.message || 'Erro ao salvar alterações.';
+          msgErro.style.display = 'block';
+        }
+      } catch (err) {
+        msgErro.textContent = 'Erro ao conectar ao servidor.';
+        msgErro.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'SALVAR';
+      }
+    }
+
+    // Modal de Cadastro de Motoboy
+    function abrirModalCadastrarMotoboy() {
+      document.getElementById('inpCadMotoboyNome').value = '';
+      document.getElementById('inpCadMotoboyTel').value = '';
+      document.getElementById('inpCadMotoboyGrupo').value = 'VELOZ';
+      document.getElementById('inpCadMotoboySenha').value = '';
+      document.getElementById('inpCadMotoboyDeviceId').value = '';
+      document.getElementById('msgErroCadMotoboy').style.display = 'none';
+      document.getElementById('modalCadastrarMotoboy').style.display = 'flex';
+      setTimeout(() => document.getElementById('inpCadMotoboyNome').focus(), 100);
+    }
+
+    function fecharModalCadastrarMotoboy() {
+      const modal = document.getElementById('modalCadastrarMotoboy');
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function salvarCadastroMotoboy(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnSalvarCadMotoboy');
+      const msgErro = document.getElementById('msgErroCadMotoboy');
+      const senhaAdmin = sessionStorage.getItem('admin_motoboy_pass') || 'boijoaocarnes01';
+
+      const payload = {
+        nome: document.getElementById('inpCadMotoboyNome').value.trim(),
+        telefone: document.getElementById('inpCadMotoboyTel').value.trim(),
+        grupo: document.getElementById('inpCadMotoboyGrupo').value,
+        senha: document.getElementById('inpCadMotoboySenha').value.trim(),
+        traccar_device_id: document.getElementById('inpCadMotoboyDeviceId').value.trim() || undefined,
+        senha_admin: senhaAdmin
+      };
+
+      btn.disabled = true;
+      btn.textContent = 'Cadastrando...';
+      msgErro.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/admin/motoboys/cadastrar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(data.message, 'success');
+          fecharModalCadastrarMotoboy();
+          carregarTudo(false);
+        } else {
+          msgErro.textContent = data.message || 'Erro ao cadastrar entregador.';
+          msgErro.style.display = 'block';
+        }
+      } catch (err) {
+        msgErro.textContent = 'Erro ao conectar ao servidor.';
+        msgErro.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'CADASTRAR';
+      }
+    }
+
+    // Ações de Direcionamento de Pedido
+    async function definirGrupoPedido(pedidoId, grupo) {
+      try {
+        const res = await fetch('/api/pedidos/definir-grupo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pedido_id: pedidoId, grupo })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(`Pedido direcionado com sucesso para ${grupo}!`, 'success');
+          carregarTudo(false);
+        } else {
+          showToast(data.message || 'Erro ao definir grupo.', 'error');
+        }
+      } catch (e) {
+        showToast('Erro de conexão ao definir grupo.', 'error');
+      }
+    }
+
+    async function alternarGrupoPedido(pedidoId, grupoAtual) {
+      const novoGrupo = grupoAtual === 'SPEED' ? 'VELOZ' : 'SPEED';
+      if (!confirm(`Deseja alterar a destinação deste pedido para o grupo ${novoGrupo}?`)) return;
+      await definirGrupoPedido(pedidoId, novoGrupo);
+    }
+
+    // ── Gestão de Tabelas de Taxas (VELOZ & SPEED) ─────────────────────────
+    let cacheTaxas = { veloz: [], speed: [] };
+    let grupoTaxaAtivo = 'SPEED';
+
+    async function abrirModalTabelaTaxas() {
+      const modal = document.getElementById('modalTabelaTaxas');
+      if (modal) {
+        modal.style.display = 'flex';
+        alternarAbaTaxas('SPEED');
+        await carregarTaxasAdmin();
+      }
+    }
+
+    function fecharModalTabelaTaxas() {
+      const modal = document.getElementById('modalTabelaTaxas');
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function carregarTaxasAdmin() {
+      try {
+        const res = await fetch('/api/admin/taxas');
+        const data = await res.json();
+        if (data && data.success) {
+          cacheTaxas.veloz = data.taxas_veloz || [];
+          cacheTaxas.speed = data.taxas_speed || [];
+          renderizarTabelaTaxas();
+        }
+      } catch (err) {
+        console.error('Erro ao carregar taxas:', err);
+      }
+    }
+
+    function alternarAbaTaxas(grupo) {
+      grupoTaxaAtivo = grupo;
+      const btnVeloz = document.getElementById('tabTaxaVeloz');
+      const btnSpeed = document.getElementById('tabTaxaSpeed');
+      if (btnVeloz && btnSpeed) {
+        if (grupo === 'SPEED') {
+          btnSpeed.className = 'filter-pill active';
+          btnSpeed.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+          btnSpeed.style.color = '#000';
+          btnSpeed.style.borderColor = '#f59e0b';
+          btnVeloz.className = 'filter-pill';
+          btnVeloz.style.background = 'rgba(255,255,255,0.06)';
+          btnVeloz.style.color = 'var(--text-muted)';
+          btnVeloz.style.borderColor = 'var(--border-subtle)';
+        } else {
+          btnVeloz.className = 'filter-pill active';
+          btnVeloz.style.background = 'linear-gradient(135deg, #3b82f6, #2563eb)';
+          btnVeloz.style.color = '#fff';
+          btnVeloz.style.borderColor = '#3b82f6';
+          btnSpeed.className = 'filter-pill';
+          btnSpeed.style.background = 'rgba(255,255,255,0.06)';
+          btnSpeed.style.color = 'var(--text-muted)';
+          btnSpeed.style.borderColor = 'var(--border-subtle)';
+        }
+      }
+      renderizarTabelaTaxas();
+    }
+
+    function renderizarTabelaTaxas() {
+      const container = document.getElementById('tbodyTaxas');
+      const lblCount = document.getElementById('lblCountTaxas');
+      const query = (document.getElementById('inputBuscaTaxa')?.value || '').toLowerCase().trim();
+      if (!container) return;
+
+      const lista = grupoTaxaAtivo === 'SPEED' ? cacheTaxas.speed : cacheTaxas.veloz;
+      const filtrados = lista.filter(item => {
+        if (!query) return true;
+        return normalizarTexto(item.bairro).includes(normalizarTexto(query));
+      });
+
+      if (lblCount) {
+        lblCount.textContent = `Exibindo ${filtrados.length} de ${lista.length} bairros na Tabela ${grupoTaxaAtivo}.`;
+      }
+
+      if (filtrados.length === 0) {
+        container.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 25px; color: var(--text-muted);">Nenhum bairro encontrado para "${escapeHtml(query)}".</td></tr>`;
+        return;
+      }
+
+      container.innerHTML = filtrados.map(item => `
+        <tr style="border-bottom: 1px solid var(--border-subtle);">
+          <td style="padding: 10px 12px; font-weight: 700; color: var(--text-primary);">${escapeHtml(item.bairro)}</td>
+          <td style="padding: 10px 12px; width: 140px; text-align: right;">
+            <div style="display: inline-flex; align-items: center; gap: 4px;">
+              <span style="color: var(--brand-gold); font-weight: 800; font-size: 12px;">R$</span>
+              <input type="number" step="0.50" min="0" class="form-input" id="inpTaxa_${grupoTaxaAtivo}_${item.id}" value="${Number(item.taxa).toFixed(2)}" style="width: 85px; padding: 4px 6px; font-size: 13px; font-weight: 700; text-align: right;">
+            </div>
+          </td>
+          <td style="padding: 10px 12px; width: 80px; text-align: right;">
+            <button class="btn btn-gold btn-sm" onclick="salvarTaxaBairro(${item.id}, '${grupoTaxaAtivo}')" style="padding: 4px 8px; font-size: 11px;">Salvar</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function salvarTaxaBairro(id, grupo) {
+      const inp = document.getElementById(`inpTaxa_${grupo}_${id}`);
+      if (!inp) return;
+      const novaTaxa = parseFloat(inp.value);
+      if (isNaN(novaTaxa) || novaTaxa < 0) {
+        showToast('Por favor, informe uma taxa válida.', 'error');
+        return;
+      }
+
+      const lista = grupo === 'SPEED' ? cacheTaxas.speed : cacheTaxas.veloz;
+      const item = lista.find(t => t.id === id);
+      const bairroNome = item ? item.bairro : '';
+
+      const senhaAdmin = sessionStorage.getItem('admin_motoboy_pass') || 'boijoaocarnes01';
+
+      try {
+        const res = await fetch('/api/admin/taxas/atualizar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id,
+            bairro: bairroNome,
+            taxa: novaTaxa,
+            grupo,
+            senha_admin: senhaAdmin
+          })
+        });
+        const data = await res.json();
+        if (data && data.success) {
+          showToast(`Taxa de ${bairroNome} (${grupo}) atualizada para R$ ${novaTaxa.toFixed(2)}!`, 'success');
+          carregarTaxasAdmin();
+        } else {
+          showToast(data.message || 'Erro ao atualizar taxa.', 'error');
+        }
+      } catch (err) {
+        showToast('Erro de conexão ao atualizar taxa.', 'error');
+      }
+    }
+
+    // ── Atribuição Manual de Pedido a Entregador ───────────────────────────
+    function abrirModalAtribuirEntregador(pedidoId) {
+      const pedido = (state.pedidos || []).find(p => p.id === pedidoId) || state.pedidoDetalheCache;
+      if (!pedido) {
+        showToast('Pedido não encontrado.', 'error');
+        return;
+      }
+
+      document.getElementById('inpAtribuirPedidoId').value = pedido.id;
+
+      const grupoBadge = pedido.grupo 
+        ? `<span class="badge-grupo-pedido ${pedido.grupo === 'SPEED' ? 'badge-grupo-speed' : 'badge-grupo-veloz'}">${pedido.grupo === 'SPEED' ? 'SPEED' : 'VELOZ'}</span>`
+        : `<span class="badge-pendente-grupo">Pendente de Grupo</span>`;
+
+      const infoCard = document.getElementById('atribuirPedidoInfoCard');
+      if (infoCard) {
+        const clienteNome = (pedido.cliente && pedido.cliente.nome) ? pedido.cliente.nome : (pedido.cliente || 'Cliente Balcão');
+        const endStr = pedido.endereco || (pedido.cliente && pedido.cliente.endereco) || 'Endereço não informado';
+        const bairroStr = pedido.bairro || (pedido.cliente && pedido.cliente.bairro) || '';
+
+        infoCard.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong style="font-size: 15px; color: var(--brand-gold-light);">#${pedido.numero_pedido}</strong>
+            ${grupoBadge}
+          </div>
+          <div style="font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px;">${escapeHtml(clienteNome)}</div>
+          <div style="font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">${SVG_ICONS.mapPin} <span>${escapeHtml(endStr)} ${bairroStr ? '— ' + escapeHtml(bairroStr) : ''}</span></div>
+          ${pedido.motoboy ? `<div style="font-size: 11px; color: #fbbf24; margin-top: 6px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.08);">Atualmente com: <strong>${escapeHtml(pedido.motoboy.nome)}</strong></div>` : ''}
+        `;
+      }
+
+      // Preencher select de motoboys
+      const select = document.getElementById('selectAtribuirMotoboy');
+      if (select) {
+        select.innerHTML = '<option value="">-- Selecione o Entregador --</option>';
+        const motoboys = state.motoboys || [];
+
+        // Ordenar motoboys: primeiro os do mesmo grupo do pedido (se houver), depois por nome
+        const ordenados = [...motoboys].sort((a, b) => {
+          const aGrupoMatch = pedido.grupo && (a.grupo || 'VELOZ') === pedido.grupo;
+          const bGrupoMatch = pedido.grupo && (b.grupo || 'VELOZ') === pedido.grupo;
+          if (aGrupoMatch && !bGrupoMatch) return -1;
+          if (!aGrupoMatch && bGrupoMatch) return 1;
+          return (a.nome || '').localeCompare(b.nome || '');
+        });
+
+        ordenados.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          const grupoIcon = (m.grupo === 'SPEED') ? 'SPEED' : 'VELOZ';
+          const isAtribuido = pedido.motoboy_id && Number(pedido.motoboy_id) === Number(m.id);
+          opt.textContent = `${m.nome} (${grupoIcon}) ${m.status_motoboy === 'em_rota' ? '— Em rota' : '— Disponível'}`;
+          if (isAtribuido) opt.selected = true;
+          select.appendChild(opt);
+        });
+      }
+
+      document.getElementById('msgErroAtribuir').style.display = 'none';
+      document.getElementById('modalAtribuirEntregador').style.display = 'flex';
+    }
+
+    function fecharModalAtribuirEntregador() {
+      const modal = document.getElementById('modalAtribuirEntregador');
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function confirmarAtribuicaoEntregador(e) {
+      e.preventDefault();
+      const pedidoId = Number(document.getElementById('inpAtribuirPedidoId').value);
+      const motoboyId = Number(document.getElementById('selectAtribuirMotoboy').value);
+      const status = document.getElementById('selectAtribuirStatus').value;
+      const btn = document.getElementById('btnConfirmarAtribuicao');
+      const msgErro = document.getElementById('msgErroAtribuir');
+
+      if (!motoboyId) {
+        msgErro.textContent = 'Por favor, selecione um entregador na lista.';
+        msgErro.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Atribuindo...';
+      msgErro.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/admin/pedidos/atribuir', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pedido_id: pedidoId, motoboy_id: motoboyId, status })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(data.message, 'success');
+          fecharModalAtribuirEntregador();
+          if (document.getElementById('drawerPedido').classList.contains('open')) {
+            abrirDetalhesPedido(pedidoId);
+          }
+          carregarTudo(false);
+        } else {
+          msgErro.textContent = data.message || 'Erro ao atribuir pedido.';
+          msgErro.style.display = 'block';
+        }
+      } catch (err) {
+        msgErro.textContent = 'Erro ao conectar ao servidor.';
+        msgErro.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'CONFIRMAR';
+      }
+    }
+
+  </script>
+</body>
+</html>
