@@ -63,10 +63,15 @@ async function handleWebhook(req, res) {
 
       if (!orderId) continue;
 
-      if (code === 'PLACED') {
-        // Novo pedido realizado no iFood
+      const isPlaced = code === 'PLACED' || code === 'PLC';
+      const isConfirmed = code === 'CONFIRMED' || code === 'CFM';
+      const isDispatched = code === 'DISPATCHED' || code === 'DSP';
+      const isCancelled = code === 'CANCELLED' || code === 'CAN' || code === 'ORDER_CANCELLATION_REQUESTED' || code === 'CPR';
+
+      if (isPlaced) {
+        // Novo pedido realizado no iFood (Etapa 2)
         await processNewOrder(orderId);
-        // Etapa 2 - Confirma o pedido automaticamente (CFM) para validar a homologação
+        // Confirma o pedido automaticamente (CFM) para aprovar na homologação
         try {
           await ifoodService.confirmOrder(orderId);
           console.log(`✅ [Auto-Confirm] Pedido ${orderId} confirmado automaticamente no iFood (CFM)!`);
@@ -74,11 +79,11 @@ async function handleWebhook(req, res) {
         } catch (errConfirm) {
           console.warn(`⚠️ Auto-confirmação do pedido ${orderId}: ${errConfirm.message}`);
         }
-      } else if (code === 'CONFIRMED') {
+      } else if (isConfirmed) {
         await updateOrderStatus(orderId, 'confirmado');
-      } else if (code === 'DISPATCHED') {
+      } else if (isDispatched) {
         await updateOrderStatus(orderId, 'em_entrega');
-      } else if (code === 'CANCELLED' || code === 'ORDER_CANCELLATION_REQUESTED') {
+      } else if (isCancelled) {
         await updateOrderStatus(orderId, 'cancelado');
       }
     } catch (err) {
