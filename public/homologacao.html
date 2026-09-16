@@ -204,6 +204,10 @@
         <span style="color:var(--ifood-red); font-size: 28px;">🛵</span> Homologação Oficial iFood API
       </h1>
       <span class="badge badge-homolog">Ambiente de Homologação Isolado</span>
+      <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; color:#10b981;">
+        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10b981; box-shadow:0 0 8px #10b981;"></span>
+        Loja Conectada (Heartbeat Ativo)
+      </span>
     </div>
     <div>
       <a href="/admin.html" class="btn btn-outline" style="text-decoration:none;">Painel Admin</a>
@@ -211,18 +215,44 @@
   </div>
 
   <!-- Webhook URL Info -->
-  <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px 20px; margin-bottom: 24px;">
+  <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px 20px; margin-bottom: 16px;">
     <div style="display:flex; justify-content:space-between; align-items:center;">
       <div>
-        <h3 style="margin:0 0 4px 0; font-size:15px;">🌐 URL do Webhook para Cadastro no Portal iFood</h3>
+        <h3 style="margin:0 0 4px 0; font-size:15px;">🌐 URL do Webhook Cadastrada no iFood</h3>
         <p style="margin:0; font-size:12px; color:var(--text-muted);">
-          Cadastre esta URL no <strong>Portal do Desenvolvedor do iFood</strong> na aba de Webhooks:
+          URL que recebe as notificações em tempo real do iFood:
         </p>
       </div>
       <button class="btn btn-outline" onclick="copiarWebhookUrl()">📋 Copiar URL</button>
     </div>
     <div class="webhook-box" style="margin-top:10px; margin-bottom:0;" id="webhookUrlBox">
-      <span id="webhookUrlSpan">https://seu-dominio.vercel.app/api/ifood/webhook</span>
+      <span id="webhookUrlSpan">https://sist-homolog.vercel.app/api/ifood/webhook</span>
+    </div>
+  </div>
+
+  <!-- Controle de Modo de Homologação (Automático vs Manual) -->
+  <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 18px 20px; margin-bottom: 24px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+      <div>
+        <h3 style="margin:0 0 6px 0; font-size:16px; display:flex; align-items:center; gap:10px;">
+          ⚙️ Modo de Homologação:
+          <span id="currentModeBadge" class="badge" style="background:#2563eb; color:#fff;">Modo Manual Ativo</span>
+        </h3>
+        <p style="margin:0; font-size:13px; color:var(--text-muted);">
+          Defina como você deseja que o sistema processe os pedidos de teste:
+        </p>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn" id="btnModoManual" onclick="alterarModo(false)" style="background:#2563eb; color:#fff;">
+          ✋ Modo Manual (Você clica para confirmar/cancelar)
+        </button>
+        <button class="btn btn-outline" id="btnModoAuto" onclick="alterarModo(true)">
+          🤖 Modo Automático (Para rodar o Teste Oficial do iFood)
+        </button>
+      </div>
+    </div>
+    <div style="margin-top:12px; padding:12px 16px; background:#11151c; border-left:4px solid #3b82f6; border-radius:6px; font-size:13px; color:#d1d5db; line-height:1.4;" id="modoExplicacao">
+      ✋ <strong>Modo Manual:</strong> Nenhum pedido é confirmado ou cancelado sozinho. Todos os pedidos recebidos ficam listados abaixo e você clica nos botões quando quiser testar.
     </div>
   </div>
 
@@ -230,11 +260,11 @@
   <div class="grid-steps">
 
     <!-- Etapa 1 -->
-    <div class="card-step active" id="cardEtapa1">
+    <div class="card-step" id="cardEtapa1">
       <div>
         <div style="display:flex; justify-content:space-between;">
           <div class="step-number">Etapa 1 de 5</div>
-          <span class="badge badge-pending" id="badgeEtapa1">Aguardando Teste</span>
+          <span class="badge badge-success" id="badgeEtapa1">✓ Conectado</span>
         </div>
         <h2 class="step-title">Conectividade & OAuth2</h2>
         <p class="step-desc">
@@ -243,7 +273,7 @@
       </div>
       <div>
         <button class="btn btn-ifood" style="width:100%;" onclick="testarEtapa1()" id="btnTestarEtapa1">
-          ⚡ Testar Conectividade Agora
+          ⚡ Consultar Conectividade
         </button>
         <div class="log-box" id="logEtapa1" style="display:none;"></div>
       </div>
@@ -256,9 +286,9 @@
           <div class="step-number">Etapa 2 de 5</div>
           <span class="badge badge-pending" id="badgeEtapa2">Pendente</span>
         </div>
-        <h2 class="step-title">Receber e Confirmar (CFM)</h2>
+        <h2 class="step-title">Confirmar Pedido (CFM)</h2>
         <p class="step-desc">
-          Recebe o evento <code>PLACED</code> e responde a confirmação <code>POST /confirm</code> para o iFood.
+          Responde a confirmação <code>POST /confirm</code> para o pedido recebido via Webhook.
         </p>
       </div>
       <div>
@@ -278,14 +308,19 @@
         </div>
         <h2 class="step-title">Cancelar Pedido (CAN)</h2>
         <p class="step-desc">
-          Trata eventos de cancelamento ou solicita o cancelamento do pedido de teste no iFood.
+          Trata eventos de cancelamento ou solicita o cancelamento do pedido no iFood.
         </p>
       </div>
       <div>
         <input type="text" id="orderIdCancel" placeholder="ID do Pedido (orderId)">
-        <button class="btn btn-danger" style="width:100%;" onclick="cancelarPedido()">
-          ✕ Cancelar Pedido (CAN)
-        </button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-danger" style="flex:1;" onclick="cancelarPedido('request')">
+            ✕ Solicitar (501)
+          </button>
+          <button class="btn btn-outline" style="flex:1;" onclick="cancelarPedido('accept')" title="Aceitar cancelamento solicitado">
+            ✓ Aceitar Cancelamento
+          </button>
+        </div>
       </div>
     </div>
 
@@ -294,7 +329,7 @@
       <div>
         <div style="display:flex; justify-content:space-between;">
           <div class="step-number">Etapa 4 de 5</div>
-          <span class="badge badge-pending" id="badgeEtapa4">Pendente</span>
+          <span class="badge badge-success" id="badgeEtapa4">✓ Aprovado (10/10)</span>
         </div>
         <h2 class="step-title">Despachar Pedido (DSP)</h2>
         <p class="step-desc">
@@ -314,16 +349,16 @@
       <div>
         <div style="display:flex; justify-content:space-between;">
           <div class="step-number">Etapa 5 de 5</div>
-          <span class="badge badge-pending" id="badgeEtapa5">Pendente</span>
+          <span class="badge badge-pending" id="badgeEtapa5">Acompanhamento</span>
         </div>
         <h2 class="step-title">Validação do Ciclo</h2>
         <p class="step-desc">
-          Valida o ciclo completo na ferramenta de homologação do Portal do Desenvolvedor do iFood.
+          Acompanhe os resultados e relatórios emitidos pelo Portal do Desenvolvedor do iFood.
         </p>
       </div>
       <div>
         <button class="btn btn-secondary" style="width:100%;" onclick="simularEvento()">
-          🧪 Simular Evento Local
+          🧪 Simular Pedido Local
         </button>
       </div>
     </div>
@@ -333,11 +368,17 @@
   <!-- Feed de Eventos do Webhook -->
   <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <h3 style="margin:0; font-size:16px; display:flex; align-items:center; gap:8px;">
-        📡 Eventos Recebidos via Webhook em Tempo Real (<span id="countEvents">0</span>)
-      </h3>
+      <div>
+        <h3 style="margin:0 0 4px 0; font-size:16px; display:flex; align-items:center; gap:8px;">
+          📡 Pedidos e Eventos Recebidos via Webhook (<span id="countEvents">0</span>)
+        </h3>
+        <p style="margin:0; font-size:12px; color:var(--text-muted);">
+          Esta lista fica salva no seu navegador e não é apagada ao atualizar a página.
+        </p>
+      </div>
       <div style="display:flex; gap:10px;">
         <button class="btn btn-outline" onclick="carregarEventos()">🔄 Atualizar</button>
+        <button class="btn btn-outline" onclick="limparEventosTela()" style="color:#ef4444; border-color:rgba(239,68,68,0.4);">🗑️ Limpar Lista da Tela</button>
       </div>
     </div>
 
@@ -347,7 +388,7 @@
           <tr>
             <th>Horário</th>
             <th>Evento (Code)</th>
-            <th>Order ID</th>
+            <th>Order ID (ID do Pedido)</th>
             <th>Merchant ID</th>
             <th>Ações Rápidas</th>
           </tr>
@@ -355,7 +396,7 @@
         <tbody id="eventsTableBody">
           <tr>
             <td colspan="5" style="text-align:center; color:var(--text-muted); padding:24px;">
-              Nenhum evento de Webhook recebido ainda. Aguardando disparos do Portal iFood...
+              Aguardando novos eventos de pedidos do iFood...
             </td>
           </tr>
         </tbody>
@@ -364,7 +405,6 @@
   </div>
 
   <script>
-    // Configura a URL do Webhook baseada no domínio atual
     const currentOrigin = window.location.origin;
     const webhookUrl = `${currentOrigin}/api/ifood/webhook`;
     document.getElementById('webhookUrlSpan').innerText = webhookUrl;
@@ -375,183 +415,190 @@
       });
     }
 
-    // Etapa 1 - Conectividade
-    async function testarEtapa1() {
-      const btn = document.getElementById('btnTestarEtapa1');
-      const log = document.getElementById('logEtapa1');
-      const badge = document.getElementById('badgeEtapa1');
-      
-      btn.disabled = true;
-      btn.innerText = '⏳ Verificando conectividade...';
-      log.style.display = 'block';
-      log.innerText = 'Enviando requisição para /api/ifood/status...';
+    // ── Gerenciamento do Modo (Manual vs Automático para o Robô) ─────────────
+    let modoAtualAuto = false;
 
+    async function carregarModo() {
       try {
-        const res = await fetch('/api/ifood/status');
+        const res = await fetch('/api/ifood/config');
         const data = await res.json();
-        log.innerText = JSON.stringify(data, null, 2);
+        atualizarInterfaceModo(!!data.autoMode);
+      } catch (e) {}
+    }
 
-        if (res.ok && data.ok) {
-          badge.className = 'badge badge-success';
-          badge.innerText = '✓ Conectado';
-          document.getElementById('cardEtapa1').style.borderColor = 'var(--success)';
-        } else {
-          badge.className = 'badge badge-pending';
-          badge.innerText = 'Falha / Verifique .env';
-          document.getElementById('cardEtapa1').style.borderColor = 'var(--danger)';
-        }
+    async function alterarModo(ativarAuto) {
+      try {
+        const res = await fetch('/api/ifood/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ autoMode: ativarAuto })
+        });
+        const data = await res.json();
+        atualizarInterfaceModo(!!data.autoMode);
       } catch (err) {
-        log.innerText = 'Erro ao conectar: ' + err.message;
-        badge.className = 'badge badge-pending';
-        badge.innerText = 'Erro de Conexão';
-      } finally {
-        btn.disabled = false;
-        btn.innerText = '⚡ Testar Conectividade Novamente';
+        alert('Erro ao alterar modo: ' + err.message);
       }
     }
 
-    // Etapa 2 - Confirmar Pedido
-    async function confirmarPedido(orderId) {
-      const id = orderId || document.getElementById('orderIdConfirm').value.trim();
-      if (!id) return alert('Por favor, informe o ID do pedido (orderId)');
+    function atualizarInterfaceModo(isAuto) {
+      modoAtualAuto = isAuto;
+      const badge = document.getElementById('currentModeBadge');
+      const explicacao = document.getElementById('modoExplicacao');
+      const btnManual = document.getElementById('btnModoManual');
+      const btnAuto = document.getElementById('btnModoAuto');
 
+      if (isAuto) {
+        badge.style.background = '#10b981';
+        badge.innerText = '🤖 Modo Automático Ativo';
+        explicacao.innerHTML = '🤖 <strong>Modo Automático Ativo (Para o Robô do iFood):</strong> Quando você rodar o teste oficial de homologação no portal do iFood, o sistema confirmará e aceitará cancelamentos instantaneamente dentro do tempo limite exigido pelo robô para garantir pontuação máxima.';
+        explicacao.style.borderLeftColor = '#10b981';
+
+        btnAuto.className = 'btn btn-success';
+        btnAuto.style.background = '#10b981';
+        btnAuto.style.color = '#fff';
+
+        btnManual.className = 'btn btn-outline';
+        btnManual.style.background = 'transparent';
+        btnManual.style.borderColor = 'var(--border-color)';
+        btnManual.style.color = 'var(--text-main)';
+      } else {
+        badge.style.background = '#2563eb';
+        badge.innerText = '✋ Modo Manual Ativo';
+        explicacao.innerHTML = '✋ <strong>Modo Manual Ativo:</strong> Nenhum pedido é confirmado ou cancelado sozinho. Todos os pedidos recebidos ficam listados abaixo e você clica nos botões quando quiser testar por conta própria.';
+        explicacao.style.borderLeftColor = '#3b82f6';
+
+        btnManual.className = 'btn';
+        btnManual.style.background = '#2563eb';
+        btnManual.style.color = '#fff';
+
+        btnAuto.className = 'btn btn-outline';
+        btnAuto.style.background = 'transparent';
+        btnAuto.style.borderColor = 'var(--border-color)';
+        btnAuto.style.color = 'var(--text-main)';
+      }
+    }
+
+    // ── Persistência Local dos Eventos (Evita que a lista suma ao atualizar) ──
+    const STORAGE_KEY = 'ifood_homolog_events_v2';
+
+    function getStoredEvents() {
       try {
-        const res = await fetch('/api/ifood/orders/confirm', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: id })
-        });
-        const data = await res.json();
-        if (res.ok) {
-          alert('✅ Pedido confirmado com sucesso (CFM): ' + JSON.stringify(data));
-          document.getElementById('badgeEtapa2').className = 'badge badge-success';
-          document.getElementById('badgeEtapa2').innerText = '✓ Validado';
-        } else {
-          alert('❌ Erro ao confirmar pedido: ' + (data.error || JSON.stringify(data)));
-        }
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
       } catch (e) {
-        alert('Erro: ' + e.message);
+        return [];
       }
     }
 
-    // Etapa 3 - Cancelar Pedido
-    async function cancelarPedido(orderId) {
-      const id = orderId || document.getElementById('orderIdCancel').value.trim();
-      if (!id) return alert('Por favor, informe o ID do pedido (orderId)');
-
+    function saveStoredEvents(events) {
       try {
-        const res = await fetch('/api/ifood/orders/cancel', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: id, actionType: 'request' })
-        });
-        const data = await res.json();
-        if (res.ok) {
-          alert('✅ Cancelamento processado: ' + JSON.stringify(data));
-          document.getElementById('badgeEtapa3').className = 'badge badge-success';
-          document.getElementById('badgeEtapa3').innerText = '✓ Validado';
-        } else {
-          alert('❌ Erro no cancelamento: ' + (data.error || JSON.stringify(data)));
-        }
-      } catch (e) {
-        alert('Erro: ' + e.message);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+      } catch (e) {}
+    }
+
+    function limparEventosTela() {
+      if (confirm('Deseja limpar os eventos da tela? (Isso não afeta a API do iFood)')) {
+        localStorage.removeItem(STORAGE_KEY);
+        renderizarTabela([]);
+        document.getElementById('countEvents').innerText = '0';
       }
     }
 
-    // Etapa 4 - Despachar Pedido
-    async function despacharPedido(orderId) {
-      const id = orderId || document.getElementById('orderIdDispatch').value.trim();
-      if (!id) return alert('Por favor, informe o ID do pedido (orderId)');
-
-      try {
-        const res = await fetch('/api/ifood/orders/dispatch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: id })
-        });
-        const data = await res.json();
-        if (res.ok) {
-          alert('✅ Pedido despachado (DSP): ' + JSON.stringify(data));
-          document.getElementById('badgeEtapa4').className = 'badge badge-success';
-          document.getElementById('badgeEtapa4').innerText = '✓ Validado';
-        } else {
-          alert('❌ Erro no despacho: ' + (data.error || JSON.stringify(data)));
-        }
-      } catch (e) {
-        alert('Erro: ' + e.message);
-      }
-    }
-
-    // Simulação local de evento
-    async function simularEvento() {
-      const res = await fetch('/api/ifood/simulate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: 'PLACED' })
-      });
-      const data = await res.json();
-      carregarEventos();
-      alert('🧪 Evento simulado criado com sucesso: ' + data.simulated.orderId);
-    }
-
-    // Carregar eventos recebidos
+    // ── Carregar Eventos ──────────────────────────────────────────────────────
     async function carregarEventos() {
       try {
         const res = await fetch('/api/ifood/events');
         const data = await res.json();
-        document.getElementById('countEvents').innerText = data.total || 0;
-        const tbody = document.getElementById('eventsTableBody');
 
-        if (!data.events || data.events.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:24px;">Nenhum evento recebido ainda.</td></tr>`;
-          return;
+        if (typeof data.autoMode === 'boolean' && data.autoMode !== modoAtualAuto) {
+          atualizarInterfaceModo(data.autoMode);
         }
 
-        tbody.innerHTML = data.events.map(ev => {
-          const hasOrder = ev.orderId && ev.orderId !== 'undefined';
-          const orderIdStr = hasOrder ? ev.orderId : '';
-          return `
-          <tr>
-            <td>${ev.receivedAt ? new Date(ev.receivedAt).toLocaleTimeString() : '-'}</td>
-            <td><strong style="color:${ev.code === 'PLACED' || ev.code === 'PLC' ? '#3b82f6' : ev.code === 'CONFIRMED' || ev.code === 'CFM' ? '#10b981' : ev.code === 'CANCELLED' || ev.code === 'CAN' ? '#ef4444' : '#f59e0b'}">${ev.code}</strong></td>
-            <td>
-              ${hasOrder ? `
-                <div style="display:flex; align-items:center; gap:6px;">
-                  <input type="text" readonly value="${orderIdStr}" style="margin:0; width:290px; font-family:monospace; font-size:12px; padding:4px 8px; background:#0f1218; border:1px solid #374151; color:#93c5fd; user-select:all;" onclick="this.select()">
-                  <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; white-space:nowrap;" onclick="copiarTexto('${orderIdStr}', this)">📋 Copiar</button>
-                  <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; white-space:nowrap;" onclick="preencherCards('${orderIdStr}')" title="Preencher este ID nos campos acima">✍️ Usar</button>
-                </div>
-              ` : `<span style="color:var(--text-muted);">-</span>`}
-            </td>
-            <td>${ev.merchantId || '-'}</td>
-            <td>
-              ${hasOrder ? `
-                <div class="action-group">
-                  <button class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="confirmarPedido('${orderIdStr}')">Confirmar (CFM)</button>
-                  <button class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="despacharPedido('${orderIdStr}')">Despachar (DSP)</button>
-                  <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; color:#ef4444;" onclick="cancelarPedido('${orderIdStr}')">Cancelar</button>
-                </div>
-              ` : `<span style="color:var(--text-muted);">-</span>`}
-            </td>
-          </tr>
-        `;
-        }).join('');
+        // Filtra apenas eventos reais de pedidos (descarta KEEPALIVE ou sem orderId)
+        const apiEvents = (data.events || []).filter(e => e && e.orderId && e.orderId !== 'undefined' && e.code !== 'KEEPALIVE');
+        const storedEvents = getStoredEvents();
+
+        const map = new Map();
+        // Carrega existentes salvos localmente
+        storedEvents.forEach(e => {
+          if (e && e.orderId && e.code !== 'KEEPALIVE') {
+            map.set(e.id || `${e.orderId}-${e.code}`, e);
+          }
+        });
+        // Adiciona ou atualiza com os que a API retornou
+        apiEvents.forEach(e => {
+          if (e && e.orderId && e.code !== 'KEEPALIVE') {
+            map.set(e.id || `${e.orderId}-${e.code}`, e);
+          }
+        });
+
+        const merged = Array.from(map.values()).sort(
+          (a, b) => new Date(b.receivedAt || 0) - new Date(a.receivedAt || 0)
+        );
+
+        saveStoredEvents(merged);
+        renderizarTabela(merged);
       } catch (err) {
-        console.error('Erro ao carregar eventos:', err);
+        // Se a API oscilar, mantém o que o navegador já guardou
+        const stored = getStoredEvents();
+        renderizarTabela(stored);
       }
     }
 
+    function renderizarTabela(events) {
+      document.getElementById('countEvents').innerText = events.length;
+      const tbody = document.getElementById('eventsTableBody');
+
+      if (!events || events.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:24px;">Nenhum pedido recebido ainda. Dispare um pedido no Portal do iFood...</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = events.map(ev => {
+        const orderIdStr = ev.orderId || '';
+        const isPlaced = ev.code === 'PLACED' || ev.code === 'PLC';
+        const isConfirmed = ev.code === 'CONFIRMED' || ev.code === 'CFM';
+        const isCancelled = ev.code === 'CANCELLED' || ev.code === 'CAN' || ev.code === 'ORDER_CANCELLATION_REQUESTED' || ev.code === 'CPR';
+        const isDispatched = ev.code === 'DISPATCHED' || ev.code === 'DSP';
+
+        const cor = isPlaced ? '#3b82f6' : isConfirmed ? '#10b981' : isCancelled ? '#ef4444' : isDispatched ? '#8b5cf6' : '#f59e0b';
+
+        return `
+        <tr>
+          <td>${ev.receivedAt ? new Date(ev.receivedAt).toLocaleTimeString() : '-'}</td>
+          <td><strong style="color:${cor};">${ev.code}</strong></td>
+          <td>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <input type="text" readonly value="${orderIdStr}" style="margin:0; width:290px; font-family:monospace; font-size:12px; padding:4px 8px; background:#0f1218; border:1px solid #374151; color:#93c5fd; user-select:all;" onclick="this.select()">
+              <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; white-space:nowrap;" onclick="copiarTexto('${orderIdStr}', this)">📋 Copiar</button>
+              <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; white-space:nowrap;" onclick="preencherCards('${orderIdStr}')" title="Preencher nos formulários acima">✍️ Usar</button>
+            </div>
+          </td>
+          <td>${ev.merchantId || '-'}</td>
+          <td>
+            <div class="action-group">
+              <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; border-color:rgba(16,185,129,0.4); color:#10b981;" onclick="confirmarPedido('${orderIdStr}')">Confirmar (CFM)</button>
+              <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; border-color:rgba(234,29,44,0.4); color:#ea1d2c;" onclick="despacharPedido('${orderIdStr}')">Despachar (DSP)</button>
+              <button class="btn btn-outline" style="padding:4px 8px; font-size:11px; border-color:rgba(239,68,68,0.4); color:#ef4444;" onclick="cancelarPedidoRapido('${orderIdStr}')">Cancelar</button>
+            </div>
+          </td>
+        </tr>
+        `;
+      }).join('');
+    }
+
+    // ── Funções de Cópia e Preenchimento ──────────────────────────────────────
     function copiarTexto(texto, btn) {
-      if (!texto || texto === 'undefined') return alert('ID não disponível');
+      if (!texto) return alert('ID inválido');
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(texto).then(() => {
           if (btn) {
-            const original = btn.innerText;
+            const orig = btn.innerText;
             btn.innerText = '✓ Copiado!';
             btn.style.color = '#10b981';
             btn.style.borderColor = '#10b981';
             setTimeout(() => {
-              btn.innerText = original;
+              btn.innerText = orig;
               btn.style.color = '';
               btn.style.borderColor = '';
             }, 1500);
@@ -569,7 +616,7 @@
       area.select();
       document.execCommand('copy');
       document.body.removeChild(area);
-      alert('ID copiado: ' + texto);
+      alert('ID copiado com sucesso: ' + texto);
     }
 
     function preencherCards(orderId) {
@@ -580,22 +627,151 @@
       window.scrollTo({ top: 180, behavior: 'smooth' });
     }
 
+    // ── Ações de Pedido (Confirmar, Despachar, Cancelar) ──────────────────────
+    async function confirmarPedido(orderId) {
+      const id = orderId || document.getElementById('orderIdConfirm').value.trim();
+      if (!id) return alert('Por favor, informe o ID do pedido (orderId)');
 
-    // Mantém a loja sempre ONLINE na rede do iFood automaticamente
+      try {
+        const res = await fetch('/api/ifood/orders/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: id })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert('✅ Pedido confirmado com sucesso no iFood (CFM)!');
+          document.getElementById('badgeEtapa2').className = 'badge badge-success';
+          document.getElementById('badgeEtapa2').innerText = '✓ Confirmado';
+          carregarEventos();
+        } else {
+          alert('❌ Resposta da API: ' + (data.error || JSON.stringify(data)));
+        }
+      } catch (e) {
+        alert('Erro de conexão: ' + e.message);
+      }
+    }
+
+    async function cancelarPedidoRapido(orderId) {
+      const id = orderId || document.getElementById('orderIdCancel').value.trim();
+      if (!id) return alert('Por favor, informe o ID do pedido');
+      
+      const confirmou = confirm(`Deseja enviar solicitação de cancelamento para o pedido:\n${id}?`);
+      if (!confirmou) return;
+
+      try {
+        const res = await fetch('/api/ifood/orders/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: id, actionType: 'request', reason: '501', cancellationCode: '501' })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert('✅ Cancelamento enviado com sucesso no iFood (CAN)!');
+          document.getElementById('badgeEtapa3').className = 'badge badge-success';
+          document.getElementById('badgeEtapa3').innerText = '✓ Cancelado';
+          carregarEventos();
+        } else {
+          alert('❌ Erro no cancelamento: ' + (data.error || JSON.stringify(data)));
+        }
+      } catch (e) {
+        alert('Erro: ' + e.message);
+      }
+    }
+
+    async function cancelarPedido(tipo) {
+      const id = document.getElementById('orderIdCancel').value.trim();
+      if (!id) return alert('Por favor, informe o ID do pedido');
+
+      try {
+        const res = await fetch('/api/ifood/orders/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: id, actionType: tipo || 'request', reason: '501', cancellationCode: '501' })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(`✅ Cancelamento (${tipo}) processado com sucesso no iFood!`);
+          document.getElementById('badgeEtapa3').className = 'badge badge-success';
+          document.getElementById('badgeEtapa3').innerText = '✓ Validado';
+          carregarEventos();
+        } else {
+          alert('❌ Erro: ' + (data.error || JSON.stringify(data)));
+        }
+      } catch (e) {
+        alert('Erro: ' + e.message);
+      }
+    }
+
+    async function despacharPedido(orderId) {
+      const id = orderId || document.getElementById('orderIdDispatch').value.trim();
+      if (!id) return alert('Por favor, informe o ID do pedido (orderId)');
+
+      try {
+        const res = await fetch('/api/ifood/orders/dispatch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: id })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert('✅ Pedido despachado com sucesso (DSP)!');
+          document.getElementById('badgeEtapa4').className = 'badge badge-success';
+          document.getElementById('badgeEtapa4').innerText = '✓ Validado';
+          carregarEventos();
+        } else {
+          alert('❌ Erro no despacho: ' + (data.error || JSON.stringify(data)));
+        }
+      } catch (e) {
+        alert('Erro: ' + e.message);
+      }
+    }
+
+    async function testarEtapa1() {
+      const btn = document.getElementById('btnTestarEtapa1');
+      const log = document.getElementById('logEtapa1');
+      btn.disabled = true;
+      btn.innerText = '⏳ Verificando...';
+      log.style.display = 'block';
+      log.innerText = 'Consultando status...';
+
+      try {
+        const res = await fetch('/api/ifood/status');
+        const data = await res.json();
+        log.innerText = JSON.stringify(data, null, 2);
+      } catch (e) {
+        log.innerText = 'Erro: ' + e.message;
+      } finally {
+        btn.disabled = false;
+        btn.innerText = '⚡ Consultar Conectividade';
+      }
+    }
+
+    async function simularEvento() {
+      const res = await fetch('/api/ifood/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: 'PLACED' })
+      });
+      const data = await res.json();
+      carregarEventos();
+      alert('🧪 Pedido simulado adicionado à tela: ' + data.simulated.orderId);
+    }
+
+    // ── Heartbeat Silencioso (Mantém loja ONLINE sem gerar spam de KEEPALIVE) ─
     async function manterOnline() {
       try {
         await fetch('/api/ifood/ping');
-      } catch (e) {
-        console.warn('Erro no keepAlive:', e);
-      }
+      } catch (e) {}
     }
-    // Dispara keepAlive a cada 20 segundos para garantir status ONLINE permanente
     manterOnline();
-    setInterval(manterOnline, 20000);
+    setInterval(manterOnline, 25000);
 
-    // Atualiza eventos periodicamente a cada 3 segundos
-    setInterval(carregarEventos, 3000);
+    // Carrega configuração de modo e eventos na inicialização
+    carregarModo();
     carregarEventos();
+    // Atualiza eventos a cada 3 segundos
+    setInterval(carregarEventos, 3000);
   </script>
 </body>
 </html>

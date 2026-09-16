@@ -168,9 +168,19 @@ CREATE TABLE IF NOT EXISTS taxa_bairro_speed (
     taxa REAL NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS ifood_events (
+    id TEXT PRIMARY KEY,
+    code TEXT NOT NULL,
+    order_id TEXT,
+    merchant_id TEXT,
+    payload TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS idx_pedidos_motoboy_status ON pedidos(motoboy_id, status);
 CREATE INDEX IF NOT EXISTS idx_pedidos_status ON pedidos(status);
 CREATE INDEX IF NOT EXISTS idx_pedidos_origem_id ON pedidos(origem, pedido_id_origem);
+CREATE INDEX IF NOT EXISTS idx_ifood_events_order_id ON ifood_events(order_id);
     `);
   } catch (err) {
     console.warn('⚠️ Inicialização de schema local:', err.message);

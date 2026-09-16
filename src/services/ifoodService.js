@@ -120,7 +120,7 @@ async function getMerchantDetails(merchantId = config.IFOOD_MERCHANT_ID) {
 async function pingPresence() {
   const merchantId = config.IFOOD_MERCHANT_ID;
   if (!merchantId) return null;
-  const res = await ifoodRequest('/order/v1.0/events:polling?excludeHeartbeat=false', {
+  const res = await ifoodRequest('/order/v1.0/events:polling?excludeHeartbeat=true', {
     headers: {
       'x-polling-merchants': merchantId
     }
@@ -228,10 +228,11 @@ async function dispatchOrder(orderId) {
 /**
  * Etapa 3 - Solicita ou gerencia cancelamento de pedido
  */
-async function requestCancellation(orderId, reason = 'PROBLEMAS_OPERACIONAIS', cancellationCode = '501') {
+async function requestCancellation(orderId, reason = '501', cancellationCode = '501') {
+  const code = String(cancellationCode || reason || '501');
   const res = await ifoodRequest(`/order/v1.0/orders/${orderId}/requestCancellation`, {
     method: 'POST',
-    body: JSON.stringify({ reason, cancellationCode })
+    body: JSON.stringify({ reason: code, cancellationCode: code })
   });
   if (!res.ok && res.status !== 202) {
     const errorBody = await res.text();

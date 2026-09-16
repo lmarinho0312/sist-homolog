@@ -5,6 +5,11 @@ const { obterTaxaRepasse, obterNomeBairroCanonica } = require('../utils/rateReso
 // Buffer em memória dos últimos 100 eventos recebidos do Webhook
 const webhookEventsBuffer = [];
 
+// Modo da Homologação:
+// false = Modo Manual (o usuário clica para confirmar, despachar e cancelar)
+// true = Modo Automático para o Robô (responde confirmação e cancelamento nos prazos do teste automático)
+let autoMode = false;
+
 /**
  * Registra um evento no buffer de depuração
  */
@@ -18,6 +23,30 @@ function recordEvent(event) {
     webhookEventsBuffer.pop();
   }
   return item;
+}
+
+/**
+ * Persiste o evento na tabela ifood_events do banco SQLite local
+ */
+async function saveEventToDb(ev) {
+  try {
+    const db = getDb();
+    const eventId = ev.id || `${ev.orderId}-${ev.code}-${Date.now()}`;
+    await db.execute(
+      `INSERT OR REPLACE INTO ifood_events (id, code, order_id, merchant_id, payload, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        eventId,
+        ev.code || ev.fullCode || 'UNKNOWN',
+        ev.orderId || null,
+        ev.merchantId || '',
+        JSON.stringify(ev),
+        ev.createdAt || new Date().toISOString()
+      ]
+    );
+  } catch (err) {
+    console.warn('⚠️ Erro ao persistir evento no SQLite:', err.message);
+  }
 }
 
 /**
@@ -57,11 +86,18 @@ async function handleWebhook(req, res) {
   // Processamento assíncrono dos eventos
   for (const ev of events) {
     try {
-      recordEvent(ev);
-      const { code, orderId } = ev;
-      console.log(`🔔 [iFood Event] Código: ${code} | Pedido ID: ${orderId}`);
+      const code = ev.code || ev.fullCode;
+      const orderId = ev.orderId;
 
-      if (!orderId) continue;
+      // Ignora heartbeats/keepalive para não poluir a tela do usuário
+      if (!ev || code === 'KEEPALIVE' || !orderId) {
+        continue;
+      }
+
+      recordEvent(ev);
+      await saveEventToDb(ev);
+
+      console.log(`🔔 [iFood Event] Código: ${code} | Pedido ID: ${orderId} | Modo Auto: ${autoMode}`);
 
       const isPlaced = code === 'PLACED' || code === 'PLC';
       const isConfirmed = code === 'CONFIRMED' || code === 'CFM';
@@ -69,14 +105,32 @@ async function handleWebhook(req, res) {
       const isCancelled = code === 'CANCELLED' || code === 'CAN' || code === 'ORDER_CANCELLATION_REQUESTED' || code === 'CPR';
 
       if (isPlaced) {
-        // Novo pedido realizado no iFood (Etapa 2) - Salva no banco, sem confirmação automática
         await processNewOrder(orderId);
+        // Se o modo automático estiver ligado (para o robô do iFood homologar 100%):
+        if (autoMode) {
+          try {
+            await ifoodService.confirmOrder(orderId);
+            console.log(`🤖 [AutoMode] Pedido ${orderId} confirmado automaticamente para o robô de homologação!`);
+            await updateOrderStatus(orderId, 'confirmado');
+          } catch (errConfirm) {
+            console.warn(`⚠️ [AutoMode] Falha ao auto-confirmar pedido ${orderId}: ${errConfirm.message}`);
+          }
+        }
       } else if (isConfirmed) {
         await updateOrderStatus(orderId, 'confirmado');
       } else if (isDispatched) {
         await updateOrderStatus(orderId, 'em_entrega');
       } else if (isCancelled) {
         await updateOrderStatus(orderId, 'cancelado');
+        // Se o robô disparou solicitação de cancelamento e o modo automático estiver ativo:
+        if (autoMode && (code === 'ORDER_CANCELLATION_REQUESTED' || code === 'CPR')) {
+          try {
+            await ifoodService.acceptCancellation(orderId);
+            console.log(`🤖 [AutoMode] Solicitação de cancelamento do pedido ${orderId} aceita com sucesso!`);
+          } catch (errCancel) {
+            console.warn(`⚠️ [AutoMode] Falha ao auto-aceitar cancelamento: ${errCancel.message}`);
+          }
+        }
       }
     } catch (err) {
       console.error(`❌ Erro ao processar evento ${ev.code || 'UNKNOWN'} (${ev.orderId}):`, err.message);
@@ -89,49 +143,53 @@ async function handleWebhook(req, res) {
  * Busca os detalhes via API e salva na base local
  */
 async function processNewOrder(orderId) {
-  const db = getDb();
-  let details = null;
-
   try {
-    details = await ifoodService.getOrderDetails(orderId);
-  } catch (e) {
-    console.warn(`⚠️ Não foi possível buscar detalhes da API do iFood para o pedido ${orderId}: ${e.message}`);
-  }
+    const db = getDb();
+    let details = null;
 
-  const numeroExibicao = details?.displayId || orderId.substring(0, 8);
-  const clienteNome = details?.customer?.name || 'Cliente iFood';
-  const clienteTel = details?.customer?.phone?.number || null;
-  const enderecoEntrega = details?.delivery?.deliveryAddress;
-  
-  const rua = enderecoEntrega?.streetName ? `${enderecoEntrega.streetName}, ${enderecoEntrega.streetNumber || 'S/N'}` : 'Endereço não informado';
-  const bairroBruto = enderecoEntrega?.neighborhood || 'Centro';
-  const bairroCanonica = obterNomeBairroCanonica(bairroBruto) || bairroBruto;
-  const taxaEntrega = obterTaxaRepasse(bairroCanonica, 'VELOZ');
+    try {
+      details = await ifoodService.getOrderDetails(orderId);
+    } catch (e) {
+      console.warn(`⚠️ Não foi possível buscar detalhes da API do iFood para o pedido ${orderId}: ${e.message}`);
+    }
 
-  // Verifica se já existe na base
-  const existente = await db.queryOne(
-    'SELECT id FROM pedidos WHERE pedido_id_origem = ? AND origem = ?',
-    [orderId, 'IFOOD']
-  );
+    const numeroExibicao = details?.displayId || orderId.substring(0, 8);
+    const clienteNome = details?.customer?.name || 'Cliente iFood';
+    const clienteTel = details?.customer?.phone?.number || null;
+    const enderecoEntrega = details?.delivery?.deliveryAddress;
+    
+    const rua = enderecoEntrega?.streetName ? `${enderecoEntrega.streetName}, ${enderecoEntrega.streetNumber || 'S/N'}` : 'Endereço não informado';
+    const bairroBruto = enderecoEntrega?.neighborhood || 'Centro';
+    const bairroCanonica = obterNomeBairroCanonica(bairroBruto) || bairroBruto;
+    const taxaEntrega = obterTaxaRepasse(bairroCanonica, 'VELOZ');
 
-  if (!existente) {
-    await db.execute(
-      `INSERT INTO pedidos 
-       (numero_pedido, origem, pedido_id_origem, cliente, endereco, bairro, taxa_entrega, telefone_cliente, status, texto_bruto)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'disponivel', ?)`,
-      [
-        numeroExibicao,
-        'IFOOD',
-        orderId,
-        clienteNome,
-        rua,
-        bairroCanonica,
-        taxaEntrega,
-        clienteTel,
-        JSON.stringify(details || { orderId })
-      ]
+    // Verifica se já existe na base
+    const existente = await db.queryOne(
+      'SELECT id FROM pedidos WHERE pedido_id_origem = ? AND origem = ?',
+      [orderId, 'IFOOD']
     );
-    console.log(`✅ [iFood] Pedido #${numeroExibicao} (${orderId}) inserido no banco de dados local!`);
+
+    if (!existente) {
+      await db.execute(
+        `INSERT INTO pedidos 
+         (numero_pedido, origem, pedido_id_origem, cliente, endereco, bairro, taxa_entrega, telefone_cliente, status, texto_bruto)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'disponivel', ?)`,
+        [
+          numeroExibicao,
+          'IFOOD',
+          orderId,
+          clienteNome,
+          rua,
+          bairroCanonica,
+          taxaEntrega,
+          clienteTel,
+          JSON.stringify(details || { orderId })
+        ]
+      );
+      console.log(`✅ [iFood] Pedido #${numeroExibicao} (${orderId}) inserido no banco de dados local!`);
+    }
+  } catch (err) {
+    console.warn('⚠️ Erro ao registrar pedido localmente:', err.message);
   }
 }
 
@@ -151,13 +209,45 @@ async function updateOrderStatus(orderId, novoStatus) {
 }
 
 /**
- * Retorna os últimos eventos de webhook recebidos (para o painel de homologação)
+ * Retorna os últimos eventos de webhook recebidos (mesclando banco e memória)
  * GET /api/ifood/events
  */
 async function listRecentEvents(req, res) {
+  let dbEvents = [];
+  try {
+    const db = getDb();
+    const rows = await db.query('SELECT * FROM ifood_events ORDER BY created_at DESC LIMIT 50');
+    dbEvents = (rows || []).map(r => ({
+      id: r.id,
+      code: r.code,
+      orderId: r.order_id,
+      merchantId: r.merchant_id,
+      receivedAt: r.created_at,
+      data: r.payload ? JSON.parse(r.payload) : {}
+    }));
+  } catch (e) {
+    // Silencioso se o banco estiver indisponível
+  }
+
+  // Mescla eventos do banco com o buffer em memória (sem duplicatas e sem KEEPALIVE)
+  const map = new Map();
+  for (const ev of [...webhookEventsBuffer, ...dbEvents]) {
+    if (ev && ev.orderId && ev.orderId !== 'undefined' && ev.code !== 'KEEPALIVE') {
+      const key = ev.id || `${ev.orderId}-${ev.code}`;
+      if (!map.has(key)) {
+        map.set(key, ev);
+      }
+    }
+  }
+
+  const merged = Array.from(map.values()).sort(
+    (a, b) => new Date(b.receivedAt || 0) - new Date(a.receivedAt || 0)
+  );
+
   return res.json({
-    total: webhookEventsBuffer.length,
-    events: webhookEventsBuffer
+    total: merged.length,
+    autoMode,
+    events: merged
   });
 }
 
@@ -204,7 +294,7 @@ async function dispatchOrderAction(req, res) {
  * POST /api/ifood/orders/cancel
  */
 async function cancelOrderAction(req, res) {
-  const { orderId, reason, actionType } = req.body || {};
+  const { orderId, reason, cancellationCode, actionType } = req.body || {};
   if (!orderId) {
     return res.json(400, { error: 'orderId é obrigatório' });
   }
@@ -216,7 +306,7 @@ async function cancelOrderAction(req, res) {
     } else if (actionType === 'deny') {
       result = await ifoodService.denyCancellation(orderId, reason || 'Pedido em entrega');
     } else {
-      result = await ifoodService.requestCancellation(orderId, reason || 'PROBLEMAS_OPERACIONAIS', '501');
+      result = await ifoodService.requestCancellation(orderId, reason || '501', cancellationCode || '501');
     }
     await updateOrderStatus(orderId, 'cancelado');
     return res.json(result);
@@ -226,21 +316,20 @@ async function cancelOrderAction(req, res) {
 }
 
 /**
- * Simula um evento de Webhook para testes de interface e fluxo
- * POST /api/ifood/simulate
+ * Configurações da homologação (Alternar entre Modo Manual e Automático)
+ * GET /api/ifood/config
+ * POST /api/ifood/config
  */
-async function simulateEvent(req, res) {
-  const { code, orderId } = req.body || {};
-  const fakeEvent = {
-    id: 'sim-' + Date.now(),
-    code: code || 'PLACED',
-    orderId: orderId || ('test-' + Math.floor(1000 + Math.random() * 9000)),
-    merchantId: 'merchant-test',
-    createdAt: new Date().toISOString()
-  };
+function getConfig(req, res) {
+  return res.json({ autoMode });
+}
 
-  recordEvent(fakeEvent);
-  return res.json({ success: true, simulated: fakeEvent });
+function setConfig(req, res) {
+  if (typeof req.body?.autoMode === 'boolean') {
+    autoMode = req.body.autoMode;
+    console.log(`🔄 [Homologação] Modo alterado para: ${autoMode ? 'AUTOMÁTICO' : 'MANUAL'}`);
+  }
+  return res.json({ success: true, autoMode });
 }
 
 /**
@@ -264,6 +353,25 @@ async function pingPresenceAction(req, res) {
   }
 }
 
+/**
+ * Simula um evento de Webhook para testes de interface e fluxo
+ * POST /api/ifood/simulate
+ */
+async function simulateEvent(req, res) {
+  const { code, orderId } = req.body || {};
+  const fakeEvent = {
+    id: 'sim-' + Date.now(),
+    code: code || 'PLACED',
+    orderId: orderId || ('test-' + Math.floor(1000 + Math.random() * 9000)),
+    merchantId: 'merchant-test',
+    createdAt: new Date().toISOString()
+  };
+
+  recordEvent(fakeEvent);
+  await saveEventToDb(fakeEvent);
+  return res.json({ success: true, simulated: fakeEvent });
+}
+
 module.exports = {
   checkStatus,
   handleWebhook,
@@ -272,5 +380,7 @@ module.exports = {
   dispatchOrderAction,
   cancelOrderAction,
   simulateEvent,
-  pingPresenceAction
+  pingPresenceAction,
+  getConfig,
+  setConfig
 };
