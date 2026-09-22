@@ -33,6 +33,10 @@ module.exports = {
   IFOOD_CLIENT_SECRET: process.env.IFOOD_CLIENT_SECRET || 'bb0o039xteom0dym0lxp38tos1he9qmnb2qimf81tiotbxuvjg4lf1fxled3hwllvqi1dmx9lc2luhjr4ywkoz7vkkskdfcruun',
   IFOOD_MERCHANT_ID: process.env.IFOOD_MERCHANT_ID || 'ce4602c7-54ae-4594-855c-a170ff081af9',
   IFOOD_API_URL: process.env.IFOOD_API_URL || 'https://merchant-api.ifood.com.br',
-  IFOOD_WEBHOOK_SECRET: process.env.IFOOD_WEBHOOK_SECRET || ''
+  IFOOD_WEBHOOK_SECRET: process.env.IFOOD_WEBHOOK_SECRET || '',
+  // Configurações 99Food (Homologação / DiDi Open Platform)
+  FOOD99_APP_ID: process.env.FOOD99_APP_ID || '5764607677240445075',
+  FOOD99_APP_SECRET: process.env.FOOD99_APP_SECRET || '657b25c639a5ebe15c721eed2ae8a972',
+  FOOD99_API_URL: process.env.FOOD99_API_URL || 'https://open.didiglobal.com'
 };
 
