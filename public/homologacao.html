@@ -312,7 +312,7 @@
         </p>
       </div>
       <div>
-        <input type="text" id="orderIdCancel" placeholder="ID do Pedido (orderId)" onchange="consultarMotivosParaPedido(this.value)">
+        <input type="text" id="orderIdCancel" placeholder="ID do Pedido (orderId)" onchange="consultarMotivosParaPedido(this.value)" oninput="if(this.value.trim().length >= 30) consultarMotivosParaPedido(this.value.trim())">
         <div style="margin-bottom: 8px;">
           <label style="font-size: 11px; color: var(--text-muted); display:flex; justify-content:space-between; margin-bottom:4px;">
             <span>Motivo do Cancelamento:</span>

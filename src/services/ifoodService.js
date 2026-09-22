@@ -274,15 +274,24 @@ async function requestCancellation(orderId, reason = '501', cancellationCode = '
       if (found) {
         code = String(found.code || found.cancelCodeId);
         desc = found.description || desc;
+      } else {
+        // Se o código não foi encontrado, usa o primeiro oficial retornado pela API para este pedido
+        code = String(reasons[0].code || reasons[0].cancelCodeId || code);
+        desc = reasons[0].description || desc;
       }
     }
-  } catch (e) {}
+  } catch (e) {
+    console.warn(`Aviso ao consultar motivos antes de cancelar ${orderId}:`, e.message);
+  }
 
   console.log(`📡 [iFood Cancel] Solicitando cancelamento do pedido ${orderId} com motivo ${code} (${desc})`);
 
-  // iFood API V1.0 - conforme documentação oficial: apenas { "reason": "CODE" }
+  // A API do iFood exige os campos 'cancellationCode' e 'reason':
+  // - cancellationCode: código numérico (ex: "501")
+  // - reason: descrição textual do motivo (ex: "Problemas de sistema na loja")
   const payload = {
-    reason: code
+    cancellationCode: code,
+    reason: desc || 'Problemas no sistema'
   };
 
   const res = await ifoodRequest(`/order/v1.0/orders/${orderId}/requestCancellation`, {
