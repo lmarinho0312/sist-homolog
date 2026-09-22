@@ -301,6 +301,17 @@ async function requestCancellation(orderId, reason = '501', cancellationCode = '
 
   if (!res.ok && res.status !== 202) {
     const errorBody = await res.text();
+    if (errorBody.toLowerCase().includes('already cancelled') || errorBody.toLowerCase().includes('already_cancelled')) {
+      console.log(`ℹ️ [iFood Cancel] Pedido ${orderId} já consta como cancelado no iFood.`);
+      return {
+        success: true,
+        status: 200,
+        code,
+        description: desc,
+        alreadyCancelled: true,
+        message: `Pedido já cancelado no iFood (Motivo registrado: ${code} - ${desc})`
+      };
+    }
     throw new Error(`Erro ao solicitar cancelamento do pedido ${orderId} (${res.status}): ${errorBody}`);
   }
 
