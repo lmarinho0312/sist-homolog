@@ -21,8 +21,8 @@ if (fs.existsSync(envPath)) {
 module.exports = {
   PORT: process.env.PORT || 3000,
   DB_PATH: process.env.DB_PATH || './data/database.sqlite',
-  TURSO_URL: process.env.TURSO_URL || null,
-  TURSO_TOKEN: process.env.TURSO_TOKEN || null,
+  TURSO_URL: process.env.TURSO_URL || 'libsql://sistrastreamento-aoponto.aws-us-east-1.turso.io',
+  TURSO_TOKEN: process.env.TURSO_TOKEN || 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODY0NjkzMzQsImlkIjoiMDE5ZmYxZGUtYjAwMS03MTY1LTgzNWItNjRhNTFhYTk4MzBiIiwia2lkIjoiMkZ2b04zYWpWalhPT0JaMzh5MWZ5UkJCYVlNSjl4cEpPWFZ6ek1rcTdqMCIsInJpZCI6IjVhOTcwYWRkLWU1OGUtNDU4Ni05ZTc4LThlYTA1YzIzM2FlNiJ9.cU2BmtXKFYar-z3FjUqAyLIKmryLMaRJExH-O2zpN0MYXXTEW0KgTlQN-0D4_DLATPk272l0Ehc_aM7-BdoDBQ',
   TRACCAR_URL: process.env.TRACCAR_URL || 'http://localhost:8082',
   TRACCAR_USER: process.env.TRACCAR_USER || 'admin',
   TRACCAR_PASS: process.env.TRACCAR_PASS || 'admin',
