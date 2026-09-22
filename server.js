@@ -108,6 +108,11 @@ registerRoute('GET', '/api/99food/status', ninetyNineFoodController.checkStatus)
 registerRoute('GET', '/api/99food/webhook', ninetyNineFoodController.handleWebhook);
 registerRoute('POST', '/api/99food/webhook', ninetyNineFoodController.handleWebhook);
 registerRoute('GET', '/api/99food/events', ninetyNineFoodController.listRecentEvents);
+registerRoute('POST', '/api/99food/orders/confirm', ninetyNineFoodController.confirmOrderAction);
+registerRoute('POST', '/api/99food/orders/ready', ninetyNineFoodController.readyOrderAction);
+registerRoute('POST', '/api/99food/orders/dispatch', ninetyNineFoodController.dispatchOrderAction);
+registerRoute('POST', '/api/99food/orders/cancel', ninetyNineFoodController.cancelOrderAction);
+registerRoute('GET', '/api/99food/orders/details', ninetyNineFoodController.getOrderDetailsAction);
 
 // ── Handler principal (usado pela Vercel e pelo servidor local) ────────────────
 async function requestHandler(req, res) {
@@ -152,8 +157,14 @@ async function requestHandler(req, res) {
       req.on('data', chunk => { bodyData += chunk; });
       req.on('end', () => {
         try { 
-          if (bodyData) req.body = JSON.parse(bodyData); 
-        } catch (e) {}
+          if (bodyData) {
+            req.rawBody = bodyData;
+            const safeData = bodyData.replace(/"(order_id|app_id|shop_id|event_id)":\s*(\d{15,})/g, '"$1":"$2"');
+            req.body = JSON.parse(safeData); 
+          }
+        } catch (e) {
+          try { req.body = JSON.parse(bodyData); } catch (err) {}
+        }
         resolve();
       });
       if (req.readableEnded || req.complete) {

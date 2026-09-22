@@ -201,12 +201,12 @@
   <div class="header">
     <div style="display:flex; align-items:center; gap:16px;">
       <h1 style="margin:0; font-size: 24px; display:flex; align-items:center; gap:10px;">
-        <span style="color:var(--ifood-red); font-size: 28px;">🛵</span> Homologação Oficial iFood API
+        <span style="font-size: 28px;">🚀</span> Painel de Homologação de Delivery
       </h1>
-      <span class="badge badge-homolog">Ambiente de Homologação Isolado</span>
+      <span class="badge badge-homolog">Ambiente de Testes Isolado</span>
       <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; color:#10b981;">
         <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10b981; box-shadow:0 0 8px #10b981;"></span>
-        Loja Conectada (Heartbeat Ativo)
+        Online no Vercel
       </span>
     </div>
     <div>
@@ -214,6 +214,199 @@
     </div>
   </div>
 
+  <!-- Seleção de Plataforma: 99Food vs iFood -->
+  <div style="display:flex; gap:12px; margin-bottom:24px; border-bottom:1px solid var(--border-color); padding-bottom:12px;">
+    <button id="tabBtn99Food" onclick="switchPlatform('99food')" style="padding:12px 24px; font-size:14px; font-weight:700; border-radius:8px; background:#f59e0b; color:#111; border:none; cursor:pointer; display:flex; align-items:center; gap:8px;">
+      🟡 99Food / DiDi Open Platform
+    </button>
+    <button id="tabBtnIfood" onclick="switchPlatform('ifood')" style="padding:12px 24px; font-size:14px; font-weight:700; border-radius:8px; background:transparent; color:#9ca3af; border:1px solid var(--border-color); cursor:pointer; display:flex; align-items:center; gap:8px;">
+      🍔 iFood (Homologação Concluída ✅)
+    </button>
+  </div>
+
+  <!-- ══════════════════ SEÇÃO 99FOOD ══════════════════ -->
+  <div id="section99Food">
+    <!-- Webhook URL Info 99Food -->
+    <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px 20px; margin-bottom: 16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h3 style="margin:0 0 4px 0; font-size:15px; display:flex; align-items:center; gap:8px;">
+            <span>🌐 Webhook Registrado na 99Food (Open Platform)</span>
+            <span class="badge" style="background:rgba(245, 158, 11, 0.15); color:#f59e0b; border:1px solid #f59e0b;">Respondendo 200 OK</span>
+          </h3>
+          <p style="margin:0; font-size:12px; color:var(--text-muted);">
+            Endereço configurado no portal do desenvolvedor da 99Food para receber notificações:
+          </p>
+        </div>
+        <button class="btn btn-outline" onclick="copiarWebhookUrl99()">📋 Copiar URL</button>
+      </div>
+      <div class="webhook-box" style="margin-top:10px; margin-bottom:0;">
+        <span id="webhookUrlSpan99">https://sist-homolog.vercel.app/api/99food/webhook</span>
+      </div>
+    </div>
+
+    <!-- Status da Loja e Conectividade 99Food -->
+    <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 18px 20px; margin-bottom: 24px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+        <div>
+          <h3 style="margin:0 0 6px 0; font-size:16px; display:flex; align-items:center; gap:10px;">
+            🏬 Loja 99Food: <span style="color:#fbbf24;">Com Sabor TST</span>
+            <span class="badge badge-success">Vinculada (shopBindStatus: bind)</span>
+          </h3>
+          <p style="margin:0; font-size:13px; color:var(--text-muted);">
+            App: <code>rastrv2 (5764607677240445075)</code> | AppShopID: <code>03122022</code> | Shop ID: <code>5764617873609198563</code>
+          </p>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn" onclick="testarStatus99()" style="background:#f59e0b; color:#111; font-weight:700;">
+            ⚡ Testar Token & Conexão Oficial
+          </button>
+        </div>
+      </div>
+      <div id="logStatus99" style="display:none; margin-top:12px; padding:12px; background:#11151c; border-radius:6px; font-family:monospace; font-size:12px; color:#10b981; max-height:200px; overflow-y:auto; white-space:pre-wrap;"></div>
+    </div>
+
+    <!-- Grid das Operações da 99Food -->
+    <div class="grid-steps">
+      <!-- Card 1: Confirmar Pedido -->
+      <div class="card-step" style="border-color:#f59e0b;">
+        <div>
+          <div style="display:flex; justify-content:space-between;">
+            <div class="step-number" style="color:#f59e0b;">Ação 1</div>
+            <span class="badge badge-success" id="badge99Confirm">✓ Disponível</span>
+          </div>
+          <h2 class="step-title">Confirmar Pedido</h2>
+          <p class="step-desc">
+            Envia o aceite do pedido via <code>POST /v1/order/order/confirm</code> (obrigatório em até 5 min).
+          </p>
+        </div>
+        <div>
+          <div style="margin-bottom:8px;">
+            <label style="font-size:11px; color:var(--text-muted);">Pedidos de Teste Recentes:</label>
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:4px;">
+              <button class="btn btn-outline" style="padding:2px 8px; font-size:11px;" onclick="setOrderInput99('5764607702025242453')">#1 (42453)</button>
+              <button class="btn btn-outline" style="padding:2px 8px; font-size:11px;" onclick="setOrderInput99('5764607777715652466')">#2 (52466)</button>
+              <button class="btn btn-outline" style="padding:2px 8px; font-size:11px;" onclick="setOrderInput99('5764607595745773456')">#3 (73456)</button>
+              <button class="btn btn-outline" style="padding:2px 8px; font-size:11px;" onclick="setOrderInput99('5764607559808976560')">#4 (76560)</button>
+            </div>
+          </div>
+          <input type="text" id="orderId99" placeholder="ID do Pedido (order_id 19 dígitos)" style="width:100%; box-sizing:border-box; background:#11151c; border:1px solid var(--border-color); color:#fff; padding:10px; border-radius:6px; font-size:13px; margin-bottom:8px;">
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-success" style="flex:1; background:#10b981; color:#fff;" onclick="confirmarPedido99()">
+              ✓ Confirmar Pedido
+            </button>
+            <button class="btn btn-outline" style="flex:1;" onclick="verDetalhes99()">
+              🔍 Detalhes
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Pronto para Entrega -->
+      <div class="card-step">
+        <div>
+          <div style="display:flex; justify-content:space-between;">
+            <div class="step-number">Ação 2</div>
+            <span class="badge badge-pending">Opcional</span>
+          </div>
+          <h2 class="step-title">Pronto para Entrega</h2>
+          <p class="step-desc">
+            Notifica que a refeição está pronta para entrega via <code>POST /v1/order/order/ready</code>.
+          </p>
+        </div>
+        <div>
+          <button class="btn" style="width:100%; background:#f59e0b; color:#111; font-weight:700;" onclick="prontoPedido99()">
+            🍳 Pedido Pronto (ready)
+          </button>
+        </div>
+      </div>
+
+      <!-- Card 3: Despachar Entrega Própria -->
+      <div class="card-step">
+        <div>
+          <div style="display:flex; justify-content:space-between;">
+            <div class="step-number">Ação 3</div>
+            <span class="badge badge-pending">Entrega da Loja</span>
+          </div>
+          <h2 class="step-title">Despachar Pedido</h2>
+          <p class="step-desc">
+            Notifica saída para entrega própria via <code>POST /v1/order/selfdelivery/dispatch</code> com entregador.
+          </p>
+        </div>
+        <div>
+          <button class="btn" style="width:100%; background:#2563eb; color:#fff;" onclick="despacharPedido99()">
+            🚀 Despachar com Motoboy
+          </button>
+        </div>
+      </div>
+
+      <!-- Card 4: Cancelar Pedido -->
+      <div class="card-step">
+        <div>
+          <div style="display:flex; justify-content:space-between;">
+            <div class="step-number">Ação 4</div>
+            <span class="badge badge-pending">Cancelamento</span>
+          </div>
+          <h2 class="step-title">Cancelar Pedido</h2>
+          <p class="step-desc">
+            Cancela com motivo oficial via <code>POST /v1/order/order/cancel</code>.
+          </p>
+        </div>
+        <div>
+          <select id="selectReason99" style="width:100%; background:#11151c; border:1px solid var(--border-color); color:#fff; padding:8px; border-radius:6px; font-size:12px; margin-bottom:8px;">
+            <option value="1010">1010 - Item sold out (Item esgotado)</option>
+            <option value="1020">1020 - Store closed for the day (Loja fechada hoje)</option>
+            <option value="1030">1030 - Store too busy (Loja muito ocupada)</option>
+            <option value="1060">1060 - No courier available (Sem entregador)</option>
+            <option value="1080">1080 - Other reason (Outro motivo)</option>
+          </select>
+          <button class="btn btn-danger" style="width:100%;" onclick="cancelarPedido99()">
+            ✕ Cancelar Pedido na 99Food
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feed de Webhooks 99Food -->
+    <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div>
+          <h3 style="margin:0 0 4px 0; font-size:16px; display:flex; align-items:center; gap:8px;">
+            📡 Eventos Recebidos da 99Food via Webhook (<span id="countEvents99">0</span>)
+          </h3>
+          <p style="margin:0; font-size:12px; color:var(--text-muted);">
+            Eventos recebidos da 99Food em tempo real via HTTPS:
+          </p>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-outline" onclick="carregarEventos99()">🔄 Atualizar</button>
+          <button class="btn btn-outline" onclick="limparEventos99()" style="color:#ef4444; border-color:rgba(239,68,68,0.4);">🗑️ Limpar Tela</button>
+        </div>
+      </div>
+
+      <table class="table-events">
+        <thead>
+          <tr>
+            <th>Horário</th>
+            <th>Tipo do Evento</th>
+            <th>ID do Pedido / Info</th>
+            <th>Itens / Valor</th>
+            <th>Ações Rápidas</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyEvents99">
+          <tr>
+            <td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">
+              Aguardando eventos da 99Food...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══════════════════ SEÇÃO IFOOD ══════════════════ -->
+  <div id="sectionIfood" style="display:none;">
   <!-- Webhook URL Info -->
   <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px 20px; margin-bottom: 16px;">
     <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -419,6 +612,7 @@
       </table>
     </div>
   </div>
+  </div> <!-- Fim de sectionIfood -->
 
   <script>
     const currentOrigin = window.location.origin;
@@ -863,11 +1057,276 @@
     manterOnline();
     setInterval(manterOnline, 25000);
 
-    // Carrega configuração de modo e eventos na inicialização
+    // ══════════════════ PLATFORM SWITCHER ══════════════════
+    let activePlatform = localStorage.getItem('homolog_platform') || '99food';
+
+    function switchPlatform(plat) {
+      activePlatform = plat;
+      localStorage.setItem('homolog_platform', plat);
+
+      const sec99 = document.getElementById('section99Food');
+      const secIfood = document.getElementById('sectionIfood');
+      const btn99 = document.getElementById('tabBtn99Food');
+      const btnIfood = document.getElementById('tabBtnIfood');
+
+      if (plat === '99food') {
+        sec99.style.display = 'block';
+        secIfood.style.display = 'none';
+
+        btn99.style.background = '#f59e0b';
+        btn99.style.color = '#111';
+        btn99.style.border = 'none';
+
+        btnIfood.style.background = 'transparent';
+        btnIfood.style.color = '#9ca3af';
+        btnIfood.style.border = '1px solid var(--border-color)';
+        carregarEventos99();
+      } else {
+        sec99.style.display = 'none';
+        secIfood.style.display = 'block';
+
+        btnIfood.style.background = '#ea1d2c';
+        btnIfood.style.color = '#fff';
+        btnIfood.style.border = 'none';
+
+        btn99.style.background = 'transparent';
+        btn99.style.color = '#9ca3af';
+        btn99.style.border = '1px solid var(--border-color)';
+        carregarEventos();
+      }
+    }
+
+    // ══════════════════ 99FOOD JAVASCRIPT ══════════════════
+    const webhookUrl99 = `${currentOrigin}/api/99food/webhook`;
+    const webhookSpan99 = document.getElementById('webhookUrlSpan99');
+    if (webhookSpan99) webhookSpan99.innerText = webhookUrl99;
+
+    function copiarWebhookUrl99() {
+      navigator.clipboard.writeText(webhookUrl99).then(() => {
+        alert('URL do Webhook da 99Food copiada:\n' + webhookUrl99);
+      });
+    }
+
+    function setOrderInput99(orderId) {
+      document.getElementById('orderId99').value = orderId;
+    }
+
+    async function testarStatus99() {
+      const log = document.getElementById('logStatus99');
+      log.style.display = 'block';
+      log.innerText = 'Testando status da 99Food e autenticação da loja...';
+
+      try {
+        const res = await fetch('/api/99food/status');
+        const data = await res.json();
+        
+        const testRes = await fetch('/api/99food/orders/details?orderId=5764607702025242453');
+        const testData = await testRes.json();
+
+        log.innerText = `Status do Servidor:\n` + JSON.stringify(data, null, 2) +
+          `\n\nConexão com a Loja OpenAPI 99Food:\n` + JSON.stringify(testData, null, 2);
+      } catch (e) {
+        log.innerText = 'Erro ao consultar: ' + e.message;
+      }
+    }
+
+    async function confirmarPedido99(orderId) {
+      const id = orderId || document.getElementById('orderId99').value.trim();
+      if (!id) return alert('Por favor, informe ou selecione o ID do pedido (order_id)');
+
+      try {
+        const res = await fetch('/api/99food/orders/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: id })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          alert('✅ Pedido confirmado com sucesso na 99Food (errno: 0)!');
+          carregarEventos99();
+        } else {
+          alert('❌ Resposta da 99Food: ' + (data.error || JSON.stringify(data)));
+        }
+      } catch (e) {
+        alert('Erro na requisição: ' + e.message);
+      }
+    }
+
+    async function prontoPedido99(orderId) {
+      const id = orderId || document.getElementById('orderId99').value.trim();
+      if (!id) return alert('Por favor, informe ou selecione o ID do pedido (order_id)');
+
+      try {
+        const res = await fetch('/api/99food/orders/ready', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: id })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          alert('✅ Pedido marcado como pronto para entrega (ready)!');
+          carregarEventos99();
+        } else {
+          alert('❌ Resposta da 99Food: ' + (data.error || JSON.stringify(data)));
+        }
+      } catch (e) {
+        alert('Erro: ' + e.message);
+      }
+    }
+
+    async function despacharPedido99(orderId) {
+      const id = orderId || document.getElementById('orderId99').value.trim();
+      if (!id) return alert('Por favor, informe ou selecione o ID do pedido (order_id)');
+
+      try {
+        const res = await fetch('/api/99food/orders/dispatch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: id })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          alert('✅ Pedido despachado na 99Food com entrega própria (dispatch)!');
+          carregarEventos99();
+        } else {
+          alert('❌ Resposta da 99Food: ' + (data.error || JSON.stringify(data)));
+        }
+      } catch (e) {
+        alert('Erro: ' + e.message);
+      }
+    }
+
+    async function cancelarPedido99(orderId) {
+      const id = orderId || document.getElementById('orderId99').value.trim();
+      if (!id) return alert('Por favor, informe ou selecione o ID do pedido (order_id)');
+
+      const select = document.getElementById('selectReason99');
+      const reasonId = select ? select.value : 1010;
+      const reasonText = select ? select.options[select.selectedIndex].text : 'Item sold out';
+
+      try {
+        const res = await fetch('/api/99food/orders/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: id, reasonId: Number(reasonId), reasonText })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          alert('✅ Pedido cancelado na 99Food!');
+          carregarEventos99();
+        } else {
+          alert('❌ Resposta da 99Food: ' + (data.error || JSON.stringify(data)));
+        }
+      } catch (e) {
+        alert('Erro: ' + e.message);
+      }
+    }
+
+    async function verDetalhes99(orderId) {
+      const id = orderId || document.getElementById('orderId99').value.trim();
+      if (!id) return alert('Por favor, informe ou selecione o ID do pedido (order_id)');
+
+      try {
+        const res = await fetch(`/api/99food/orders/details?orderId=${encodeURIComponent(id)}`);
+        const data = await res.json();
+        alert('📦 Detalhes do Pedido na 99Food:\n\n' + JSON.stringify(data.result?.data || data, null, 2));
+      } catch (e) {
+        alert('Erro: ' + e.message);
+      }
+    }
+
+    // Persistência local para eventos da 99
+    const STORAGE_KEY_99 = 'ninety_nine_homolog_events_v1';
+
+    function getStoredEvents99() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_99);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) { return []; }
+    }
+
+    function saveStoredEvents99(events) {
+      try {
+        localStorage.setItem(STORAGE_KEY_99, JSON.stringify(events));
+      } catch (e) {}
+    }
+
+    function limparEventos99() {
+      if (confirm('Deseja limpar os eventos da tela da 99Food?')) {
+        localStorage.removeItem(STORAGE_KEY_99);
+        renderizarTabela99([]);
+        document.getElementById('countEvents99').innerText = '0';
+      }
+    }
+
+    async function carregarEventos99() {
+      try {
+        const res = await fetch('/api/99food/events');
+        const data = await res.json();
+        const serverEvents = data.events || [];
+
+        const localEvents = getStoredEvents99();
+        const map = new Map();
+        [...serverEvents, ...localEvents].forEach(ev => {
+          if (ev && ev.id && !map.has(ev.id)) {
+            map.set(ev.id, ev);
+          }
+        });
+
+        const merged = Array.from(map.values()).sort((a,b) => new Date(b.receivedAt) - new Date(a.receivedAt));
+        saveStoredEvents99(merged);
+        renderizarTabela99(merged);
+        document.getElementById('countEvents99').innerText = merged.length;
+      } catch (e) {}
+    }
+
+    function renderizarTabela99(events) {
+      const tbody = document.getElementById('tbodyEvents99');
+      if (!tbody) return;
+
+      if (!events || events.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">Aguardando eventos da 99Food...</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = events.map(ev => {
+        const dateStr = ev.receivedAt ? new Date(ev.receivedAt).toLocaleTimeString('pt-BR') : '-';
+        let badgeColor = '#f59e0b';
+        if (ev.type === 'orderNew') badgeColor = '#10b981';
+        if (ev.type === 'orderCancel') badgeColor = '#ef4444';
+        if (ev.type === 'orderFinish') badgeColor = '#3b82f6';
+
+        const orderId = ev.orderId || '-';
+        const price = ev.totalPrice ? `R$ ${ev.totalPrice}` : '-';
+
+        return `
+          <tr>
+            <td style="font-family:monospace; font-size:12px;">${dateStr}</td>
+            <td><span class="badge" style="background:${badgeColor}22; color:${badgeColor}; border:1px solid ${badgeColor}; font-weight:700;">${ev.type}</span></td>
+            <td>
+              <strong style="color:#fff;">${orderId}</strong>
+              ${ev.orderIndex ? `<span style="font-size:11px; color:#9ca3af; margin-left:6px;">(#${ev.orderIndex})</span>` : ''}
+            </td>
+            <td>${price}</td>
+            <td>
+              <div style="display:flex; gap:6px;">
+                <button class="btn btn-outline" style="padding:3px 8px; font-size:11px;" onclick="setOrderInput99('${orderId}'); confirmarPedido99('${orderId}')">Confirmar</button>
+                <button class="btn btn-outline" style="padding:3px 8px; font-size:11px;" onclick="setOrderInput99('${orderId}'); verDetalhes99('${orderId}')">Detalhes</button>
+                <button class="btn btn-outline" style="padding:3px 8px; font-size:11px; color:#ef4444;" onclick="setOrderInput99('${orderId}'); cancelarPedido99('${orderId}')">Cancelar</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Inicialização da aba e loops de eventos
+    switchPlatform(activePlatform);
     carregarModo();
     carregarEventos();
-    // Atualiza eventos a cada 3 segundos
+    carregarEventos99();
     setInterval(carregarEventos, 3000);
+    setInterval(carregarEventos99, 3000);
   </script>
 </body>
 </html>
