@@ -178,7 +178,14 @@ async function listRecentEvents(req, res) {
   });
 }
 
-function checkStatus(req, res) {
+async function checkStatus(req, res) {
+  let shopsData = { total: 0, shop_list: [] };
+  try {
+    shopsData = await ninetyNineService.getAuthorizedShops();
+  } catch (e) {
+    shopsData = { total: 0, shop_list: [], error: e.message };
+  }
+
   return res.json({
     ok: true,
     platform: '99Food / DiDi Food Open Platform',
@@ -186,6 +193,7 @@ function checkStatus(req, res) {
     shopId: env.FOOD99_SHOP_ID,
     appShopId: env.FOOD99_APP_SHOP_ID,
     webhookUrl: 'https://sist-homolog.vercel.app/api/99food/webhook',
+    authorizedShops: shopsData,
     timestamp: new Date().toISOString()
   });
 }

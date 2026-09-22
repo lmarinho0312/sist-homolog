@@ -250,8 +250,8 @@
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
         <div>
           <h3 style="margin:0 0 6px 0; font-size:16px; display:flex; align-items:center; gap:10px;">
-            🏬 Loja 99Food: <span style="color:#fbbf24;">Com Sabor TST</span>
-            <span class="badge badge-success">Vinculada (shopBindStatus: bind)</span>
+            🏬 Loja 99Food: <span id="nomeLoja99" style="color:#fbbf24;">Consultando 99Food...</span>
+            <span id="badgeLoja99" class="badge" style="background:#6b728022; color:#9ca3af; border:1px solid #6b7280;">Verificando...</span>
           </h3>
           <p style="margin:0; font-size:13px; color:var(--text-muted);">
             App: <code style="color:#10b981;">BR_P_RASTRV2 (5764607534449559450) [Produção]</code>
@@ -266,9 +266,15 @@
           </button>
         </div>
       </div>
+
+      <!-- Alerta quando nenhuma loja está vinculada -->
+      <div id="avisoNenhumaLoja99" style="display:none; margin-top:14px; padding:12px 16px; background:rgba(239, 68, 68, 0.1); border:1px solid #ef4444; border-radius:8px; color:#fca5a5; font-size:13px; line-height:1.5;">
+        ⚠️ <strong>Nenhuma loja vinculada na 99Food!</strong> A 99Food só envia os pedidos via Webhook para aplicativos que possuem a loja autorizada. Clique no botão azul <strong>"Gerar Link para Vincular Loja Real"</strong>, abra o link gerado na aba onde está logado no portal do restaurante 99 e confirme a autorização.
+      </div>
+
       <div id="boxAuthLinkLoja" style="display:none; margin-top:14px; padding:14px; background:#11151c; border-left:4px solid #2563eb; border-radius:6px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <strong style="color:#60a5fa; font-size:13px;">🔗 Link Oficial de Autorização da Loja (Válido por 7 dias):</strong>
+          <strong style="color:#60a5fa; font-size:13px;">🔗 Link Oficial de Autorização da Loja (Válido por tempo limitado):</strong>
           <button class="btn btn-outline" style="padding:4px 12px; font-size:12px;" onclick="copiarLinkVinculoLoja()">📋 Copiar Link</button>
         </div>
         <div style="font-family:monospace; font-size:12px; color:#d1d5db; word-break:break-all; padding:8px; background:#0b0e14; border-radius:4px; margin-bottom:8px;" id="spanAuthLinkLoja"></div>
@@ -1362,13 +1368,51 @@
       }).join('');
     }
 
+    async function atualizarStatusLoja99() {
+      try {
+        const res = await fetch('/api/99food/status');
+        const data = await res.json();
+        const shops = data.authorizedShops;
+        const nomeEl = document.getElementById('nomeLoja99');
+        const badgeEl = document.getElementById('badgeLoja99');
+        const avisoLoja = document.getElementById('avisoNenhumaLoja99');
+
+        if (shops && shops.total > 0 && shops.shop_list && shops.shop_list.length > 0) {
+          const shop = shops.shop_list[0];
+          if (nomeEl) nomeEl.innerText = shop.shop_name || shop.name || ('Loja ID: ' + (shop.shop_id || shop.id));
+          if (badgeEl) {
+            badgeEl.className = 'badge badge-success';
+            badgeEl.style.background = 'rgba(16, 185, 129, 0.15)';
+            badgeEl.style.color = '#10b981';
+            badgeEl.style.border = '1px solid #10b981';
+            badgeEl.innerText = `🟢 Vinculada (${shops.total} loja(s) conectada(s))`;
+          }
+          if (avisoLoja) avisoLoja.style.display = 'none';
+        } else {
+          if (nomeEl) nomeEl.innerText = 'Nenhuma loja vinculada';
+          if (badgeEl) {
+            badgeEl.className = 'badge';
+            badgeEl.style.background = 'rgba(239, 68, 68, 0.15)';
+            badgeEl.style.color = '#ef4444';
+            badgeEl.style.border = '1px solid #ef4444';
+            badgeEl.innerText = '🔴 0 Lojas Conectadas';
+          }
+          if (avisoLoja) avisoLoja.style.display = 'block';
+        }
+      } catch (e) {
+        console.warn('Erro ao atualizar status da loja 99:', e);
+      }
+    }
+
     // Inicialização da aba e loops de eventos
     switchPlatform(activePlatform);
     carregarModo();
     carregarEventos();
     carregarEventos99();
+    atualizarStatusLoja99();
     setInterval(carregarEventos, 3000);
     setInterval(carregarEventos99, 3000);
+    setInterval(atualizarStatusLoja99, 15000);
   </script>
 </body>
 </html>

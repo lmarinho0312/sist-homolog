@@ -207,6 +207,38 @@ async function getStoreAuthorizationPageUrl(appId = env.FOOD99_APP_ID) {
   return data.data.url;
 }
 
+let cachedShops = null;
+let cachedShopsExpiresAt = 0;
+
+/**
+ * Consulta a lista de lojas vinculadas ao aplicativo na 99Food
+ * GET /v1/shop/list
+ */
+async function getAuthorizedShops(force = false) {
+  const now = Date.now();
+  if (!force && cachedShops && cachedShopsExpiresAt > now) {
+    return cachedShops;
+  }
+
+  const appId = env.FOOD99_APP_ID;
+  const params = {
+    app_id: appId,
+    timestamp: Math.floor(now / 1000)
+  };
+  params.sign = generateSignature(params, env.FOOD99_APP_SECRET);
+  const q = new URLSearchParams(params).toString();
+  const res = await fetch(`${BASE_URL}/v1/shop/list?${q}`);
+  const data = await res.json();
+
+  if (data.errno === 0 && data.data) {
+    cachedShops = data.data;
+    cachedShopsExpiresAt = now + 25000; // cache por 25s para respeitar limite de frequência da 99
+    return cachedShops;
+  }
+
+  return cachedShops || { total: 0, shop_list: [], error: data.errmsg || 'Falha ao obter lojas' };
+}
+
 module.exports = {
   getAuthToken,
   generateSignature,
@@ -217,5 +249,6 @@ module.exports = {
   orderReady,
   dispatchOrder,
   cancelOrder,
-  getStoreAuthorizationPageUrl
+  getStoreAuthorizationPageUrl,
+  getAuthorizedShops
 };
