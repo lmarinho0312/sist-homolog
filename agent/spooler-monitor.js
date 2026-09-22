@@ -241,6 +241,16 @@ async function processarArquivoSpool(filePath) {
     return;
   }
 
+  // ── FILTRO 99FOOD: Integração direta via API/Webhook ativada ──
+  // A 99Food agora é recebida oficialmente via API. O spooler processa apenas iFood.
+  if (parsed.origem === '99FOOD') {
+    log(`ℹ️ Pedido 99Food #${parsed.pedidoId} ignorado no spooler (agora integrado via API/Webhook oficial). [${fileName}]`);
+    processedCache.add(cacheKeyFile);
+    arquivosPendentes.delete(fileName);
+    salvarCache();
+    return;
+  }
+
   // ── FILTRO DE RETIRADA / BALCÃO ──────────────────────────────────────
   if (parsed.isRetirada) {
     log(`ℹ️ Pedido ${parsed.origem} #${parsed.pedidoId} é para RETIRADA NO LOCAL (não requer motoboy). Ignorando [${fileName}].`);

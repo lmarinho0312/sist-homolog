@@ -246,6 +246,17 @@ async function webhookSpool(req, res) {
     const cleanTextoBruto = textoBruto ? String(textoBruto).trim() : null;
     const taxa = !isNaN(Number(taxaEntrega)) ? Number(taxaEntrega) : 0.0;
 
+    // Corte imediato: 99Food agora é 100% via API/Webhook oficial
+    if (cleanOrigem === '99FOOD') {
+      console.log(`ℹ️ [webhookSpool] Pedido 99Food #${cleanPedidoId} descartado do puller (agora integrado via API/Webhook oficial).`);
+      return res.json(200, {
+        success: true,
+        descartado: true,
+        motivo: '99food_integrado_via_api',
+        message: 'Pedidos 99Food são processados exclusivamente via API/Webhook oficial. Descartado do puller de impressão.'
+      });
+    }
+
     // Autocorreção e Detecção Robusta de 99Food para todas as 3 lojas (Brasileira, Burgers e Carnes)
     if (cleanTextoBruto) {
       const tbUpper = cleanTextoBruto.toUpperCase();
@@ -267,6 +278,19 @@ async function webhookSpool(req, res) {
 
       if (is99Food && cleanOrigem !== 'IFOOD') {
         cleanOrigem = '99FOOD';
+      }
+
+      // ── CORTE DE DADOS DO PULLER / SPOOLER PARA 99FOOD ──────────────────────────
+      // A 99Food já está integrada oficialmente via API e Webhook direto.
+      // O puller de impressão processa exclusivamente iFood.
+      if (cleanOrigem === '99FOOD') {
+        console.log(`ℹ️ [webhookSpool] Pedido 99Food #${cleanPedidoId} descartado do puller (agora integrado via API/Webhook oficial).`);
+        return res.json(200, {
+          success: true,
+          descartado: true,
+          motivo: '99food_integrado_via_api',
+          message: 'Pedidos 99Food são processados exclusivamente via API/Webhook oficial. Descartado do puller de impressão.'
+        });
       }
 
       // Se cliente não veio, extrai da linha após o número do pedido (#ID)
