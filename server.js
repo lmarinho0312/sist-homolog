@@ -102,6 +102,13 @@ registerRoute('POST', '/api/ifood/ping', ifoodController.pingPresenceAction);
 registerRoute('GET', '/api/ifood/config', ifoodController.getConfig);
 registerRoute('POST', '/api/ifood/config', ifoodController.setConfig);
 
+// ── Homologação Oficial 99Food / DiDi Open Platform ───────────────────────────
+const ninetyNineFoodController = require('./src/controllers/ninetyNineFoodController');
+registerRoute('GET', '/api/99food/status', ninetyNineFoodController.checkStatus);
+registerRoute('GET', '/api/99food/webhook', ninetyNineFoodController.handleWebhook);
+registerRoute('POST', '/api/99food/webhook', ninetyNineFoodController.handleWebhook);
+registerRoute('GET', '/api/99food/events', ninetyNineFoodController.listRecentEvents);
+
 // ── Handler principal (usado pela Vercel e pelo servidor local) ────────────────
 async function requestHandler(req, res) {
   // CORS
