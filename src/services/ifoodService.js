@@ -280,10 +280,9 @@ async function requestCancellation(orderId, reason = '501', cancellationCode = '
 
   console.log(`📡 [iFood Cancel] Solicitando cancelamento do pedido ${orderId} com motivo ${code} (${desc})`);
 
-  // iFood API V1.0 aceita { "reason": code, "cancellationCode": code }
+  // iFood API V1.0 - conforme documentação oficial: apenas { "reason": "CODE" }
   const payload = {
-    reason: code,
-    cancellationCode: code
+    reason: code
   };
 
   const res = await ifoodRequest(`/order/v1.0/orders/${orderId}/requestCancellation`, {
@@ -322,27 +321,19 @@ async function acceptCancellation(orderId) {
       return { success: true, status: res.status, message: 'Cancelamento aceito via /acceptCancellation' };
     }
     const errText = await res.text();
-    lastError = `Status ${res.status}: ${errText}`;
+    lastError = `acceptCancellation retornou ${res.status}: ${errText}`;
+    console.warn(`⚠️ [iFood] ${lastError}`);
   } catch (e) {
     lastError = e.message;
+    console.warn(`⚠️ [iFood] Exceção em acceptCancellation: ${e.message}`);
   }
 
-  // 2. Se a rota retornar 400 ou 404, tenta a rota recomendada pelo relatório Toqan:
-  // POST /order/v1.0/orders/{id}/statuses/cancellation-requested
+  // 2. Fallback: consulta motivos e envia requestCancellation com motivo oficial
   try {
-    const resToqan = await ifoodRequest(`/order/v1.0/orders/${orderId}/statuses/cancellation-requested`, {
-      method: 'POST',
-      body: JSON.stringify({})
-    });
-    if (resToqan.ok || resToqan.status === 202) {
-      console.log(`✅ [iFood] Cancelamento aceito via /statuses/cancellation-requested para pedido ${orderId}`);
-      return { success: true, status: resToqan.status, message: 'Cancelamento aceito via /statuses/cancellation-requested' };
-    }
-  } catch (e) {}
-
-  // 3. Fallback: se a API exigir cancelamento com motivo direto da loja
-  try {
-    const fallbackRes = await requestCancellation(orderId, '501', '501');
+    console.log(`🔄 [iFood] Tentando fallback via requestCancellation com motivo para pedido ${orderId}...`);
+    const reasons = await getCancellationReasons(orderId);
+    const reasonCode = (reasons && reasons.length > 0) ? String(reasons[0].code || '501') : '501';
+    const fallbackRes = await requestCancellation(orderId, reasonCode);
     return { success: true, fallback: true, ...fallbackRes };
   } catch (e) {
     throw new Error(`Erro ao confirmar cancelamento do pedido ${orderId}: ${lastError || e.message}`);
