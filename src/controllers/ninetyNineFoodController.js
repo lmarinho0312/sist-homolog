@@ -153,6 +153,20 @@ async function getOrderDetailsAction(req, res) {
   }
 }
 
+/**
+ * Ação: Gera URL oficial de autorização para o lojista vincular a loja
+ * GET /api/99food/stores/auth-url
+ */
+async function getAuthorizationUrlAction(req, res) {
+  const appId = req.query?.appId || req.body?.appId || env.FOOD99_APP_ID;
+  try {
+    const url = await ninetyNineService.getStoreAuthorizationPageUrl(appId);
+    return res.json({ success: true, appId, url });
+  } catch (error) {
+    return res.json(500, { error: error.message });
+  }
+}
+
 module.exports = {
   handleWebhook,
   listRecentEvents,
@@ -161,5 +175,6 @@ module.exports = {
   readyOrderAction,
   dispatchOrderAction,
   cancelOrderAction,
-  getOrderDetailsAction
+  getOrderDetailsAction,
+  getAuthorizationUrlAction
 };

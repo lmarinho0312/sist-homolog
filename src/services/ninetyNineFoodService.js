@@ -189,6 +189,24 @@ async function cancelOrder(orderId, reasonId = 1010, reasonText = 'Item esgotado
   });
 }
 
+/**
+ * Gera URL oficial de autorização para o lojista vincular a loja ao aplicativo
+ * POST /v1/auth/authorizationpage/getUrl
+ */
+async function getStoreAuthorizationPageUrl(appId = env.FOOD99_APP_ID) {
+  const url = `${BASE_URL}/v1/auth/authorizationpage/getUrl`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ app_id: String(appId) })
+  });
+  const data = await res.json();
+  if (data.errno !== 0 || !data.data?.url) {
+    throw new Error(`Erro ao gerar link de autorização: ${data.errmsg || 'Falha na API'}`);
+  }
+  return data.data.url;
+}
+
 module.exports = {
   getAuthToken,
   generateSignature,
@@ -198,5 +216,6 @@ module.exports = {
   confirmOrder,
   orderReady,
   dispatchOrder,
-  cancelOrder
+  cancelOrder,
+  getStoreAuthorizationPageUrl
 };

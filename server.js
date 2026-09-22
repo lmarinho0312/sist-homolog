@@ -113,6 +113,7 @@ registerRoute('POST', '/api/99food/orders/ready', ninetyNineFoodController.ready
 registerRoute('POST', '/api/99food/orders/dispatch', ninetyNineFoodController.dispatchOrderAction);
 registerRoute('POST', '/api/99food/orders/cancel', ninetyNineFoodController.cancelOrderAction);
 registerRoute('GET', '/api/99food/orders/details', ninetyNineFoodController.getOrderDetailsAction);
+registerRoute('GET', '/api/99food/stores/auth-url', ninetyNineFoodController.getAuthorizationUrlAction);
 
 // ── Handler principal (usado pela Vercel e pelo servidor local) ────────────────
 async function requestHandler(req, res) {

@@ -257,11 +257,24 @@
             App: <code>rastrv2 (5764607677240445075)</code> | AppShopID: <code>03122022</code> | Shop ID: <code>5764617873609198563</code>
           </p>
         </div>
-        <div style="display:flex; gap:10px;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn" onclick="gerarLinkVinculoLoja()" style="background:#2563eb; color:#fff; font-weight:700;">
+            🔗 Gerar Link para Vincular Loja Real
+          </button>
           <button class="btn" onclick="testarStatus99()" style="background:#f59e0b; color:#111; font-weight:700;">
             ⚡ Testar Token & Conexão Oficial
           </button>
         </div>
+      </div>
+      <div id="boxAuthLinkLoja" style="display:none; margin-top:14px; padding:14px; background:#11151c; border-left:4px solid #2563eb; border-radius:6px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <strong style="color:#60a5fa; font-size:13px;">🔗 Link Oficial de Autorização da Loja (Válido por 7 dias):</strong>
+          <button class="btn btn-outline" style="padding:4px 12px; font-size:12px;" onclick="copiarLinkVinculoLoja()">📋 Copiar Link</button>
+        </div>
+        <div style="font-family:monospace; font-size:12px; color:#d1d5db; word-break:break-all; padding:8px; background:#0b0e14; border-radius:4px; margin-bottom:8px;" id="spanAuthLinkLoja"></div>
+        <p style="margin:0; font-size:12px; color:var(--text-muted);">
+          👉 <strong>Como usar:</strong> Abra este link no navegador onde você ou o lojista está logado no <em>Portal do Parceiro 99Food</em> e clique em <strong>Autorizar</strong>. A loja será vinculada automaticamente!
+        </p>
       </div>
       <div id="logStatus99" style="display:none; margin-top:12px; padding:12px; background:#11151c; border-radius:6px; font-family:monospace; font-size:12px; color:#10b981; max-height:200px; overflow-y:auto; white-space:pre-wrap;"></div>
     </div>
@@ -1128,6 +1141,35 @@
       } catch (e) {
         log.innerText = 'Erro ao consultar: ' + e.message;
       }
+    }
+
+    let urlVinculoAtual = '';
+
+    async function gerarLinkVinculoLoja() {
+      const box = document.getElementById('boxAuthLinkLoja');
+      const span = document.getElementById('spanAuthLinkLoja');
+      box.style.display = 'block';
+      span.innerText = 'Gerando link oficial de autorização da 99Food...';
+
+      try {
+        const res = await fetch('/api/99food/stores/auth-url');
+        const data = await res.json();
+        if (res.ok && data.url) {
+          urlVinculoAtual = data.url;
+          span.innerHTML = `<a href="${data.url}" target="_blank" style="color:#60a5fa; text-decoration:underline;">${data.url}</a>`;
+        } else {
+          span.innerText = 'Erro ao obter link: ' + (data.error || JSON.stringify(data));
+        }
+      } catch (e) {
+        span.innerText = 'Erro: ' + e.message;
+      }
+    }
+
+    function copiarLinkVinculoLoja() {
+      if (!urlVinculoAtual) return alert('Gere o link primeiro clicando no botão azul!');
+      navigator.clipboard.writeText(urlVinculoAtual).then(() => {
+        alert('✅ Link copiado para a área de transferência!\n\nEnvie para o lojista ou abra em uma aba logada no Portal do Parceiro 99Food.');
+      });
     }
 
     async function confirmarPedido99(orderId) {
