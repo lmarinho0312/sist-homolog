@@ -210,12 +210,28 @@ async function getStoreAuthorizationPageUrl(appId = env.FOOD99_APP_ID) {
 let cachedShops = null;
 let cachedShopsExpiresAt = 0;
 
+const { getDb } = require('../database/db');
+
 /**
  * Consulta a lista de lojas vinculadas ao aplicativo na 99Food
- * GET /v1/shop/list
+ * GET /v1/shop/list (respeitando limite de 1 chamada a cada 20s)
  */
 async function getAuthorizedShops(force = false) {
   const now = Date.now();
+  let dbCache = null;
+
+  try {
+    const db = getDb();
+    const row = await db.queryOne("SELECT value, updated_at FROM app_cache WHERE key = 'food99_shops'");
+    if (row && row.value) {
+      dbCache = JSON.parse(row.value);
+      const age = now - (row.updated_at || 0);
+      if (!force && age < 35000) {
+        return dbCache;
+      }
+    }
+  } catch (err) {}
+
   if (!force && cachedShops && cachedShopsExpiresAt > now) {
     return cachedShops;
   }
@@ -227,16 +243,32 @@ async function getAuthorizedShops(force = false) {
   };
   params.sign = generateSignature(params, env.FOOD99_APP_SECRET);
   const q = new URLSearchParams(params).toString();
-  const res = await fetch(`${BASE_URL}/v1/shop/list?${q}`);
-  const data = await res.json();
+  
+  try {
+    const res = await fetch(`${BASE_URL}/v1/shop/list?${q}`);
+    const data = await res.json();
 
-  if (data.errno === 0 && data.data) {
-    cachedShops = data.data;
-    cachedShopsExpiresAt = now + 25000; // cache por 25s para respeitar limite de frequência da 99
-    return cachedShops;
+    if (data.errno === 0 && data.data) {
+      cachedShops = data.data;
+      cachedShopsExpiresAt = now + 35000;
+      try {
+        const db = getDb();
+        await db.execute(
+          "INSERT OR REPLACE INTO app_cache (key, value, updated_at) VALUES ('food99_shops', ?, ?)",
+          [JSON.stringify(cachedShops), now]
+        );
+      } catch (e) {}
+      return cachedShops;
+    }
+
+    if (data.errno === 10005 && dbCache) {
+      return dbCache;
+    }
+
+    return dbCache || cachedShops || { total: 0, shop_list: [], error: data.errmsg || 'Falha ao obter lojas' };
+  } catch (netErr) {
+    return dbCache || cachedShops || { total: 0, shop_list: [], error: netErr.message };
   }
-
-  return cachedShops || { total: 0, shop_list: [], error: data.errmsg || 'Falha ao obter lojas' };
 }
 
 module.exports = {

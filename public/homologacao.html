@@ -258,11 +258,14 @@
           </p>
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-outline" onclick="atualizarStatusLoja99(true)" style="border-color:#10b981; color:#10b981; font-weight:700;">
+            🔄 Verificar Vínculo
+          </button>
           <button class="btn" onclick="gerarLinkVinculoLoja()" style="background:#2563eb; color:#fff; font-weight:700;">
             🔗 Gerar Link para Vincular Loja Real
           </button>
           <button class="btn" onclick="testarStatus99()" style="background:#f59e0b; color:#111; font-weight:700;">
-            ⚡ Testar Token & Conexão Oficial
+            ⚡ Testar Conexão Completa
           </button>
         </div>
       </div>
@@ -1412,7 +1415,7 @@
     atualizarStatusLoja99();
     setInterval(carregarEventos, 3000);
     setInterval(carregarEventos99, 3000);
-    setInterval(atualizarStatusLoja99, 15000);
+    setInterval(atualizarStatusLoja99, 45000);
   </script>
 </body>
 </html>
