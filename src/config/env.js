@@ -34,12 +34,12 @@ module.exports = {
   IFOOD_MERCHANT_ID: process.env.IFOOD_MERCHANT_ID || 'ce4602c7-54ae-4594-855c-a170ff081af9',
   IFOOD_API_URL: process.env.IFOOD_API_URL || 'https://merchant-api.ifood.com.br',
   IFOOD_WEBHOOK_SECRET: process.env.IFOOD_WEBHOOK_SECRET || '',
-  // Configurações 99Food (Homologação / DiDi Open Platform)
-  FOOD99_APP_ID: process.env.FOOD99_APP_ID || '5764607677240445075',
-  FOOD99_APP_SECRET: process.env.FOOD99_APP_SECRET || '657b25c639a5ebe15c721eed2ae8a972',
-  FOOD99_AUTH_TOKEN: process.env.FOOD99_AUTH_TOKEN || 'ZThlMzAzZDEyY2FkNGUyNTNkOWJkNDAYTNjMGM0OTQ=',
-  FOOD99_SHOP_ID: process.env.FOOD99_SHOP_ID || '5764617873609198563',
-  FOOD99_APP_SHOP_ID: process.env.FOOD99_APP_SHOP_ID || '03122022',
+  // Configurações 99Food (Produção / DiDi Open Platform)
+  FOOD99_APP_ID: process.env.FOOD99_APP_ID || '5764607534449559450',
+  FOOD99_APP_SECRET: process.env.FOOD99_APP_SECRET || '1056bb0b68de904114a8251209b8a70a',
+  FOOD99_AUTH_TOKEN: process.env.FOOD99_AUTH_TOKEN || '',
+  FOOD99_SHOP_ID: process.env.FOOD99_SHOP_ID || '',
+  FOOD99_APP_SHOP_ID: process.env.FOOD99_APP_SHOP_ID || '',
   FOOD99_API_URL: process.env.FOOD99_API_URL || 'https://openapi.99food.com'
 };
 
