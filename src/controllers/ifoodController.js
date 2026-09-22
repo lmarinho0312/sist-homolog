@@ -146,13 +146,42 @@ async function handleWebhook(req, res) {
         console.log(`🔔 [iFood Cancel Request] Evento de cancelamento ${code} recebido para o pedido ${orderId}!`);
         await updateOrderStatus(orderId, 'cancelamento_solicitado');
         
-        // Atende ao SLA de resposta ao cancelamento exigido pela homologação oficial do iFood:
+        // Responde ao cancelamento exigido pela homologação oficial do iFood:
+        // 1. Primeiro busca os motivos oficiais via GET /cancellationReasons
+        // 2. Depois envia requestCancellation COM o motivo identificado
+        // 3. Se requestCancellation falhar, tenta acceptCancellation como fallback
         try {
-          const cancelRes = await ifoodService.acceptCancellation(orderId);
-          console.log(`🤖 [Webhook SLA] Confirmação de cancelamento aceita para pedido ${orderId}:`, cancelRes);
-          await updateOrderStatus(orderId, 'cancelado');
+          // Passo 1: Consulta os motivos oficiais de cancelamento do pedido
+          const reasons = await ifoodService.getCancellationReasons(orderId);
+          const reasonCode = (reasons && reasons.length > 0) 
+            ? String(reasons[0].code || reasons[0].cancelCodeId || '501') 
+            : '501';
+          const reasonDesc = (reasons && reasons.length > 0)
+            ? (reasons[0].description || 'Problemas no sistema')
+            : 'Problemas no sistema';
+          
+          console.log(`📋 [iFood Cancel] Motivos consultados para ${orderId}. Usando: ${reasonCode} - ${reasonDesc}`);
+          console.log(`📋 [iFood Cancel] Lista completa de motivos:`, JSON.stringify(reasons));
+
+          // Passo 2: Tenta solicitar cancelamento com o motivo oficial
+          try {
+            const cancelRes = await ifoodService.requestCancellation(orderId, reasonCode, reasonCode);
+            console.log(`✅ [iFood Cancel] Cancelamento com motivo ${reasonCode} aceito para pedido ${orderId}:`, cancelRes);
+            await updateOrderStatus(orderId, 'cancelado');
+          } catch (errRequest) {
+            console.warn(`⚠️ [iFood Cancel] requestCancellation falhou (${errRequest.message}), tentando acceptCancellation...`);
+            
+            // Passo 3: Fallback - tenta aceitar o cancelamento diretamente
+            try {
+              const acceptRes = await ifoodService.acceptCancellation(orderId);
+              console.log(`✅ [iFood Cancel] Cancelamento aceito via acceptCancellation para pedido ${orderId}:`, acceptRes);
+              await updateOrderStatus(orderId, 'cancelado');
+            } catch (errAccept) {
+              console.warn(`⚠️ [iFood Cancel] acceptCancellation também falhou: ${errAccept.message}`);
+            }
+          }
         } catch (errCancel) {
-          console.warn(`⚠️ Falha ao processar confirmação de cancelamento: ${errCancel.message}`);
+          console.error(`❌ [iFood Cancel] Erro completo ao processar cancelamento: ${errCancel.message}`);
         }
       } else if (isCancelled) {
         await updateOrderStatus(orderId, 'cancelado');
