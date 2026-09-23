@@ -35,14 +35,26 @@ async function injectOrderToDb(payload) {
     const rawOrderIndex = orderInfo.order_index ? String(orderInfo.order_index).replace(/^#+/, '').trim() : '';
     const numeroPedido = rawOrderIndex || orderId.slice(-6);
 
-    // Verifica se o pedido já existe (seja pelo ID longo da 99Food ou pelo número curto do spooler)
-    const existe = await db.queryOne(
+    // 1. Busca pedido ÚNICA E EXCLUSIVAMENTE pelo ID global único da 99Food (19 dígitos)
+    let existe = await db.queryOne(
       `SELECT id, numero_pedido, status, motoboy_id FROM pedidos 
-       WHERE origem = '99FOOD' 
-         AND (pedido_id_origem = ? OR numero_pedido = ? OR numero_pedido = ? OR pedido_id_origem = ?)
+       WHERE origem = '99FOOD' AND pedido_id_origem = ?
        ORDER BY id DESC LIMIT 1`,
-      [orderId, numeroPedido, `#${numeroPedido}`, numeroPedido]
+      [orderId]
     );
+
+    // 2. Se não achou pelo ID oficial, só busca por número se for pedido de HOJE e ainda no balcão
+    if (!existe && numeroPedido) {
+      existe = await db.queryOne(
+        `SELECT id, numero_pedido, status, motoboy_id FROM pedidos 
+         WHERE origem = '99FOOD' 
+           AND numero_pedido IN (?, ?)
+           AND DATE(COALESCE(criado_em, DATETIME('now', '-3 hours'))) = DATE(DATETIME('now', '-3 hours'))
+           AND status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo')
+         ORDER BY id DESC LIMIT 1`,
+        [numeroPedido, `#${numeroPedido}`]
+      );
+    }
 
     const addr = orderInfo.receive_address || {};
     const cliente = addr.name || [addr.first_name, addr.last_name].filter(Boolean).join(' ') || 'Cliente 99Food';
@@ -62,7 +74,8 @@ async function injectOrderToDb(payload) {
     const rawText = JSON.stringify(payload, null, 2);
 
     if (existe) {
-      // Se o pedido já havia sido pré-inserido pelo spooler ou webhook anterior, atualiza com os dados oficiais completos
+      // Se o pedido já existia para este mesmo orderId ou hoje, atualiza com os dados oficiais sem perder rota
+      const novoStatus = (existe.status === 'em_rota' || existe.status === 'entregue') ? existe.status : 'disponivel';
       await db.execute(
         `UPDATE pedidos SET
            numero_pedido = ?,
@@ -72,21 +85,24 @@ async function injectOrderToDb(payload) {
            bairro = ?,
            taxa_entrega = ?,
            telefone_cliente = ?,
+           status = ?,
+           criado_em = COALESCE(criado_em, DATETIME('now', '-3 hours')),
            texto_bruto = ?
          WHERE id = ?`,
-        [numeroPedido, orderId, cliente, ruaCompleta, bairro, taxa, tel, rawText, existe.id]
+        [numeroPedido, orderId, cliente, ruaCompleta, bairro, taxa, tel, novoStatus, rawText, existe.id]
       );
-      console.log(`🔄 [99Food] Pedido existente (ID ${existe.id}) atualizado com dados oficiais da API: #${numeroPedido} (${orderId})`);
+      console.log(`🔄 [99Food] Pedido existente (ID ${existe.id}) atualizado com dados da API: #${numeroPedido} (${orderId}) [Status: ${novoStatus}]`);
       return;
     }
 
+    // Inserção de NOVO pedido ativo para a cozinha
     await db.execute(
       `INSERT INTO pedidos 
-       (numero_pedido, origem, pedido_id_origem, cliente, endereco, bairro, taxa_entrega, telefone_cliente, status, texto_bruto)
-       VALUES (?, '99FOOD', ?, ?, ?, ?, ?, ?, 'disponivel', ?)`,
+       (numero_pedido, origem, pedido_id_origem, cliente, endereco, bairro, taxa_entrega, telefone_cliente, status, criado_em, texto_bruto)
+       VALUES (?, '99FOOD', ?, ?, ?, ?, ?, ?, 'disponivel', DATETIME('now', '-3 hours'), ?)`,
       [numeroPedido, orderId, cliente, ruaCompleta, bairro, taxa, tel, rawText]
     );
-    console.log(`✅ [99Food] Novo pedido inserido via API: #${numeroPedido} (${orderId})`);
+    console.log(`✅ [99Food] Novo pedido inserido via API no painel: #${numeroPedido} (${orderId})`);
   } catch (err) {
     console.warn('⚠️ Erro ao injetar pedido 99Food:', err.message);
   }
@@ -105,8 +121,10 @@ async function cancelOrderInDb(orderId) {
 async function finishOrderInDb(orderId) {
   try {
     const db = getDb();
+    // Apenas marca como entregue se NÃO estiver em rota com motoboy
     await db.execute(
-      `UPDATE pedidos SET status = 'finalizado' WHERE pedido_id_origem = ? AND origem = '99FOOD'`,
+      `UPDATE pedidos SET status = 'entregue', data_fim = COALESCE(data_fim, DATETIME('now', '-3 hours'))
+       WHERE pedido_id_origem = ? AND origem = '99FOOD' AND status NOT IN ('em_rota', 'entregue')`,
       [String(orderId)]
     );
   } catch (err) {}
@@ -157,7 +175,7 @@ async function handleWebhook(req, res) {
   try {
     await saveEventToDb(eventRecord);
 
-    if (eventType === 'orderNew') {
+    if (eventType === 'orderNew' || eventType === 'orderConfirm') {
       await injectOrderToDb(payload);
     } else if (eventType === 'orderCancel') {
       await cancelOrderInDb(orderId);
