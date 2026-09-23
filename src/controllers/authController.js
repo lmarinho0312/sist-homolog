@@ -16,7 +16,7 @@ async function login(req, res) {
     const db = getDb();
 
     const motoboy = await db.queryOne(
-      `SELECT id, nome, telefone, senha, traccar_device_id, grupo FROM motoboys WHERE telefone = ? OR telefone = ?`,
+      `SELECT id, nome, telefone, senha, traccar_device_id, grupo, status FROM motoboys WHERE telefone = ? OR telefone = ?`,
       [cleanTelefone, String(telefone).trim()]
     );
 
@@ -27,6 +27,23 @@ async function login(req, res) {
     const isValidPassword = comparePassword(senha, motoboy.senha);
     if (!isValidPassword) {
       return res.json(401, { success: false, message: 'Senha incorreta. Tente novamente.' });
+    }
+
+    // Trava de aprovação do cadastro pela administração
+    const statusAprovacao = (motoboy.status || 'aprovado').toLowerCase();
+    if (statusAprovacao === 'pendente') {
+      return res.json(403, { 
+        success: false, 
+        pendente: true,
+        message: 'Seu cadastro está pendente de aprovação pela administração. Por favor, aguarde a liberação para acessar.' 
+      });
+    }
+
+    if (statusAprovacao === 'rejeitado' || statusAprovacao === 'recusado' || statusAprovacao === 'bloqueado') {
+      return res.json(403, { 
+        success: false, 
+        message: 'Seu acesso não foi autorizado pela administração. Entre em contato com a gerência.' 
+      });
     }
 
     return res.json(200, {
@@ -47,7 +64,7 @@ async function login(req, res) {
 }
 
 /**
- * Cadastro de Motoboys
+ * Cadastro de Motoboys (Novo cadastro fica pendente de aprovação administrativa)
  */
 async function register(req, res) {
   try {
@@ -65,30 +82,38 @@ async function register(req, res) {
     const db = getDb();
 
     const existente = await db.queryOne(
-      `SELECT id FROM motoboys WHERE telefone = ? OR traccar_device_id = ?`,
+      `SELECT id, status FROM motoboys WHERE telefone = ? OR traccar_device_id = ?`,
       [cleanTelefone, deviceId]
     );
 
     if (existente) {
+      if (existente.status === 'pendente') {
+        return res.json(400, { 
+          success: false, 
+          message: 'Você já possui um cadastro pendente de aprovação pela administração. Aguarde a liberação.' 
+        });
+      }
       return res.json(400, { success: false, message: 'Já existe um motoboy cadastrado com este telefone ou ID do Traccar.' });
     }
 
     const hashedPassword = hashPassword(senha);
 
     const result = await db.execute(
-      `INSERT INTO motoboys (nome, telefone, senha, traccar_device_id, grupo) VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO motoboys (nome, telefone, senha, traccar_device_id, grupo, status) VALUES (?, ?, ?, ?, ?, 'pendente')`,
       [String(nome).trim(), cleanTelefone, hashedPassword, deviceId, cleanGrupo]
     );
 
     return res.json(201, {
       success: true,
-      message: 'Motoboy cadastrado com sucesso!',
+      pendente: true,
+      message: 'Cadastro realizado com sucesso! Aguarde a aprovação do administrador para acessar o sistema.',
       motoboy: {
         id: Number(result.lastInsertRowid),
         nome: String(nome).trim(),
         telefone: cleanTelefone,
         traccar_device_id: deviceId,
-        grupo: cleanGrupo
+        grupo: cleanGrupo,
+        status: 'pendente'
       }
     });
   } catch (error) {

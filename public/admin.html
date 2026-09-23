@@ -467,6 +467,28 @@
       border-radius: 4px;
       animation: pulse 2s infinite;
     }
+
+    .subtab-motoboy {
+      background: var(--bg-surface-elevated);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .subtab-motoboy:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+    .subtab-motoboy.active {
+      background: var(--brand-gold) !important;
+      color: #0b0d12 !important;
+      border-color: var(--brand-gold) !important;
+      font-weight: 800 !important;
+    }
+    .subtab-motoboy.active .badge {
+      background: #0b0d12 !important;
+      color: var(--brand-gold) !important;
+    }
   </style>
 <body>
 
@@ -524,6 +546,7 @@
       <div class="nav-item" id="nav-motoboys" onclick="alternarVisao('motoboys')">
         <span class="nav-icon"><i data-lucide="bike"></i></span>
         <span>Motoboys</span>
+        <span id="badgeNavMotoboysPendentes" style="display: none; margin-left: auto; background: #ef4444; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 10px;">0</span>
       </div>
       <div class="nav-item" id="nav-historico" onclick="alternarVisao('historico')">
         <span class="nav-icon"><i data-lucide="history"></i></span>
@@ -843,15 +866,9 @@
           <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
             <div>
               <h2 class="text-title">Equipe de Entregadores</h2>
-              <p class="text-subtitle">Gestão cadastral, separação por grupos (<strong style="color: #60a5fa;">VELOZ</strong> / <strong style="color: #fbbf24;">SPEED</strong>) e conectividade GPS.</p>
+              <p class="text-subtitle">Gestão cadastral, aprovação de novos cadastros e separação por grupos (<strong style="color: #60a5fa;">VELOZ</strong> / <strong style="color: #fbbf24;">SPEED</strong>).</p>
             </div>
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <!-- Filtro de Grupo -->
-              <div style="display: flex; gap: 4px;">
-                <button class="filter-pill active" id="fmgTodos" onclick="filtrarGrupoMotoboys('todos', this)">Todos</button>
-                <button class="filter-pill" id="fmgVeloz" onclick="filtrarGrupoMotoboys('VELOZ', this)">VELOZ</button>
-                <button class="filter-pill" id="fmgSpeed" onclick="filtrarGrupoMotoboys('SPEED', this)">SPEED</button>
-              </div>
               <button class="btn btn-gold btn-sm" onclick="abrirModalCadastrarMotoboy()">
                 <i data-lucide="plus"></i>
                 <span>Novo Entregador</span>
@@ -866,7 +883,40 @@
               </button>
             </div>
           </div>
+
+          <!-- SUB-ABAS DE MOTOBOYS: ATIVOS vs CADASTROS PENDENTES -->
+          <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-sm subtab-motoboy active" id="subtabMotoboysAtivos" onclick="alternarSubabaMotoboys('ativos')" style="display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="users" style="width: 14px; height: 14px;"></i>
+                <span>Entregadores Ativos</span>
+                <span class="badge" id="badgeQtdAtivos" style="background: rgba(255,255,255,0.15); font-size: 11px; padding: 2px 7px; border-radius: 10px;">0</span>
+              </button>
+              <button class="btn btn-sm subtab-motoboy" id="subtabMotoboysPendentes" onclick="alternarSubabaMotoboys('pendentes')" style="display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="user-check" style="width: 14px; height: 14px;"></i>
+                <span>Cadastros Pendentes</span>
+                <span class="badge" id="badgeQtdPendentes" style="background: rgba(255,255,255,0.15); color: #fff; font-size: 11px; padding: 2px 7px; border-radius: 10px; font-weight: 800;">0</span>
+              </button>
+            </div>
+
+            <!-- Filtro de Grupo (Exibido apenas na sub-aba Ativos) -->
+            <div id="barFiltrosGrupoMotoboys" style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Filtrar Grupo:</span>
+              <div style="display: flex; gap: 4px;">
+                <button class="filter-pill active" id="fmgTodos" onclick="filtrarGrupoMotoboys('todos', this)">Todos</button>
+                <button class="filter-pill" id="fmgVeloz" onclick="filtrarGrupoMotoboys('VELOZ', this)">VELOZ</button>
+                <button class="filter-pill" id="fmgSpeed" onclick="filtrarGrupoMotoboys('SPEED', this)">SPEED</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- GRID 1: ENTREGADORES ATIVOS -->
           <div id="gridMotoboys" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px;">
+            <!-- Renderizado via JS -->
+          </div>
+
+          <!-- GRID 2: CADASTROS PENDENTES -->
+          <div id="gridMotoboysPendentes" style="display: none; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px;">
             <!-- Renderizado via JS -->
           </div>
         </div>
@@ -1452,6 +1502,7 @@
       filtroLista: 'todos',
       pedidos: [],
       motoboys: [],
+      subabaMotoboys: 'ativos',
       stats: {},
       selectedPedidoId: null,
       pedidoDetalheCache: null,
@@ -2176,87 +2227,213 @@
       return `<div style="text-align: center; color: var(--text-muted); padding: 30px 10px; font-size: 12px;">${msg}</div>`;
     }
 
-    // RENDERIZAR GESTÃO DE MOTOBOYS
+    // SUB-ABAS E RENDERIZAÇÃO DE GESTÃO DE MOTOBOYS
+    function alternarSubabaMotoboys(subaba) {
+      state.subabaMotoboys = subaba;
+      const tabAtivos = document.getElementById('subtabMotoboysAtivos');
+      const tabPendentes = document.getElementById('subtabMotoboysPendentes');
+      const barFiltros = document.getElementById('barFiltrosGrupoMotoboys');
+      const gridAtivos = document.getElementById('gridMotoboys');
+      const gridPendentes = document.getElementById('gridMotoboysPendentes');
+
+      if (subaba === 'pendentes') {
+        if (tabAtivos) tabAtivos.classList.remove('active');
+        if (tabPendentes) tabPendentes.classList.add('active');
+        if (barFiltros) barFiltros.style.display = 'none';
+        if (gridAtivos) gridAtivos.style.display = 'none';
+        if (gridPendentes) gridPendentes.style.display = 'grid';
+      } else {
+        if (tabAtivos) tabAtivos.classList.add('active');
+        if (tabPendentes) tabPendentes.classList.remove('active');
+        if (barFiltros) barFiltros.style.display = 'flex';
+        if (gridAtivos) gridAtivos.style.display = 'grid';
+        if (gridPendentes) gridPendentes.style.display = 'none';
+      }
+      renderizarMotoboys();
+      if (window.lucide) lucide.createIcons();
+    }
+
     function renderizarMotoboys() {
-      const container = document.getElementById('gridMotoboys');
-      if (!container) return;
+      const containerAtivos = document.getElementById('gridMotoboys');
+      const containerPendentes = document.getElementById('gridMotoboysPendentes');
+      if (!containerAtivos || !containerPendentes) return;
 
       const todos = state.motoboys || [];
-      const countVeloz = todos.filter(m => (m.grupo || 'VELOZ').toUpperCase() === 'VELOZ').length;
-      const countSpeed = todos.filter(m => (m.grupo || 'VELOZ').toUpperCase() === 'SPEED').length;
+      const pendentes = todos.filter(m => m.status_aprovacao === 'pendente');
+      const ativos = todos.filter(m => m.status_aprovacao !== 'pendente');
+
+      // Atualizar contadores das sub-abas e da barra lateral
+      const badgeAtivos = document.getElementById('badgeQtdAtivos');
+      const badgePendentes = document.getElementById('badgeQtdPendentes');
+      const badgeNav = document.getElementById('badgeNavMotoboysPendentes');
+
+      if (badgeAtivos) badgeAtivos.textContent = ativos.length;
+      if (badgePendentes) {
+        badgePendentes.textContent = pendentes.length;
+        if (pendentes.length > 0) {
+          badgePendentes.style.background = '#ef4444';
+          badgePendentes.style.animation = 'pulse 1.5s infinite';
+        } else {
+          badgePendentes.style.background = 'rgba(255,255,255,0.15)';
+          badgePendentes.style.animation = 'none';
+        }
+      }
+
+      if (badgeNav) {
+        if (pendentes.length > 0) {
+          badgeNav.textContent = pendentes.length;
+          badgeNav.style.display = 'inline-block';
+        } else {
+          badgeNav.style.display = 'none';
+        }
+      }
+
+      // Contagem para botões de filtro dos entregadores ativos
+      const countVeloz = ativos.filter(m => (m.grupo || 'VELOZ').toUpperCase() === 'VELOZ').length;
+      const countSpeed = ativos.filter(m => (m.grupo || 'VELOZ').toUpperCase() === 'SPEED').length;
 
       const btnT = document.getElementById('fmgTodos');
       const btnV = document.getElementById('fmgVeloz');
       const btnS = document.getElementById('fmgSpeed');
-      if (btnT) btnT.textContent = `Todos (${todos.length})`;
+      if (btnT) btnT.textContent = `Todos (${ativos.length})`;
       if (btnV) btnV.textContent = `VELOZ (${countVeloz})`;
       if (btnS) btnS.textContent = `SPEED (${countSpeed})`;
 
-      let lista = todos;
+      // ── 1. RENDERIZAR ENTREGADORES ATIVOS ──
+      let listaAtivos = ativos;
       if (state.filtroGrupoMotoboys && state.filtroGrupoMotoboys !== 'todos') {
-        lista = lista.filter(m => (m.grupo || 'VELOZ').toUpperCase() === state.filtroGrupoMotoboys.toUpperCase());
+        listaAtivos = listaAtivos.filter(m => (m.grupo || 'VELOZ').toUpperCase() === state.filtroGrupoMotoboys.toUpperCase());
       }
 
-      if (lista.length === 0) {
-        container.innerHTML = `<div class="empty-state" style="grid-column: 1/-1;"><div class="empty-state-title">Nenhum entregador encontrado neste grupo</div></div>`;
-        return;
-      }
+      if (listaAtivos.length === 0) {
+        containerAtivos.innerHTML = `<div class="empty-state" style="grid-column: 1/-1;"><div class="empty-state-title">Nenhum entregador ativo encontrado neste grupo</div></div>`;
+      } else {
+        containerAtivos.innerHTML = listaAtivos.map(m => {
+          const isOnline = m.status !== 'offline';
+          const isSpeed = (m.grupo || 'VELOZ').toUpperCase() === 'SPEED';
+          const statusBadge = m.status === 'em_rota' 
+            ? `<span class="status-badge badge-rota">Em Rota (${m.qtd_pedidos})</span>`
+            : (isOnline ? `<span class="status-badge badge-retirada">Disponível</span>` : `<span class="status-badge badge-problema">Offline</span>`);
 
-      container.innerHTML = lista.map(m => {
-        const isOnline = m.status !== 'offline';
-        const isSpeed = (m.grupo || 'VELOZ').toUpperCase() === 'SPEED';
-        const statusBadge = m.status === 'em_rota' 
-          ? `<span class="status-badge badge-rota">Em Rota (${m.qtd_pedidos})</span>`
-          : (isOnline ? `<span class="status-badge badge-retirada">Disponível</span>` : `<span class="status-badge badge-problema">Offline</span>`);
-
-        return `
-          <div class="card card-elevated" style="display: flex; flex-direction: column; gap: 12px; border-top: 3px solid ${isSpeed ? '#f59e0b' : '#3b82f6'};">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <div style="display: flex; align-items: center; gap: 10px;">
-                <div style="width: 42px; height: 42px; border-radius: 50%; background: var(--bg-card-hover); border: 2px solid ${isOnline ? 'var(--status-entregue)' : 'var(--border-subtle)'}; display: flex; align-items: center; justify-content: center; color: var(--accent-primary);">
-                  ${SVG_ICONS.bike}
+          return `
+            <div class="card card-elevated" style="display: flex; flex-direction: column; gap: 12px; border-top: 3px solid ${isSpeed ? '#f59e0b' : '#3b82f6'};">
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div style="width: 42px; height: 42px; border-radius: 50%; background: var(--bg-card-hover); border: 2px solid ${isOnline ? 'var(--status-entregue)' : 'var(--border-subtle)'}; display: flex; align-items: center; justify-content: center; color: var(--accent-primary);">
+                    ${SVG_ICONS.bike}
+                  </div>
+                  <div>
+                    <strong style="font-size: 15px; display: block;">${escapeHtml(m.nome)}</strong>
+                    <span style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px;">
+                      ${SVG_ICONS.phone} <span>${formatarTelefone(m.telefone)}</span>
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <strong style="font-size: 15px; display: block;">${escapeHtml(m.nome)}</strong>
-                  <span style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px;">
-                    ${SVG_ICONS.phone} <span>${formatarTelefone(m.telefone)}</span>
-                  </span>
-                </div>
+                ${statusBadge}
               </div>
-              ${statusBadge}
-            </div>
 
-            <!-- Seletor de Grupo do Entregador -->
-            <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: var(--bg-surface); border-radius: var(--radius-sm);">
-              <span style="font-size: 12px; font-weight: 700; color: var(--text-muted);">Grupo da Equipe:</span>
-              <select style="background: #181d27; color: ${isSpeed ? '#fbbf24' : '#60a5fa'}; font-weight: 800; border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; padding: 3px 8px; font-size: 12px; cursor: pointer;" onchange="alterarGrupoMotoboyDirect(${m.id}, this.value)">
-                <option value="VELOZ" ${!isSpeed ? 'selected' : ''}>VELOZ</option>
-                <option value="SPEED" ${isSpeed ? 'selected' : ''}>SPEED</option>
-              </select>
-            </div>
+              <!-- Seletor de Grupo do Entregador -->
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: var(--bg-surface); border-radius: var(--radius-sm);">
+                <span style="font-size: 12px; font-weight: 700; color: var(--text-muted);">Grupo da Equipe:</span>
+                <select style="background: #181d27; color: ${isSpeed ? '#fbbf24' : '#60a5fa'}; font-weight: 800; border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; padding: 3px 8px; font-size: 12px; cursor: pointer;" onchange="alterarGrupoMotoboyDirect(${m.id}, this.value)">
+                  <option value="VELOZ" ${!isSpeed ? 'selected' : ''}>VELOZ</option>
+                  <option value="SPEED" ${isSpeed ? 'selected' : ''}>SPEED</option>
+                </select>
+              </div>
 
-            <div style="background: var(--bg-surface); padding: 10px 12px; border-radius: var(--radius-sm); font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between;">
-              <span>Velocidade: <strong style="color: var(--text-primary);">${m.velocidade} km/h</strong></span>
-              <span>GPS: <strong style="color: ${m.latitude ? 'var(--status-rota-text)' : 'var(--text-faint)'};">${m.latitude ? 'Ativo' : 'Pendente'}</strong></span>
-            </div>
+              <div style="background: var(--bg-surface); padding: 10px 12px; border-radius: var(--radius-sm); font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between;">
+                <span>Velocidade: <strong style="color: var(--text-primary);">${m.velocidade} km/h</strong></span>
+                <span>GPS: <strong style="color: ${m.latitude ? 'var(--status-rota-text)' : 'var(--text-faint)'};">${m.latitude ? 'Ativo' : 'Pendente'}</strong></span>
+              </div>
 
-            <div style="display: flex; gap: 6px;">
-              <button class="btn btn-secondary btn-sm" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="abrirModalEditarMotoboy(${m.id})">
-                ${SVG_ICONS.edit}
-                <span>Editar</span>
-              </button>
-              <button class="btn btn-secondary btn-sm" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="abrirWhatsappMotoboy('${m.telefone}')">
-                ${SVG_ICONS.message}
-                <span>WhatsApp</span>
-              </button>
-              <button class="btn btn-gold btn-sm" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="focarMotoboyNoMapa(${m.id})">
-                ${SVG_ICONS.map}
-                <span>Mapa</span>
-              </button>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn btn-secondary btn-sm" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="abrirModalEditarMotoboy(${m.id})">
+                  ${SVG_ICONS.edit}
+                  <span>Editar</span>
+                </button>
+                <button class="btn btn-secondary btn-sm" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="abrirWhatsappMotoboy('${m.telefone}')">
+                  ${SVG_ICONS.message}
+                  <span>WhatsApp</span>
+                </button>
+                <button class="btn btn-gold btn-sm" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="focarMotoboyNoMapa(${m.id})">
+                  ${SVG_ICONS.map}
+                  <span>Mapa</span>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // ── 2. RENDERIZAR CADASTROS PENDENTES DE APROVAÇÃO ──
+      if (pendentes.length === 0) {
+        containerPendentes.innerHTML = `
+          <div class="empty-state" style="grid-column: 1/-1; padding: 48px 16px;">
+            <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(52, 211, 153, 0.1); border: 2px solid rgba(52, 211, 153, 0.3); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; color: #34d399;">
+              ${SVG_ICONS.check}
+            </div>
+            <div class="empty-state-title" style="font-size: 16px;">Nenhum cadastro pendente no momento</div>
+            <div class="empty-state-desc" style="max-width: 460px; margin: 8px auto 0;">
+              Quando um novo motoboy se cadastrar pelo aplicativo, a solicitação aparecerá aqui para você aprovar e definir o grupo (<strong style="color: #60a5fa;">VELOZ</strong> ou <strong style="color: #fbbf24;">SPEED</strong>).
             </div>
           </div>
         `;
-      }).join('');
+      } else {
+        containerPendentes.innerHTML = pendentes.map(m => {
+          const dataCadastro = m.criado_em ? m.criado_em.substring(0, 16).replace('T', ' ') : 'Recente';
+          return `
+            <div class="card card-elevated" style="display: flex; flex-direction: column; gap: 14px; border-top: 4px solid #f59e0b; background: linear-gradient(180deg, rgba(245, 158, 11, 0.04) 0%, var(--bg-surface) 100%);">
+              <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(245, 158, 11, 0.15); border: 2px solid #f59e0b; display: flex; align-items: center; justify-content: center; color: #fbbf24;">
+                    ${SVG_ICONS.bike}
+                  </div>
+                  <div>
+                    <strong style="font-size: 16px; display: block; color: var(--text-primary);">${escapeHtml(m.nome)}</strong>
+                    <span style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; margin-top: 2px;">
+                      ${SVG_ICONS.phone} <span>${formatarTelefone(m.telefone)}</span>
+                    </span>
+                  </div>
+                </div>
+                <span class="status-badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4);">
+                  Aguardando Aprovação
+                </span>
+              </div>
+
+              <div style="background: var(--bg-surface); padding: 8px 12px; border-radius: var(--radius-sm); font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center;">
+                <span>Solicitado em: <strong style="color: var(--text-primary);">${dataCadastro}</strong></span>
+                <button class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 11px;" onclick="abrirWhatsappMotoboy('${m.telefone}')">
+                  ${SVG_ICONS.message}
+                  <span>Chamar no Zap</span>
+                </button>
+              </div>
+
+              <!-- Seleção de Grupo para Aprovação -->
+              <div style="padding: 10px 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);">
+                <label style="display: block; font-size: 11px; font-weight: 800; color: var(--text-muted); margin-bottom: 6px;">
+                  DESTINAR AO GRUPO:
+                </label>
+                <select id="selGrupoPendente_${m.id}" style="width: 100%; background: #181d27; color: var(--text-primary); font-weight: 700; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 8px 10px; font-size: 13px; cursor: pointer;">
+                  <option value="VELOZ" ${(m.grupo || 'VELOZ').toUpperCase() === 'VELOZ' ? 'selected' : ''}>VELOZ (Entrega Padrão)</option>
+                  <option value="SPEED" ${(m.grupo || '').toUpperCase() === 'SPEED' ? 'selected' : ''}>SPEED (Entrega Rápida)</option>
+                </select>
+              </div>
+
+              <!-- Ações: Aprovar ou Recusar -->
+              <div style="display: flex; gap: 8px; margin-top: auto;">
+                <button class="btn btn-secondary btn-sm" style="flex: 1; border-color: rgba(239, 68, 68, 0.4); color: #ef4444; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 5px;" onclick="recusarCadastroMotoboy(${m.id}, '${escapeHtml(m.nome)}')">
+                  ${SVG_ICONS.trash}
+                  <span>Recusar</span>
+                </button>
+                <button class="btn btn-gold btn-sm" style="flex: 1.8; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none;" onclick="aprovarCadastroMotoboy(${m.id})">
+                  ${SVG_ICONS.check}
+                  <span>Aprovar Cadastro</span>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
     }
 
     // FILTRAR E RENDERIZAR HISTÓRICO
@@ -3232,6 +3409,50 @@
       } finally {
         btn.disabled = false;
         btn.textContent = 'CADASTRAR';
+      }
+    }
+
+    // Aprovação e Recusa de Cadastros Pendentes
+    async function aprovarCadastroMotoboy(motoboyId) {
+      const selectGrupo = document.getElementById(`selGrupoPendente_${motoboyId}`);
+      const grupo = selectGrupo ? selectGrupo.value : 'VELOZ';
+
+      try {
+        const res = await fetch('/api/admin/motoboys/aprovar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ motoboy_id: motoboyId, grupo })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(data.message || 'Cadastro aprovado com sucesso!', 'success');
+          carregarTudo(false);
+        } else {
+          showToast(data.message || 'Erro ao aprovar cadastro.', 'error');
+        }
+      } catch (err) {
+        showToast('Erro de comunicação ao aprovar cadastro.', 'error');
+      }
+    }
+
+    async function recusarCadastroMotoboy(motoboyId, nome) {
+      if (!confirm(`Tem certeza que deseja recusar e excluir a solicitação de cadastro de "${nome}"?`)) return;
+
+      try {
+        const res = await fetch('/api/admin/motoboys/recusar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ motoboy_id: motoboyId })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(data.message || 'Cadastro recusado com sucesso.', 'info');
+          carregarTudo(false);
+        } else {
+          showToast(data.message || 'Erro ao recusar cadastro.', 'error');
+        }
+      } catch (err) {
+        showToast('Erro de comunicação ao recusar cadastro.', 'error');
       }
     }
 

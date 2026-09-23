@@ -83,6 +83,8 @@ registerRoute('DELETE', '/api/pedidos/descartar', adminController.descartarPedid
 registerRoute('POST', '/api/admin/motoboys/verificar-senha', adminController.verificarSenhaMotoboys);
 registerRoute('POST', '/api/admin/motoboys/atualizar', adminController.atualizarMotoboy);
 registerRoute('POST', '/api/admin/motoboys/cadastrar', adminController.cadastrarMotoboyAdmin);
+registerRoute('POST', '/api/admin/motoboys/aprovar', adminController.aprovarMotoboy);
+registerRoute('POST', '/api/admin/motoboys/recusar', adminController.recusarMotoboy);
 registerRoute('GET', '/api/admin/taxas', adminController.obterTaxasBairros);
 registerRoute('POST', '/api/admin/taxas/atualizar', adminController.atualizarTaxaBairro);
 

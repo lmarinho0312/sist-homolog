@@ -306,7 +306,7 @@ async function listarMotoboysAdmin(req, res) {
   try {
     const db = getDb();
     const motoboys = await db.query(
-      `SELECT id, nome, telefone, traccar_device_id, latitude, longitude, velocidade, ultima_atualizacao, criado_em, grupo FROM motoboys ORDER BY id ASC`
+      `SELECT id, nome, telefone, traccar_device_id, latitude, longitude, velocidade, ultima_atualizacao, criado_em, grupo, status FROM motoboys ORDER BY id ASC`
     );
 
     const pedidosAtivos = await db.query(
@@ -340,7 +340,9 @@ async function listarMotoboysAdmin(req, res) {
         longitude: m.longitude,
         velocidade: Number(m.velocidade || 0),
         ultima_atualizacao: m.ultima_atualizacao,
+        criado_em: m.criado_em,
         status: statusCalculado,
+        status_aprovacao: m.status || 'aprovado',
         qtd_pedidos: pedidos.length,
         pedidos_em_rota: pedidos
       };
@@ -710,13 +712,13 @@ async function cadastrarMotoboyAdmin(req, res) {
     const hashedPassword = hashPassword(String(senha).trim());
 
     const result = await db.execute(
-      `INSERT INTO motoboys (nome, telefone, senha, traccar_device_id, grupo) VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO motoboys (nome, telefone, senha, traccar_device_id, grupo, status) VALUES (?, ?, ?, ?, ?, 'aprovado')`,
       [String(nome).trim(), cleanTelefone, hashedPassword, cleanDeviceId, cleanGrupo]
     );
 
     const novoId = Number(result.lastInsertRowid);
     const novoMotoboy = await db.queryOne(
-      'SELECT id, nome, telefone, traccar_device_id, grupo, criado_em FROM motoboys WHERE id = ?',
+      'SELECT id, nome, telefone, traccar_device_id, grupo, criado_em, status FROM motoboys WHERE id = ?',
       [novoId]
     );
 
@@ -728,6 +730,77 @@ async function cadastrarMotoboyAdmin(req, res) {
   } catch (error) {
     console.error('❌ Erro ao cadastrar motoboy pelo admin:', error);
     return res.json(500, { success: false, message: 'Erro ao cadastrar entregador.', error: error.message });
+  }
+}
+
+/**
+ * Aprovar Cadastro de Motoboy Pendente
+ * POST /api/admin/motoboys/aprovar
+ * Body: { motoboy_id, grupo }
+ */
+async function aprovarMotoboy(req, res) {
+  try {
+    const { motoboy_id, grupo } = req.body || {};
+    if (!motoboy_id) {
+      return res.json(400, { success: false, message: 'ID do entregador é obrigatório.' });
+    }
+
+    let cleanGrupo = grupo ? String(grupo).trim().toUpperCase() : 'VELOZ';
+    if (cleanGrupo !== 'VELOZ' && cleanGrupo !== 'SPEED') cleanGrupo = 'VELOZ';
+
+    const db = getDb();
+    const result = await db.execute(
+      `UPDATE motoboys SET status = 'aprovado', grupo = ? WHERE id = ?`,
+      [cleanGrupo, Number(motoboy_id)]
+    );
+
+    if (result.changes === 0) {
+      return res.json(404, { success: false, message: 'Entregador não encontrado.' });
+    }
+
+    const m = await db.queryOne(
+      'SELECT id, nome, telefone, grupo, status FROM motoboys WHERE id = ?',
+      [Number(motoboy_id)]
+    );
+
+    return res.json(200, {
+      success: true,
+      message: `Cadastro de "${m.nome}" APROVADO com sucesso no grupo ${cleanGrupo}!`,
+      motoboy: m
+    });
+  } catch (error) {
+    console.error('❌ Erro ao aprovar motoboy:', error);
+    return res.json(500, { success: false, message: 'Erro ao aprovar cadastro.', error: error.message });
+  }
+}
+
+/**
+ * Recusar / Excluir Cadastro de Motoboy Pendente
+ * POST /api/admin/motoboys/recusar
+ * Body: { motoboy_id }
+ */
+async function recusarMotoboy(req, res) {
+  try {
+    const { motoboy_id } = req.body || {};
+    if (!motoboy_id) {
+      return res.json(400, { success: false, message: 'ID do entregador é obrigatório.' });
+    }
+
+    const db = getDb();
+    const m = await db.queryOne('SELECT id, nome FROM motoboys WHERE id = ?', [Number(motoboy_id)]);
+    if (!m) {
+      return res.json(404, { success: false, message: 'Entregador não encontrado.' });
+    }
+
+    await db.execute('DELETE FROM motoboys WHERE id = ?', [Number(motoboy_id)]);
+
+    return res.json(200, {
+      success: true,
+      message: `Cadastro de "${m.nome}" foi recusado e removido do sistema.`
+    });
+  } catch (error) {
+    console.error('❌ Erro ao recusar motoboy:', error);
+    return res.json(500, { success: false, message: 'Erro ao recusar cadastro.', error: error.message });
   }
 }
 
@@ -920,6 +993,8 @@ module.exports = {
   obterTaxasBairros,
   atualizarTaxaBairro,
   atribuirPedidoMotoboy,
-  descartarPedido
+  descartarPedido,
+  aprovarMotoboy,
+  recusarMotoboy
 };
 

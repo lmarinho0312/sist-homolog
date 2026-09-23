@@ -121,6 +121,7 @@ CREATE TABLE IF NOT EXISTS motoboys (
     longitude REAL,
     velocidade REAL DEFAULT 0,
     ultima_atualizacao DATETIME,
+    status TEXT NOT NULL DEFAULT 'aprovado',
     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
