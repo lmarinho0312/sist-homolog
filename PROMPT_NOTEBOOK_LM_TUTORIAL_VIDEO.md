@@ -60,17 +60,21 @@ Divida o roteiro em Cenas cronológicas, informando para cada cena:
    - Explicar as abas no topo da tela quando o entregador está com 2 ou mais entregas na bag (ex: Entrega 2, Entrega 3).
    - Explicar a seção **"Próximos Pedidos"** e o botão **"Alternar para esta Rota"**: se o entregador conhece a cidade e percebe que uma entrega da fila fica antes no trajeto, ele pode inverter a ordem com um toque!
 
-7. **Aba Balcão — Retirada Autônoma (Print 04)**:
-   - No menu inferior, tocar em "Balcão".
-   - Ver as comandas prontas esperando saída.
-   - Tocar no botão dourado **"RETIRAR PEDIDO"** para puxar a entrega para si no mesmo segundo.
+7. **Aba Balcão — Retirada no Balcão e Tripla Conferência Obrigatória (Print 04)**:
+   - REGRA FUNDAMENTAL E OBRIGATÓRIA: Enfatizar fortemente que o motoboy NUNCA deve retirar pedidos no aplicativo antes da cozinha ter atribuído/organizado a saída. Ele NÃO pode puxar pedidos por conta própria.
+   - O motoboy só clica em "RETIRAR PEDIDO" no aplicativo no EXATO MOMENTO físico em que for até o balcão retirar a sacola e a comanda.
+   - PROCEDIMENTO DE TRIPLA CONFERÊNCIA OBRIGATÓRIA: Antes de tocar em "Retirar Pedido", o motoboy DEVE conferir 3 itens na comanda física comparando com a tela:
+     1. O **Número do Pedido** (ex: #4773);
+     2. O **Nome do Cliente**;
+     3. O **Endereço de Entrega**.
+   - Somente após conferir os 3 dados, ele toca em "RETIRAR PEDIDO" e sai para a entrega.
 
 8. **Aba Perfil — Transparência e Fechamento Financeiro (Print 05)**:
    - Mostrar os filtros "Hoje", "Esta Semana" e "Este Mês".
    - Exibir o painel de ganhos: quantidade de entregas e o **Total a Receber em R$**.
    - Mostrar o histórico auditado com cada corrida, cliente, bairro atendido e o valor certinho creditado (+R$ 7,00, +R$ 8,00, +R$ 10,00, +R$ 13,00, etc.).
 
-9. **Encerramento**:
-   - Dicas finais de ouro (bateria carregada, conferência da comanda na bag antes de sair, finalizar no momento da entrega).
+9. **Encerramento & Boas Práticas**:
+   - Resumo das regras de ouro: GPS sempre ativo, tripla conferência no balcão (número, nome e endereço), uso do PIN e central telefônica se o cliente não atender, e finalização imediata da entrega no ato da entrega.
    - Mensagem de incentivo e boas corridas a todos!
 ```

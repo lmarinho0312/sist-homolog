@@ -27,7 +27,7 @@ Com ele no seu celular, você tem:
 - **Integração com GPS nativo**: com um clique você abre o Google Maps ou Waze já com a rota pronta.
 - **Comunicação com o cliente simplificada**: código Localizador / PIN e botão de discagem direta para as centrais oficiais (0800 iFood e 99Food), sem precisar envolver a equipe da cozinha.
 - **Múltiplas entregas simultâneas**: abas para alternar facilmente entre os pedidos que estão na sua bag.
-- **Retirada autônoma no balcão**: você mesmo pode assumir as comandas que já estão prontas.
+- **Retirada de pedidos no balcão com tripla conferência**: confirmação rápida no momento exato em que você pega o pedido no balcão, conferindo número, cliente e endereço.
 - **Transparência financeira total**: cálculo automático do valor de cada corrida de acordo com a **Tabela Oficial por Bairro**, com histórico completo de repasses a receber.
 
 ---
@@ -130,15 +130,23 @@ Se você pegou 2 ou mais entregas na mesma viagem:
 
 ---
 
-## 7. Aba Balcão — Retirada Autônoma de Pedidos
+## 7. Aba Balcão — Retirada no Balcão e Tripla Conferência Obrigatória
 
 ![Disponíveis no Balcão](imagens_instrucoes/04_balcao_pedidos_disponiveis.jpg)
 
-No menu inferior, toque no ícone de caixa **Balcão**:
-1. Você verá em tempo real todas as comandas que a cozinha marcou como prontas no balcão.
-2. Cada comanda traz o número do pedido, nome do cliente, endereço/bairro e a taxa a receber.
-3. Se você for o responsável por aquela saída, toque no botão dourado **RETIRAR PEDIDO**.
-4. A comanda é atribuída a você no mesmo segundo e já abre na sua tela inicial pronta para navegação!
+> ⛔ **REGRA FUNDAMENTAL DA OPERAÇÃO:**
+> O motoboy **NUNCA** deve retirar um pedido no aplicativo antes que a cozinha o tenha organizado e atribuído para a sua saída. O botão **RETIRAR PEDIDO** no aplicativo deve ser acionado **única e exclusivamente no momento em que você estiver fisicamente no balcão pegando a comanda e a sacola**.
+
+No menu inferior, ao acessar a aba **Balcão**:
+1. Você verá as comandas que foram preparadas e liberadas pela cozinha.
+2. Cada comanda apresenta o **Número do Pedido**, **Nome do Cliente**, **Endereço Completo** e a **Taxa de Repasse**.
+3. **TRIPLA CONFERÊNCIA OBRIGATÓRIA ANTES DE RETIRAR:**
+   Ao pegar a sacola e a comanda impressa no balcão, compare imediatamente o pacote físico com as informações na tela do seu celular e confira:
+   - ✅ **1. O Número do Pedido** (verifique se o número na comanda impressa bate exatamente com o número no app, ex: `#4773`);
+   - ✅ **2. O Nome do Cliente** (confira se o nome na comanda bate com o da tela, ex: *Luciana Rodrigues*);
+   - ✅ **3. O Endereço de Entrega** (confira a rua, número e bairro para garantir que você está com o pedido correto na bag).
+4. Estando os dados 100% conferidos, toque no botão dourado **RETIRAR PEDIDO**.
+5. O pedido é então transferido para sua **Rota Ativa** e o aplicativo já fica pronto para você navegar com o GPS até o destino.
 
 ---
 
@@ -158,9 +166,9 @@ No menu inferior, toque no ícone de usuário **Perfil**:
 ## 9. Boas Práticas para o Dia a Dia
 
 1. **GPS Sempre Ativo**: Nunca desative a localização do celular enquanto estiver no turno de entregas.
-2. **Conferência na Saída**: Sempre confira o número do pedido no pacote com o número na tela antes de subir na moto.
+2. **Tripla Conferência no Balcão**: Nunca retire pedidos por conta própria sem atribuição prévia da cozinha. No momento da retirada física no balcão, sempre confira: **(1) Número do Pedido**, **(2) Nome do Cliente** e **(3) Endereço de Entrega**.
 3. **Finalize na Hora**: Toque em **Finalizar Entrega** logo após entregar o pedido, para que os dados fiquem sincronizados e a cozinha saiba que você já está livre para a próxima viagem.
-4. **Use a Central Telefônica**: Se não encontrar o cliente, use o botão da central com o PIN. É o meio mais seguro e resguarda o entregador perante as plataformas.
+4. **Use a Central Telefônica**: Se não encontrar o cliente, use o botão da central com o PIN. É o meio mais rápido, gratuito e seguro, sem precisar ligar para a cozinha.
 
 ---
 *Ao Ponto Carnes — Qualidade no Prato e Agilidade na Entrega!*
