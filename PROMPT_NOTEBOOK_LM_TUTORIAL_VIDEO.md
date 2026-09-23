@@ -14,10 +14,14 @@ Você é um diretor de produção audiovisual e instrutor operacional sênior es
 
 Com base exclusivamente no manual técnico do sistema "Ao Ponto Entregas" fornecido como fonte, crie um Roteiro Completo para Vídeo Tutorial (passo a passo) voltado para os entregadores (motoboys) do restaurante Ao Ponto Carnes (Teresópolis/RJ).
 
+### REGRA OBRIGATÓRIA E MANDATÓRIA DE COMUNICAÇÃO:
+- NÃO mencione, NÃO cite e NÃO faça nenhuma diferenciação entre grupos ou equipes como "SPEED" e "VELOZ".
+- Em MOMENTO ALGUM fale de um ou de outro. Todos os entregadores utilizam exatamente o mesmo sistema, operam exatamente da mesma forma e têm acesso às mesmas funcionalidades. Trate todos unicamente como a equipe de entregadores da Ao Ponto Carnes.
+
 ### OBJETIVOS DO VÍDEO:
-1. Ensinar os novos entregadores a utilizarem 100% dos recursos do aplicativo web no dia a dia.
-2. Tirar todas as dúvidas operacionais sobre cadastro, aprovação de conta, GPS, retirada de pedidos, contato com clientes e fechamento de taxas.
-3. Transmitir profissionalismo, agilidade e incentivar a equipe a usar a tecnologia para ganhar mais dinheiro com mais organização.
+1. Ensinar os entregadores a utilizarem 100% dos recursos do aplicativo web no dia a dia.
+2. Tirar todas as dúvidas operacionais sobre cadastro, aprovação de conta, GPS, retirada de pedidos no balcão, contato com clientes e fechamento de taxas.
+3. Transmitir profissionalismo, agilidade e incentivar a equipe a usar a tecnologia para ganhar mais dinheiro com organização e segurança.
 
 ### TOM E LINGUAGEM:
 - Tom: Dinâmico, prático, motivador, amigável e direto ao ponto.
@@ -36,52 +40,52 @@ Divida o roteiro em Cenas cronológicas, informando para cada cena:
 
 1. **Abertura & Apresentação**:
    - Boas-vindas à equipe de entregadores da Ao Ponto Carnes.
-   - Apresentação rápida do novo aplicativo "Ao Ponto Entregas" e seus benefícios (rota no GPS com um toque, taxas calculadas automaticamente pela tabela de bairros, controle de corridas).
+   - Apresentação rápida do aplicativo "Ao Ponto Entregas" e seus benefícios (rota no GPS com um toque, taxas calculadas automaticamente pela tabela de bairros, histórico e fechamento transparente).
 
 2. **Primeiro Acesso, Cadastro e Aprovação**:
    - Como se cadastrar com Nome, WhatsApp e Senha.
-   - Explicação da Trava de Aprovação: o cadastro fica aguardando liberação da administração para definir a equipe (VELOZ ou SPEED) e garantir a segurança do grupo.
-   - Permissão de GPS: explicar por que o entregador DEVE sempre clicar em "Permitir durante o uso do app" (sem GPS ativo a cozinha não sabe onde ele está e a corrida não é monitorada). Mostrar o selo verde do GPS ativo no topo da tela.
+   - Explicação da Trava de Aprovação: após o cadastro, a conta fica com status pendente aguardando a liberação de um administrador no painel de controle antes do primeiro acesso, garantindo a segurança de todos.
+   - Permissão de GPS: explicar por que o entregador DEVE sempre clicar em "Permitir durante o uso do app" (sem GPS ativo a cozinha não localiza a entrega e a corrida não é computada). Mostrar o selo verde de GPS conectado no topo da tela.
 
 3. **Tela Início & Rota Ativa (Print 01)**:
-   - Visualização do cabeçalho com a identificação do entregador e sua equipe (VELOZ / SPEED).
-   - Apresentação do Cartão de Pedido: número (#6370), tempo em rota, nome do cliente e endereço completo.
-   - Destaque para o valor em verde da "Taxa oficial de repasse", calculada automaticamente pelo bairro.
+   - Visualização do cabeçalho com o nome do entregador e status do GPS.
+   - Apresentação do Cartão de Pedido: número (#6370), tempo decorrido em rota, nome do cliente e endereço completo.
+   - Destaque para o valor em destaque verde da "Taxa oficial de repasse", calculada automaticamente pelo bairro.
 
 4. **Contato com o Cliente sem Sobrecarga na Cozinha (Print 02)**:
    - Explicar o que é o **LOCALIZADOR / PIN** e o botão Copiar.
-   - **O botão verde "LIGAR CENTRAL" (iFood / 99Food)**: Instruir como agir caso chegue ao endereço e o cliente não atenda ao interfone. O motoboy clica em "Ligar Central", a discagem 0800 abre na hora no discador, ele digita o PIN e a plataforma liga para o cliente gratuitamente e sem expor dados. Ressaltar que NÃO é necessário ligar para a cozinha.
+   - **O botão verde "LIGAR CENTRAL" (iFood / 99Food)**: Instruir como agir caso chegue ao endereço e o cliente não atenda ao interfone. O motoboy clica em "Ligar Central", a chamada para a central oficial abre instantaneamente no discador, ele digita o PIN e a operadora liga para o cliente sem custo e sem expor números pessoais. Ressaltar que NÃO é necessário ligar para a cozinha para resolver contato com cliente.
 
 5. **Navegação com GPS e Finalização da Entrega (Print 02)**:
-   - Botão amarelo **"VER ROTA NO MAPA"**: abre direto o Google Maps ou Waze no celular com o endereço preenchido.
-   - **Lembrete de Segurança no App**: Destacar o alerta exibido na tela acima do botão: *"Lembre-se de confirmar o código e a entrega"*.
-   - **CONFIRMAÇÃO DO CÓDIGO NO ATO DA ENTREGA**: O motoboy DEVE sempre pedir e validar o código com o cliente antes de entregar o pedido. Isso evita fraudes e impede cancelamentos indevidos posteriores que poderiam prejudicar o repasse do motoboy.
-   - Botão vermelho **"FINALIZAR ENTREGA"**: tocar logo após validar o código e entregar o pacote ao cliente.
+   - Botão amarelo **"VER ROTA NO MAPA"**: abre direto o aplicativo de GPS padrão do celular (Google Maps, Waze ou Apple Maps) com o endereço já preenchido.
+   - **Lembrete de Segurança no App**: Destacar o alerta exibido na tela logo acima do botão: *"Lembre-se de confirmar o código e a entrega"*.
+   - **CONFIRMAÇÃO DO CÓDIGO NO ATO DA ENTREGA**: O motoboy DEVE sempre solicitar e validar o código com o cliente antes de entregar o pedido. Isso evita fraudes e impede cancelamentos indevidos posteriores que poderiam prejudicar o repasse do motoboy.
+   - Botão vermelho **"FINALIZAR ENTREGA"**: tocar logo após validar o código e entregar a encomenda ao cliente.
 
 6. **Múltiplas Entregas e Fila de Pedidos (Print 01 e Print 03)**:
-   - Explicar as abas no topo da tela quando o entregador está com 2 ou mais entregas na bag (ex: Entrega 2, Entrega 3).
-   - Explicar a seção **"Próximos Pedidos"** e o botão **"Alternar para esta Rota"**: se o entregador conhece a cidade e percebe que uma entrega da fila fica antes no trajeto, ele pode inverter a ordem com um toque!
+   - Explicar as abas no topo da tela quando o entregador sai com 2 ou mais entregas na bag (ex: Entrega 2, Entrega 3).
+   - Explicar a seção **"Próximos Pedidos"** e o botão **"Alternar para esta Rota"**: se o entregador conhece o trânsito da cidade e percebe que uma entrega da fila fica mais próxima no trajeto atual, ele pode alternar a ordem das entregas com apenas um toque!
 
 7. **Aba Balcão — Retirada no Balcão e Tripla Conferência Obrigatória (Print 04)**:
-   - REGRA FUNDAMENTAL E OBRIGATÓRIA: Enfatizar fortemente que o motoboy NUNCA deve retirar pedidos no aplicativo antes da cozinha ter atribuído/organizado a saída. Ele NÃO pode puxar pedidos por conta própria.
-   - O motoboy só clica em "RETIRAR PEDIDO" no aplicativo no EXATO MOMENTO físico em que for até o balcão retirar a sacola e a comanda.
+   - REGRA FUNDAMENTAL E OBRIGATÓRIA: Enfatizar veementemente que o entregador NUNCA deve puxar ou retirar pedidos no aplicativo antes da cozinha ter atribuído/organizado a saída.
+   - O entregador só clica em "RETIRAR PEDIDO" no aplicativo no EXATO MOMENTO físico em que for até o balcão retirar a sacola e a comanda.
    - PROCEDIMENTO DE TRIPLA CONFERÊNCIA OBRIGATÓRIA: Antes de tocar em "Retirar Pedido", o motoboy DEVE conferir 3 itens na comanda física comparando com a tela:
      1. O **Número do Pedido** (ex: #4773);
      2. O **Nome do Cliente**;
      3. O **Endereço de Entrega**.
-   - Somente após conferir os 3 dados, ele toca em "RETIRAR PEDIDO" e sai para a entrega.
+   - Somente após conferir os 3 dados, ele toca em "RETIRAR PEDIDO" e inicia a rota.
 
 8. **Aba Perfil — Transparência e Fechamento Financeiro (Print 05)**:
-   - Mostrar os filtros "Hoje", "Esta Semana" e "Este Mês".
-   - Exibir o painel de ganhos: quantidade de entregas e o **Total a Receber em R$**.
-   - Mostrar o histórico auditado com cada corrida, cliente, bairro atendido e o valor certinho creditado (+R$ 7,00, +R$ 8,00, +R$ 10,00, +R$ 13,00, etc.).
+   - Mostrar os filtros de período: "Hoje", "Esta Semana" e "Este Mês".
+   - Exibir o resumo financeiro: quantidade de entregas realizadas e o **Total a Receber em R$**.
+   - Mostrar a lista do histórico auditado com cada corrida, cliente, bairro atendido e o valor creditado (+R$ 7,00, +R$ 8,00, +R$ 10,00, +R$ 13,00, etc.).
 
 9. **Encerramento & Boas Práticas**:
    - Resumo das regras de ouro:
-     1. GPS sempre ativo;
-     2. Tripla conferência no balcão (número, nome e endereço);
-     3. Sempre confirmar o código com o cliente no ato da entrega para evitar cancelamento indevido;
-     4. Finalização imediata da entrega no ato;
-     5. Uso do PIN e central telefônica se o cliente não atender.
-   - Mensagem de incentivo e boas corridas a todos!
+     1. Manter o GPS sempre ativado no navegador;
+     2. Retirar pedidos no app apenas no balcão e após a tripla conferência (número, cliente e endereço);
+     3. Sempre exigir e validar o código com o cliente no ato da entrega;
+     4. Finalizar a entrega imediatamente ao entregar o pedido;
+     5. Utilizar o PIN e o botão Ligar Central caso o cliente não atenda, sem depender da cozinha.
+   - Mensagem de encerramento motivadora e votos de excelentes entregas para toda a equipe!
 ```

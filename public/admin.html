@@ -489,6 +489,18 @@
       background: #0b0d12 !important;
       color: var(--brand-gold) !important;
     }
+
+    @media print {
+      body, html {
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+      .app-sidebar, .app-header, .drawer-backdrop, .modal-confirm-overlay, .toast-container,
+      #adminAuthOverlay, #motoboysLockScreen, .btn, .search-box, .filter-pill, .grupo-fech-pill,
+      #boxPeriodoPersonalizado, .stats-container, #containerFechamentoMotoboys {
+        display: none !important;
+      }
+    }
   </style>
 <body>
 
@@ -3027,6 +3039,7 @@
         const res = await fetch(`/api/admin/fechamento?periodo=${periodoFechamentoAtivo}&motoboy_id=${motoboyId}&grupo=${grupoFechamentoAtivo}${extraParams}&_t=${t}`, { cache: 'no-store' });
         const data = await res.json();
         if (data.success) {
+          state.ultimoFechamentoData = data;
           renderizarFechamento(data);
         }
       } catch (err) {
@@ -3184,7 +3197,252 @@
     }
 
     function imprimirFechamento() {
-      window.print();
+      const data = state.ultimoFechamentoData;
+      if (!data || !data.entregas_detalhadas || data.entregas_detalhadas.length === 0) {
+        showToast('Nenhuma entrega para imprimir no período selecionado.', 'info');
+        return;
+      }
+
+      // Identificar o período filtrado
+      let labelPeriodo = 'Hoje';
+      if (periodoFechamentoAtivo === 'ontem') labelPeriodo = 'Ontem';
+      else if (periodoFechamentoAtivo === 'semana') labelPeriodo = 'Esta Semana';
+      else if (periodoFechamentoAtivo === 'mes') labelPeriodo = 'Este Mês';
+      else if (periodoFechamentoAtivo === 'todos') labelPeriodo = 'Histórico Completo';
+      else if (periodoFechamentoAtivo === 'personalizado') {
+        const dtIni = document.getElementById('inpFechDataInicio')?.value || '';
+        const dtFim = document.getElementById('inpFechDataFim')?.value || '';
+        if (dtIni && dtFim) {
+          const [y1, m1, d1] = dtIni.split('-');
+          const [y2, m2, d2] = dtFim.split('-');
+          labelPeriodo = `${d1}/${m1}/${y1} a ${d2}/${m2}/${y2}`;
+        } else if (dtIni) {
+          labelPeriodo = `A partir de ${dtIni}`;
+        } else if (dtFim) {
+          labelPeriodo = `Até ${dtFim}`;
+        }
+      }
+
+      // Identificar o entregador filtrado
+      const selMotoboy = document.getElementById('selectFiltroMotoboy');
+      let nomeEntregador = 'Todos os Entregadores';
+      if (selMotoboy && selMotoboy.value && selMotoboy.value !== 'todos') {
+        nomeEntregador = selMotoboy.options[selMotoboy.selectedIndex]?.text || 'Entregador Selecionado';
+      }
+
+      const agora = new Date();
+      const emissaoStr = agora.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) + ' às ' + agora.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+      const totalEntregas = data.entregas_detalhadas.length;
+      let totalValor = 0;
+
+      const linhasHtml = data.entregas_detalhadas.map((e, index) => {
+        const taxa = Number(e.taxa_repasse || 0);
+        totalValor += taxa;
+        const bgZebra = index % 2 === 1 ? '#f9fafb' : '#ffffff';
+        const numPedido = escapeHtml(String(e.numero_pedido || '').trim());
+        const bairro = escapeHtml(String(e.bairro || 'Centro / Não informado').trim());
+        const valorFmt = taxa.toFixed(2).replace('.', ',');
+
+        return `
+          <tr style="background: ${bgZebra}; border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 6px 10px; font-weight: 700; color: #111827; font-family: monospace; font-size: 13px;">#${numPedido}</td>
+            <td style="padding: 6px 10px; color: #374151; font-size: 13px;">${bairro}</td>
+            <td style="padding: 6px 10px; text-align: right; font-weight: 700; color: #111827; font-size: 13px;">R$ ${valorFmt}</td>
+          </tr>
+        `;
+      }).join('');
+
+      const totalFmt = totalValor.toFixed(2).replace('.', ',');
+
+      const relatorioHtml = `
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+          <meta charset="UTF-8">
+          <title>Relatório de Fechamento — Ao Ponto Carnes</title>
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 12mm 15mm;
+            }
+            * {
+              box-sizing: border-box;
+              margin: 0;
+              padding: 0;
+            }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+              color: #111827;
+              background: #ffffff;
+              padding: 10px;
+              font-size: 13px;
+              line-height: 1.4;
+            }
+            .header-doc {
+              border-bottom: 2px solid #111827;
+              padding-bottom: 10px;
+              margin-bottom: 14px;
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+            }
+            .title-doc {
+              font-size: 18px;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 0.03em;
+              color: #111827;
+            }
+            .subtitle-doc {
+              font-size: 12px;
+              font-weight: 600;
+              color: #4b5563;
+              margin-top: 2px;
+            }
+            .meta-box {
+              background: #f3f4f6;
+              border: 1px solid #e5e7eb;
+              border-radius: 6px;
+              padding: 8px 12px;
+              margin-bottom: 14px;
+              display: flex;
+              justify-content: space-between;
+              flex-wrap: wrap;
+              gap: 8px;
+              font-size: 12px;
+            }
+            .meta-item strong {
+              color: #111827;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 14px;
+            }
+            th {
+              background: #f3f4f6;
+              border-top: 1px solid #111827;
+              border-bottom: 2px solid #111827;
+              padding: 8px 10px;
+              font-size: 12px;
+              font-weight: 800;
+              color: #111827;
+              text-transform: uppercase;
+              letter-spacing: 0.04em;
+            }
+            .total-card {
+              border-top: 2px solid #111827;
+              border-bottom: 2px solid #111827;
+              padding: 10px 14px;
+              background: #f9fafb;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              font-size: 14px;
+              margin-bottom: 24px;
+            }
+            .total-card strong {
+              font-size: 16px;
+              color: #111827;
+            }
+            .audit-signature-area {
+              margin-top: 30px;
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-end;
+              padding-top: 20px;
+              font-size: 12px;
+              color: #4b5563;
+            }
+            .sign-line {
+              width: 250px;
+              border-top: 1px solid #9ca3af;
+              text-align: center;
+              padding-top: 6px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header-doc">
+            <div>
+              <div class="title-doc">Ao Ponto Carnes</div>
+              <div class="subtitle-doc">Fechamento & Auditoria de Entregas</div>
+            </div>
+            <div style="text-align: right; font-size: 11px; color: #6b7280;">
+              <div>Emissão do Relatório</div>
+              <strong style="color: #111827;">${emissaoStr}</strong>
+            </div>
+          </div>
+
+          <div class="meta-box">
+            <div class="meta-item">Período: <strong>${labelPeriodo}</strong></div>
+            <div class="meta-item">Entregador: <strong>${nomeEntregador}</strong></div>
+            <div class="meta-item">Total de Pedidos: <strong>${totalEntregas}</strong></div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align: left; width: 30%;">Nº Pedido</th>
+                <th style="text-align: left; width: 45%;">Bairro</th>
+                <th style="text-align: right; width: 25%;">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${linhasHtml}
+            </tbody>
+          </table>
+
+          <div class="total-card">
+            <span>Total de Entregas Auditadas: <strong>${totalEntregas}</strong></span>
+            <span>Valor Total a Pagar: <strong>R$ ${totalFmt}</strong></span>
+          </div>
+
+          <div class="audit-signature-area">
+            <div>
+              <p>Relatório gerado pelo Sistema Oficial de Entregas Ao Ponto.</p>
+              <p>Conforme tabela oficial por bairro.</p>
+            </div>
+            <div class="sign-line">
+              Assinatura / Conferência
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      let printFrame = document.getElementById('iframeImpressaoFechamento');
+      if (!printFrame) {
+        printFrame = document.createElement('iframe');
+        printFrame.id = 'iframeImpressaoFechamento';
+        printFrame.style.position = 'fixed';
+        printFrame.style.right = '0';
+        printFrame.style.bottom = '0';
+        printFrame.style.width = '0';
+        printFrame.style.height = '0';
+        printFrame.style.border = 'none';
+        document.body.appendChild(printFrame);
+      }
+
+      printFrame.contentDocument.open();
+      printFrame.contentDocument.write(relatorioHtml);
+      printFrame.contentDocument.close();
+
+      setTimeout(() => {
+        try {
+          printFrame.contentWindow.focus();
+          printFrame.contentWindow.print();
+        } catch (err) {
+          const win = window.open('', '_blank');
+          if (win) {
+            win.document.write(relatorioHtml);
+            win.document.close();
+            win.focus();
+            win.print();
+          }
+        }
+      }, 250);
     }
 
     // ── GESTÃO DE MOTOBOYS & GRUPOS (PROTEGIDO POR SENHA) ────────────────────

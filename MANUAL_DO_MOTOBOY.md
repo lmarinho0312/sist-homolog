@@ -1,6 +1,6 @@
 # 🛵 Manual de Instruções do Entregador — Sistema Ao Ponto Entregas
 
-> **Guia Oficial de Operação para Entregadores (Grupos VELOZ & SPEED)**  
+> **Guia Oficial de Operação para a Equipe de Entregadores**  
 > **Restaurante Ao Ponto Carnes — Teresópolis/RJ**
 
 ---
@@ -12,7 +12,7 @@
 4. [Contato com o Cliente (PIN, Localizador e Central)](#4-contato-com-o-cliente-pin-localizador-e-central)
 5. [Navegação GPS e Conclusão de Entrega](#5-navegação-gps-e-conclusão-de-entrega)
 6. [Múltiplas Entregas e Fila de Pedidos](#6-múltiplas-entregas-e-fila-de-pedidos)
-7. [Aba Balcão — Retirada Autônoma de Pedidos](#7-aba-balcão--retirada-autônoma-de-pedidos)
+7. [Aba Balcão — Retirada no Balcão e Tripla Conferência Obrigatória](#7-aba-balcão--retirada-no-balcão-e-tripla-conferência-obrigatória)
 8. [Aba Perfil — Fechamento Financeiro e Taxas a Receber](#8-aba-perfil--fechamento-financeiro-e-taxas-a-receber)
 9. [Boas Práticas e Resolução de Dúvidas](#9-boas-práticas-e-resolução-de-dúvidas)
 
@@ -46,7 +46,7 @@ Com ele no seu celular, você tem:
 ### 2.2. Aprovação Administrativa
 - Para garantir a segurança da operação, todos os novos cadastros passam por aprovação da gerência da Ao Ponto.
 - Assim que você finalizar seu cadastro, a tela informará que seu acesso está aguardando liberação.
-- A administração ativará seu perfil e definirá a sua equipe (**VELOZ** para entrega padrão ou **SPEED** para entregas rápidas).
+- A administração ativará seu perfil para autorizar o seu acesso operacional.
 - Assim que aprovado, basta digitar seu telefone e senha na aba **Entrar** para acessar.
 
 ### 2.3. Permissão Obrigatória do GPS
@@ -64,7 +64,7 @@ Com ele no seu celular, você tem:
 Quando você estiver em rota, a tela **Início** exibirá todos os detalhes da comanda atual:
 
 1. **Barra Superior**:
-   - Seu nome e o selo da sua equipe (**VELOZ** ou **SPEED**).
+   - Seu nome e identificação de entregador.
    - Horário da última posição GPS transmitida.
 2. **Abas de Múltiplas Entregas (Topo)**:
    - Se você estiver transportando mais de um pedido, você verá as abas: **★ ROTA ATIVA #6370**, **ENTREGA 2 #926004**, **ENTREGA 3 #506004**.
