@@ -54,7 +54,9 @@ Divida o roteiro em Cenas cronológicas, informando para cada cena:
 
 5. **Navegação com GPS e Finalização da Entrega (Print 02)**:
    - Botão amarelo **"VER ROTA NO MAPA"**: abre direto o Google Maps ou Waze no celular com o endereço preenchido.
-   - Botão vermelho **"FINALIZAR ENTREGA"**: tocar assim que entregar o pedido nas mãos do cliente para registrar o horário de chegada e somar a taxa no fechamento.
+   - **Lembrete de Segurança no App**: Destacar o alerta exibido na tela acima do botão: *"Lembre-se de confirmar o código e a entrega"*.
+   - **CONFIRMAÇÃO DO CÓDIGO NO ATO DA ENTREGA**: O motoboy DEVE sempre pedir e validar o código com o cliente antes de entregar o pedido. Isso evita fraudes e impede cancelamentos indevidos posteriores que poderiam prejudicar o repasse do motoboy.
+   - Botão vermelho **"FINALIZAR ENTREGA"**: tocar logo após validar o código e entregar o pacote ao cliente.
 
 6. **Múltiplas Entregas e Fila de Pedidos (Print 01 e Print 03)**:
    - Explicar as abas no topo da tela quando o entregador está com 2 ou mais entregas na bag (ex: Entrega 2, Entrega 3).
@@ -75,6 +77,11 @@ Divida o roteiro em Cenas cronológicas, informando para cada cena:
    - Mostrar o histórico auditado com cada corrida, cliente, bairro atendido e o valor certinho creditado (+R$ 7,00, +R$ 8,00, +R$ 10,00, +R$ 13,00, etc.).
 
 9. **Encerramento & Boas Práticas**:
-   - Resumo das regras de ouro: GPS sempre ativo, tripla conferência no balcão (número, nome e endereço), uso do PIN e central telefônica se o cliente não atender, e finalização imediata da entrega no ato da entrega.
+   - Resumo das regras de ouro:
+     1. GPS sempre ativo;
+     2. Tripla conferência no balcão (número, nome e endereço);
+     3. Sempre confirmar o código com o cliente no ato da entrega para evitar cancelamento indevido;
+     4. Finalização imediata da entrega no ato;
+     5. Uso do PIN e central telefônica se o cliente não atender.
    - Mensagem de incentivo e boas corridas a todos!
 ```

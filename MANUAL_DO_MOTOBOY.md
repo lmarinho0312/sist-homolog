@@ -107,11 +107,16 @@ Se você chegar ao local e não conseguir contato imediato pelo interfone ou por
 - O sistema abre instantaneamente o seu aplicativo de mapas favorito (Google Maps ou Waze) já com as coordenadas do cliente traçadas.
 - Você não precisa digitar nem copiar nenhum endereço.
 
-### 5.2. Botão "FINALIZAR ENTREGA"
-- Após entregar o pacote nas mãos do cliente:
-  1. Abra o aplicativo Ao Ponto Entregas.
+### 5.2. Confirmação do Código e Botão "FINALIZAR ENTREGA"
+- ⚠️ **CONFIRMAÇÃO DO CÓDIGO NO ATO DA ENTREGA (OBRIGATÓRIO):**
+  - Para evitar cancelamentos indevidos e proteger o pagamento do motoboy e da loja, **sempre peça e confirme o código de entrega com o cliente no ato da entrega**.
+  - O aplicativo exibe um alerta logo acima do botão: **"⚠️ Lembre-se de confirmar o código e a entrega"**.
+  - Só entregue o pacote e finalize após validar esse código.
+- **Passo a passo da finalização:**
+  1. No ato da entrega ao cliente, confira o código.
   2. Toque no botão vermelho **✓ FINALIZAR ENTREGA #XXXX**.
-  3. A corrida é dada como concluída, o horário final é registrado e o valor do repasse cai imediatamente no seu fechamento financeiro do dia.
+  3. No modal de confirmação, confirme o encerramento.
+  4. A corrida é dada como concluída, o horário final é registrado e o valor do repasse cai imediatamente no seu fechamento financeiro do dia.
 
 ---
 
@@ -167,8 +172,9 @@ No menu inferior, toque no ícone de usuário **Perfil**:
 
 1. **GPS Sempre Ativo**: Nunca desative a localização do celular enquanto estiver no turno de entregas.
 2. **Tripla Conferência no Balcão**: Nunca retire pedidos por conta própria sem atribuição prévia da cozinha. No momento da retirada física no balcão, sempre confira: **(1) Número do Pedido**, **(2) Nome do Cliente** e **(3) Endereço de Entrega**.
-3. **Finalize na Hora**: Toque em **Finalizar Entrega** logo após entregar o pedido, para que os dados fiquem sincronizados e a cozinha saiba que você já está livre para a próxima viagem.
-4. **Use a Central Telefônica**: Se não encontrar o cliente, use o botão da central com o PIN. É o meio mais rápido, gratuito e seguro, sem precisar ligar para a cozinha.
+3. **Confirmação do Código no Ato da Entrega**: Ao chegar no cliente, sempre exija e confirme o código de entrega antes de entregar o pedido e finalizar no app. Isso blinda o motoboy contra contestações e cancelamentos indevidos posteriores.
+4. **Finalize na Hora**: Toque em **Finalizar Entrega** logo após entregar o pedido e validar o código, para que os dados fiquem sincronizados e a cozinha saiba que você já está livre para a próxima viagem.
+5. **Use a Central Telefônica**: Se não encontrar o cliente, use o botão da central com o PIN. É o meio mais rápido, gratuito e seguro, sem precisar ligar para a cozinha.
 
 ---
 *Ao Ponto Carnes — Qualidade no Prato e Agilidade na Entrega!*
