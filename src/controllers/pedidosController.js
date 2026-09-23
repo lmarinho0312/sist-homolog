@@ -572,12 +572,28 @@ async function listarPedidosDisponiveis(req, res) {
       pedidos: pedidos.map(p => {
         const repasse = obterTaxaRepasse(p.bairro, p.endereco, p.texto_bruto, grupoFiltro || p.grupo || 'VELOZ');
         const bairroNome = obterNomeBairroCanonica(p.bairro, p.endereco, p.texto_bruto) || p.bairro;
+        let telCentral = p.telefone_cliente;
+        let locPin = p.localizador;
+
+        if (p.origem === '99FOOD' && p.texto_bruto) {
+          try {
+            const rawObj = JSON.parse(p.texto_bruto);
+            const addr = rawObj.data?.order_info?.receive_address || rawObj.data?.receive_address || {};
+            if (addr.virtual_phone_number) telCentral = addr.virtual_phone_number;
+            if (addr.locator) locPin = addr.locator;
+          } catch (e) {}
+        } else if (p.origem === 'IFOOD' && !telCentral) {
+          telCentral = '08007053040';
+        }
+
         return {
           ...p,
           bairro: bairroNome,
           grupo: p.grupo || null,
           taxa_repasse: repasse,
           taxa_entrega: repasse, // Garantir que a taxa exibida para o motoboy seja sempre o repasse oficial Ao Ponto
+          telefone_central: telCentral || p.telefone_cliente || null,
+          localizador: locPin || p.localizador || null,
           minutos_aguardando: Math.max(0, Math.round(Number(p.minutos_aguardando || 0)))
         };
       })
@@ -827,11 +843,27 @@ async function listarPedidosMotoboy(req, res) {
       pedidos: pedidos.map(p => {
         const repasse = obterTaxaRepasse(p.bairro, p.endereco, p.texto_bruto, grupoMotoboy);
         const bairroNome = obterNomeBairroCanonica(p.bairro, p.endereco, p.texto_bruto) || p.bairro;
+        let telCentral = p.telefone_cliente;
+        let locPin = p.localizador;
+
+        if (p.origem === '99FOOD' && p.texto_bruto) {
+          try {
+            const rawObj = JSON.parse(p.texto_bruto);
+            const addr = rawObj.data?.order_info?.receive_address || rawObj.data?.receive_address || {};
+            if (addr.virtual_phone_number) telCentral = addr.virtual_phone_number;
+            if (addr.locator) locPin = addr.locator;
+          } catch (e) {}
+        } else if (p.origem === 'IFOOD' && !telCentral) {
+          telCentral = '08007053040';
+        }
+
         return {
           ...p,
           bairro: bairroNome,
           taxa_repasse: repasse,
           taxa_entrega: repasse, // Sempre mostrar para o motoboy o repasse oficial Ao Ponto
+          telefone_central: telCentral || p.telefone_cliente || null,
+          localizador: locPin || p.localizador || null,
           minutos_em_rota: Math.max(0, Math.round(Number(p.minutos_em_rota || 0)))
         };
       })

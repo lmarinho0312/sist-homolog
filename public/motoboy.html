@@ -1046,24 +1046,65 @@
     }
 
     function renderizarBlocoContato(p) {
-      const loc = p.localizador ? String(p.localizador).trim() : '';
+      let loc = p.localizador ? String(p.localizador).trim() : '';
+      let telCentral = p.telefone_central || p.telefone_cliente || '';
+
+      // Se for 99Food e tiver texto_bruto em JSON, extrai caso ainda não tenha vindo normalizado
+      if (p.origem === '99FOOD' && p.texto_bruto) {
+        try {
+          const raw = JSON.parse(p.texto_bruto);
+          const addr = raw.data?.order_info?.receive_address || raw.data?.receive_address || {};
+          if (!loc && addr.locator) loc = String(addr.locator).trim();
+          if (addr.virtual_phone_number) telCentral = addr.virtual_phone_number;
+        } catch (e) {}
+      }
+
+      // Se for iFood e não tiver central explícita, usa telefone_cliente ou 0800 padrão
+      if (p.origem === 'IFOOD' && !telCentral) {
+        telCentral = '08007053040';
+      }
+
+      const telLimpo = String(telCentral || '').replace(/\D/g, '');
+      const telFormatado = formatarTelefone(telCentral);
+
+      const is99 = (p.origem || '').toUpperCase().includes('99');
+      const isIfood = (p.origem || '').toUpperCase().includes('IFOOD');
+
+      let tituloBotao = 'LIGAR PARA A CENTRAL';
+      let subBotao = telFormatado ? `Discagem: ${telFormatado}` : 'Clique para discar';
+      
+      if (is99) {
+        tituloBotao = 'LIGAR CENTRAL 99FOOD';
+      } else if (isIfood) {
+        tituloBotao = 'LIGAR CENTRAL IFOOD';
+      } else {
+        tituloBotao = 'LIGAR PARA O CLIENTE';
+      }
 
       return `
-        <div class="hero-contact-block">
+        <div class="hero-contact-block" style="display: flex; flex-direction: column; gap: 10px;">
+          <!-- BOX LOCALIZADOR / PIN -->
           ${loc ? `
             <div class="localizador-box">
               <div class="localizador-header">
-                <span class="localizador-label" style="display: inline-flex; align-items: center; gap: 4px;">${SVG_ICONS.key} LOCALIZADOR / PIN DA CENTRAL</span>
+                <span class="localizador-label" style="display: inline-flex; align-items: center; gap: 4px;">${SVG_ICONS.key} LOCALIZADOR / PIN</span>
                 <button type="button" class="btn-copiar-pin" onclick="copiarTexto('${loc}', 'PIN copiado!')" style="display: inline-flex; align-items: center; gap: 4px;">${SVG_ICONS.copy} Copiar</button>
               </div>
               <div class="localizador-codigo">${loc}</div>
-              <div class="localizador-aviso" style="display: flex; align-items: center; gap: 6px;">${SVG_ICONS.alert} Digite este código no teclado do celular se a central solicitar.</div>
+              <div class="localizador-aviso" style="display: flex; align-items: center; justify-content: center; gap: 6px;">${SVG_ICONS.alert} Digite este código no teclado do celular se a central solicitar.</div>
             </div>
           ` : ''}
 
-          <div style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 8px; background: rgba(255, 255, 255, 0.03); border-radius: var(--radius-sm); border: 1px dashed var(--border-subtle); display: flex; align-items: center; justify-content: center; gap: 6px;">
-            <span>🔒 Contato do cliente protegido pela cozinha. Em caso de necessidade, contate a cozinha.</span>
-          </div>
+          <!-- BOTÃO LIGAR PARA A CENTRAL (99FOOD / IFOOD) -->
+          ${telLimpo ? `
+            <a href="tel:${telLimpo}" class="btn-ligar-master">
+              <span class="btn-ligar-icon">${SVG_ICONS.phone}</span>
+              <div class="btn-ligar-text-wrap">
+                <span class="btn-ligar-titulo">${tituloBotao}</span>
+                <span class="btn-ligar-sub">${subBotao}</span>
+              </div>
+            </a>
+          ` : ''}
         </div>
       `;
     }
@@ -1166,18 +1207,13 @@
           <!-- CONTATO / CENTRAL / LOCALIZADOR -->
           ${renderizarBlocoContato(p)}
 
-          <!-- BOTÕES DE NAVEGAÇÃO / GPS (GOOGLE MAPS & WAZE) -->
-          <div style="display: flex; gap: 8px; margin-top: 12px;">
-            <button class="btn-ver-rota-master" style="flex: 1.3;" onclick="abrirRotaNativa('${encodeURIComponent(enderecoCompleto)}')">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
-              </svg>
-              <span>GOOGLE MAPS</span>
-            </button>
-            <button type="button" class="btn btn-secondary" style="flex: 1; font-weight: 800; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-color: rgba(59, 130, 246, 0.5); color: #60a5fa; background: rgba(59, 130, 246, 0.12);" onclick="abrirRotaWaze('${encodeURIComponent(enderecoCompleto)}')">
-              <span>WAZE</span>
-            </button>
-          </div>
+          <!-- BOTÃO VER ROTA NO GPS PADRÃO / NATIVO -->
+          <button class="btn-ver-rota-master" style="margin-top: 12px;" onclick="abrirRotaNativa('${encodeURIComponent(enderecoCompleto)}')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+            </svg>
+            <span>VER ROTA NO MAPA</span>
+          </button>
 
           <!-- BOTÃO FINALIZAR ENTREGA -->
           <button class="btn-finalizar-master" style="margin-top: 10px;" onclick="solicitarFinalizarEntrega(${p.id}, '${p.numero_pedido}')">
@@ -1187,7 +1223,7 @@
       `;
     }
 
-    // DISPARO NATIVO DE ROTAS (GOOGLE MAPS / APPLE MAPS)
+    // DISPARO NATIVO DE ROTAS (GPS PADRÃO / GOOGLE MAPS / APPLE MAPS)
     function abrirRotaNativa(enderecoEncoded) {
       let enderecoLimpo = decodeURIComponent(enderecoEncoded).trim();
       if (!/Teres[oó]polis/i.test(enderecoLimpo)) {
@@ -1203,15 +1239,6 @@
       }
 
       window.open(urlRota, '_blank');
-    }
-
-    function abrirRotaWaze(enderecoEncoded) {
-      let enderecoLimpo = decodeURIComponent(enderecoEncoded).trim();
-      if (!/Teres[oó]polis/i.test(enderecoLimpo)) {
-        enderecoLimpo += ', Teresópolis - RJ';
-      }
-      const urlWaze = `https://waze.com/ul?q=${encodeURIComponent(enderecoLimpo)}&navigate=yes`;
-      window.open(urlWaze, '_blank');
     }
 
     // RENDERIZAR PRÓXIMAS ENTREGAS
@@ -1237,8 +1264,21 @@
       }
 
       container.innerHTML = fila.map(p => {
-        const loc = p.localizador ? String(p.localizador).trim() : '';
+        let loc = p.localizador ? String(p.localizador).trim() : '';
+        let telCentral = p.telefone_central || p.telefone_cliente || '';
+
+        if (p.origem === '99FOOD' && p.texto_bruto) {
+          try {
+            const raw = JSON.parse(p.texto_bruto);
+            const addr = raw.data?.order_info?.receive_address || raw.data?.receive_address || {};
+            if (!loc && addr.locator) loc = String(addr.locator).trim();
+            if (addr.virtual_phone_number) telCentral = addr.virtual_phone_number;
+          } catch (e) {}
+        }
+        if (p.origem === 'IFOOD' && !telCentral) telCentral = '08007053040';
+        const telLimpo = String(telCentral || '').replace(/\D/g, '');
         const taxaRepasse = Number(p.taxa_repasse !== undefined && p.taxa_repasse !== null ? p.taxa_repasse : (p.taxa_entrega || 10.00));
+
         return `
         <div class="queue-card" onclick="selecionarEntregaAtiva(${p.id})" style="cursor: pointer;" title="Toque para alternar o foco para esta rota">
           <div class="queue-info">
@@ -1248,9 +1288,10 @@
               <span style="display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--brand-gold);">${SVG_ICONS.clock} Na Fila</span>
             </div>
             <div class="queue-address" style="display: flex; align-items: center; gap: 4px;">${SVG_ICONS.mapPin} <span>${p.endereco}${p.bairro ? ' — ' + p.bairro : ''}</span></div>
-            ${loc ? `
+            ${(loc || telLimpo) ? `
               <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; font-size: 11px;">
-                <span class="badge-balcao-loc" style="display: inline-flex; align-items: center; gap: 4px;">${SVG_ICONS.key} PIN: <strong>${loc}</strong></span>
+                ${loc ? `<span class="badge-balcao-loc" style="display: inline-flex; align-items: center; gap: 4px;">${SVG_ICONS.key} PIN: <strong>${loc}</strong></span>` : ''}
+                ${telLimpo ? `<a href="tel:${telLimpo}" onclick="event.stopPropagation()" class="badge-balcao-tel" style="display: inline-flex; align-items: center; gap: 4px;">${SVG_ICONS.phone} Central</a>` : ''}
               </div>
             ` : ''}
             <div style="margin-top: 8px;">

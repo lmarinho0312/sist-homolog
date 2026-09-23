@@ -58,7 +58,8 @@ async function injectOrderToDb(payload) {
 
     const addr = orderInfo.receive_address || {};
     const cliente = addr.name || [addr.first_name, addr.last_name].filter(Boolean).join(' ') || 'Cliente 99Food';
-    const tel = addr.phone || addr.virtual_phone_number || '';
+    const tel = addr.virtual_phone_number || addr.phone || '';
+    const loc = addr.locator ? String(addr.locator).trim() : null;
     
     // Concatena endereço completo incluindo número, complemento e ponto de referência
     const refComp = [addr.complement, addr.reference || addr.house_number].filter(Boolean).join(' - ');
@@ -85,11 +86,12 @@ async function injectOrderToDb(payload) {
            bairro = ?,
            taxa_entrega = ?,
            telefone_cliente = ?,
+           localizador = ?,
            status = ?,
            criado_em = COALESCE(criado_em, DATETIME('now', '-3 hours')),
            texto_bruto = ?
          WHERE id = ?`,
-        [numeroPedido, orderId, cliente, ruaCompleta, bairro, taxa, tel, novoStatus, rawText, existe.id]
+        [numeroPedido, orderId, cliente, ruaCompleta, bairro, taxa, tel, loc, novoStatus, rawText, existe.id]
       );
       console.log(`🔄 [99Food] Pedido existente (ID ${existe.id}) atualizado com dados da API: #${numeroPedido} (${orderId}) [Status: ${novoStatus}]`);
       return;
@@ -98,9 +100,9 @@ async function injectOrderToDb(payload) {
     // Inserção de NOVO pedido ativo para a cozinha
     await db.execute(
       `INSERT INTO pedidos 
-       (numero_pedido, origem, pedido_id_origem, cliente, endereco, bairro, taxa_entrega, telefone_cliente, status, criado_em, texto_bruto)
-       VALUES (?, '99FOOD', ?, ?, ?, ?, ?, ?, 'disponivel', DATETIME('now', '-3 hours'), ?)`,
-      [numeroPedido, orderId, cliente, ruaCompleta, bairro, taxa, tel, rawText]
+       (numero_pedido, origem, pedido_id_origem, cliente, endereco, bairro, taxa_entrega, telefone_cliente, localizador, status, criado_em, texto_bruto)
+       VALUES (?, '99FOOD', ?, ?, ?, ?, ?, ?, ?, 'disponivel', DATETIME('now', '-3 hours'), ?)`,
+      [numeroPedido, orderId, cliente, ruaCompleta, bairro, taxa, tel, loc, rawText]
     );
     console.log(`✅ [99Food] Novo pedido inserido via API no painel: #${numeroPedido} (${orderId})`);
   } catch (err) {
