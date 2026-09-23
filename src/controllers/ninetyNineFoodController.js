@@ -32,31 +32,61 @@ async function injectOrderToDb(payload) {
     const orderId = String(orderInfo.order_id || payload.order_id || '');
     if (!orderId) return;
 
-    const existe = await db.queryOne(
-      'SELECT id FROM pedidos WHERE pedido_id_origem = ? AND origem = ?',
-      [orderId, '99FOOD']
-    );
-    if (existe) return;
+    const rawOrderIndex = orderInfo.order_index ? String(orderInfo.order_index).replace(/^#+/, '').trim() : '';
+    const numeroPedido = rawOrderIndex || orderId.slice(-6);
 
-    const orderIndex = orderInfo.order_index ? `#${orderInfo.order_index}` : '';
-    const numeroPedido = orderIndex || orderId.slice(-6);
-    const cliente = orderInfo.receive_address?.name || 'Cliente 99Food';
-    const tel = orderInfo.receive_address?.phone || '';
-    const rua = [orderInfo.receive_address?.street_name, orderInfo.receive_address?.street_number, orderInfo.receive_address?.complement].filter(Boolean).join(', ')
-      || orderInfo.receive_address?.address
-      || orderInfo.receive_address?.detail_address
+    // Verifica se o pedido já existe (seja pelo ID longo da 99Food ou pelo número curto do spooler)
+    const existe = await db.queryOne(
+      `SELECT id, numero_pedido, status, motoboy_id FROM pedidos 
+       WHERE origem = '99FOOD' 
+         AND (pedido_id_origem = ? OR numero_pedido = ? OR numero_pedido = ? OR pedido_id_origem = ?)
+       ORDER BY id DESC LIMIT 1`,
+      [orderId, numeroPedido, `#${numeroPedido}`, numeroPedido]
+    );
+
+    const addr = orderInfo.receive_address || {};
+    const cliente = addr.name || [addr.first_name, addr.last_name].filter(Boolean).join(' ') || 'Cliente 99Food';
+    const tel = addr.phone || addr.virtual_phone_number || '';
+    
+    // Concatena endereço completo incluindo número, complemento e ponto de referência
+    const refComp = [addr.complement, addr.reference || addr.house_number].filter(Boolean).join(' - ');
+    const ruaCompleta = [addr.street_name, addr.street_number, refComp].filter(Boolean).join(', ')
+      || addr.poi_address
+      || addr.poi_display_name
       || 'Consulte o app';
-    const bairro = orderInfo.receive_address?.district || '';
-    const taxa = orderInfo.price?.delivery_fee ? (orderInfo.price.delivery_fee / 100) : 0;
+    
+    const bairro = addr.district || '';
+    // Taxa de entrega da loja ou taxa cobrada
+    const taxaCents = orderInfo.price?.store_charged_delivery_price || orderInfo.price?.delivery_price || orderInfo.price?.delivery_fee || 0;
+    const taxa = taxaCents ? (taxaCents / 100) : 0;
     const rawText = JSON.stringify(payload, null, 2);
+
+    if (existe) {
+      // Se o pedido já havia sido pré-inserido pelo spooler ou webhook anterior, atualiza com os dados oficiais completos
+      await db.execute(
+        `UPDATE pedidos SET
+           numero_pedido = ?,
+           pedido_id_origem = ?,
+           cliente = ?,
+           endereco = ?,
+           bairro = ?,
+           taxa_entrega = ?,
+           telefone_cliente = ?,
+           texto_bruto = ?
+         WHERE id = ?`,
+        [numeroPedido, orderId, cliente, ruaCompleta, bairro, taxa, tel, rawText, existe.id]
+      );
+      console.log(`🔄 [99Food] Pedido existente (ID ${existe.id}) atualizado com dados oficiais da API: #${numeroPedido} (${orderId})`);
+      return;
+    }
 
     await db.execute(
       `INSERT INTO pedidos 
        (numero_pedido, origem, pedido_id_origem, cliente, endereco, bairro, taxa_entrega, telefone_cliente, status, texto_bruto)
        VALUES (?, '99FOOD', ?, ?, ?, ?, ?, ?, 'disponivel', ?)`,
-      [numeroPedido, orderId, cliente, rua, bairro, taxa, tel, rawText]
+      [numeroPedido, orderId, cliente, ruaCompleta, bairro, taxa, tel, rawText]
     );
-    console.log(`✅ [99Food] Novo pedido inserido no painel de pedidos: ${numeroPedido} (${orderId})`);
+    console.log(`✅ [99Food] Novo pedido inserido via API: #${numeroPedido} (${orderId})`);
   } catch (err) {
     console.warn('⚠️ Erro ao injetar pedido 99Food:', err.message);
   }
