@@ -873,6 +873,39 @@ async function atribuirPedidoMotoboy(req, res) {
   }
 }
 
+/**
+ * Descartar / Excluir Pedido Manualmente do Sistema
+ * POST /api/admin/pedidos/descartar
+ */
+async function descartarPedido(req, res) {
+  try {
+    const { pedido_id, id } = req.body || req.query || {};
+    const pedidoIdNum = Number(pedido_id || id);
+    if (!pedidoIdNum || isNaN(pedidoIdNum)) {
+      return res.json(400, { success: false, message: 'ID do pedido é obrigatório.' });
+    }
+
+    const db = getDb();
+    const pedido = await db.queryOne('SELECT id, numero_pedido FROM pedidos WHERE id = ?', [pedidoIdNum]);
+    if (!pedido) {
+      return res.json(404, { success: false, message: 'Pedido não encontrado.' });
+    }
+
+    // Excluir rotas GPS vinculadas caso existam
+    await db.execute('DELETE FROM pedido_rotas WHERE pedido_id = ?', [pedidoIdNum]);
+    // Excluir o pedido permanentemente do sistema
+    await db.execute('DELETE FROM pedidos WHERE id = ?', [pedidoIdNum]);
+
+    return res.json(200, {
+      success: true,
+      message: `Pedido #${pedido.numero_pedido} descartado com sucesso do sistema!`
+    });
+  } catch (error) {
+    console.error('❌ Erro ao descartar pedido:', error);
+    return res.json(500, { success: false, message: 'Erro ao descartar pedido.', error: error.message });
+  }
+}
+
 module.exports = {
   getPosicoesMapa,
   getDashboardStats,
@@ -886,5 +919,7 @@ module.exports = {
   cadastrarMotoboyAdmin,
   obterTaxasBairros,
   atualizarTaxaBairro,
-  atribuirPedidoMotoboy
+  atribuirPedidoMotoboy,
+  descartarPedido
 };
+

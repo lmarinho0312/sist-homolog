@@ -1050,10 +1050,16 @@
         <div class="card card-elevated">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
             <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Cliente & Destino</span>
-            <button class="btn btn-gold btn-sm" id="btnWhatsappCliente" onclick="abrirWhatsappCliente()">
-              <i data-lucide="message-circle"></i>
-              <span>WhatsApp</span>
-            </button>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <button class="btn btn-secondary btn-sm" id="btnCopiarWhatsappCliente" onclick="copiarWhatsappCliente()" title="Copiar WhatsApp e dados para repasse ao motoboy">
+                <i data-lucide="copy"></i>
+                <span>Copiar Contato</span>
+              </button>
+              <button class="btn btn-gold btn-sm" id="btnWhatsappCliente" onclick="abrirWhatsappCliente()">
+                <i data-lucide="message-circle"></i>
+                <span>WhatsApp</span>
+              </button>
+            </div>
           </div>
           <div style="font-size: 16px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px;" id="dtlClienteNome">--</div>
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap;">
@@ -1468,7 +1474,9 @@
       edit: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',
       message: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>',
       map: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></svg>',
-      utensils: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2v6a3 3 0 0 1-3 3 3 3 0 0 1-3-3V2"/><path d="M15 2v14a4 4 0 0 1-4 4H9"/><path d="M6 2v20"/><path d="M6 6h4"/></svg>'
+      utensils: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2v6a3 3 0 0 1-3 3 3 3 0 0 1-3-3V2"/><path d="M15 2v14a4 4 0 0 1-4 4H9"/><path d="M6 2v20"/><path d="M6 6h4"/></svg>',
+      trash: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
+      copy: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>'
     };
 
     // Inicialização protegida por Autenticação
@@ -1812,9 +1820,12 @@
             </div>
 
             <div style="margin-top: 8px; display: flex; gap: 6px;" onclick="event.stopPropagation()">
-              <button class="btn btn-sm ${p.motoboy ? 'btn-secondary' : 'btn-gold'}" onclick="abrirModalAtribuirEntregador(${p.id}); event.stopPropagation();" style="font-size: 11px; padding: 4px 8px; font-weight: 700; width: 100%; justify-content: center; display: inline-flex; align-items: center; gap: 6px;">
+              <button class="btn btn-sm ${p.motoboy ? 'btn-secondary' : 'btn-gold'}" onclick="abrirModalAtribuirEntregador(${p.id}); event.stopPropagation();" style="flex: 1; font-size: 11px; padding: 4px 8px; font-weight: 700; justify-content: center; display: inline-flex; align-items: center; gap: 6px;">
                 ${SVG_ICONS.bike}
                 <span>${p.motoboy ? 'Trocar (' + escapeHtml(p.motoboy.nome) + ')' : 'Atribuir Entregador'}</span>
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="descartarPedido(${p.id}, '${escapeHtml(p.numero_pedido)}'); event.stopPropagation();" title="Descartar pedido do sistema" style="padding: 4px 8px; color: #ef4444; border-color: rgba(239, 68, 68, 0.35); display: inline-flex; align-items: center; justify-content: center;">
+                ${SVG_ICONS.trash}
               </button>
             </div>
           </div>
@@ -2084,6 +2095,9 @@
               ${SVG_ICONS.bike}
               <span>Atribuir</span>
             </button>
+            <button class="btn btn-secondary btn-sm" style="padding: 4px 8px; color: #ef4444; border-color: rgba(239, 68, 68, 0.35); display: inline-flex; align-items: center; justify-content: center;" onclick="descartarPedido(${p.id}, '${escapeHtml(p.numero_pedido)}'); event.stopPropagation();" title="Descartar pedido do sistema">
+              ${SVG_ICONS.trash}
+            </button>
           </div>
         `;
       } else if (colTipo === 'rota') {
@@ -2094,6 +2108,9 @@
             <button class="btn btn-success btn-sm" style="flex: 1; padding: 4px 6px; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="alterarStatusPedido(${p.id}, 'entregue')">
               ${SVG_ICONS.check}
               <span>Concluir</span>
+            </button>
+            <button class="btn btn-secondary btn-sm" style="padding: 4px 6px; color: #ef4444; border-color: rgba(239, 68, 68, 0.35); display: inline-flex; align-items: center; justify-content: center;" onclick="descartarPedido(${p.id}, '${escapeHtml(p.numero_pedido)}'); event.stopPropagation();" title="Descartar pedido do sistema">
+              ${SVG_ICONS.trash}
             </button>
           </div>
         `;
@@ -2368,10 +2385,12 @@
       const footer = document.getElementById('dtlFooterAcoes');
       if (!footer) return;
 
+      const btnDescartar = `<button class="btn btn-secondary" style="border-color: rgba(239, 68, 68, 0.4); color: #ef4444; padding: 6px 12px; display: inline-flex; align-items: center; gap: 4px;" onclick="descartarPedido(${p.id}, '${escapeHtml(p.numero_pedido)}')">${SVG_ICONS.trash} <span>Descartar</span></button>`;
+
       if (p.status === 'disponivel' || p.status === 'aguardando_retirada' || p.status === 'pronto' || p.status === 'em_preparo') {
         footer.innerHTML = `
           <button class="btn btn-secondary" style="flex: 1;" onclick="fecharDetalhesPedido()">Fechar</button>
-          <button class="btn btn-secondary" style="flex: 1; border-color: rgba(239, 68, 68, 0.4); color: #ef4444;" onclick="cancelarPedidoDrawer(${p.id})">Cancelar Pedido</button>
+          ${btnDescartar}
           <button class="btn btn-gold" style="flex: 1.4; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 6px;" onclick="abrirModalAtribuirEntregador(${p.id})">
             ${SVG_ICONS.bike}
             <span>Atribuir Entregador</span>
@@ -2380,6 +2399,7 @@
       } else if (p.status === 'em_rota') {
         footer.innerHTML = `
           <button class="btn btn-secondary" style="flex: 1;" onclick="fecharDetalhesPedido()">Fechar</button>
+          ${btnDescartar}
           <button class="btn btn-secondary" style="flex: 1.1;" onclick="abrirModalAtribuirEntregador(${p.id})" title="Substituir entregador">Trocar Entregador</button>
           <button class="btn btn-success" style="flex: 1.2; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 6px;" onclick="alterarStatusPedido(${p.id}, 'entregue')">
             ${SVG_ICONS.check}
@@ -2389,6 +2409,7 @@
       } else {
         footer.innerHTML = `
           <button class="btn btn-secondary" style="flex: 1;" onclick="fecharDetalhesPedido()">Fechar</button>
+          ${btnDescartar}
         `;
       }
     }
@@ -2396,6 +2417,32 @@
     async function cancelarPedidoDrawer(pedidoId) {
       if (!confirm('Deseja realmente cancelar este pedido e removê-lo da fila ativa?')) return;
       await alterarStatusPedido(pedidoId, 'cancelado');
+    }
+
+    async function descartarPedido(pedidoId, numeroPedido) {
+      const num = numeroPedido || pedidoId;
+      const confirmMsg = `Deseja realmente DESCARTAR o pedido #${num} permanentemente do sistema?\n\nEle será removido completamente do banco de dados.`;
+      if (!confirm(confirmMsg)) return;
+
+      try {
+        const res = await fetch('/api/admin/pedidos/descartar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pedido_id: Number(pedidoId) })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(data.message || `Pedido #${num} descartado com sucesso!`, 'success');
+          if (document.getElementById('drawerPedido')?.classList.contains('open')) {
+            fecharDetalhesPedido();
+          }
+          carregarTudo(false);
+        } else {
+          showToast(data.message || 'Erro ao descartar pedido.', 'error');
+        }
+      } catch (err) {
+        showToast('Erro de conexão ao descartar pedido.', 'error');
+      }
     }
 
     async function limparPendentesAntigos() {
@@ -2437,10 +2484,66 @@
 
     // Ações de Contato
     function abrirWhatsappCliente() {
-      if (!state.pedidoDetalheCache || !state.pedidoDetalheCache.cliente.telefone) return;
-      const tel = state.pedidoDetalheCache.cliente.telefone.replace(/\D/g, '');
-      const msg = encodeURIComponent(`Olá, ${state.pedidoDetalheCache.cliente.nome}! Aqui é da Ao Ponto Carnes referente ao seu pedido #${state.pedidoDetalheCache.numero_pedido}.`);
+      const p = state.pedidoDetalheCache;
+      if (!p) return;
+      const telRaw = (p.cliente && p.cliente.telefone) ? p.cliente.telefone : p.telefone_cliente;
+      if (!telRaw) {
+        showToast('Nenhum telefone disponível para este pedido.', 'info');
+        return;
+      }
+      const tel = telRaw.replace(/\D/g, '');
+      const clienteNome = (p.cliente && p.cliente.nome) ? p.cliente.nome : (p.cliente || 'Cliente');
+      const msg = encodeURIComponent(`Olá, ${clienteNome}! Aqui é da Ao Ponto Carnes referente ao seu pedido #${p.numero_pedido}.`);
       window.open(`https://wa.me/55${tel}?text=${msg}`, '_blank');
+    }
+
+    function copiarWhatsappCliente() {
+      const p = state.pedidoDetalheCache;
+      if (!p) return;
+      const telRaw = (p.cliente && p.cliente.telefone) ? p.cliente.telefone : p.telefone_cliente;
+      if (!telRaw) {
+        showToast('Nenhum telefone disponível para este cliente.', 'info');
+        return;
+      }
+      const telLimpo = telRaw.replace(/\D/g, '');
+      const telFmt = formatarTelefone(telRaw);
+      const loc = (p.cliente && p.cliente.localizador) ? p.cliente.localizador : p.localizador;
+      const clienteNome = (p.cliente && p.cliente.nome) ? p.cliente.nome : (p.cliente || 'Cliente');
+
+      let textoParaCopiar = `*Pedido #${p.numero_pedido} - ${clienteNome}*\n📞 Contato: ${telFmt}`;
+      if (loc) {
+        textoParaCopiar += `\n🔑 PIN / Localizador: ${loc}`;
+      }
+      if (telLimpo.length >= 10 && !telLimpo.startsWith('0800')) {
+        textoParaCopiar += `\n💬 Link WhatsApp: https://wa.me/55${telLimpo}`;
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(textoParaCopiar).then(() => {
+          showToast('Dados e WhatsApp copiados para repasse!', 'success');
+        }).catch(() => {
+          copiarTextoFallbackAdmin(textoParaCopiar);
+        });
+      } else {
+        copiarTextoFallbackAdmin(textoParaCopiar);
+      }
+    }
+
+    function copiarTextoFallbackAdmin(texto) {
+      const ta = document.createElement('textarea');
+      ta.value = texto;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast('Copiado para a área de transferência!', 'success');
+      } catch (e) {
+        showToast('Não foi possível copiar automaticamente.', 'error');
+      }
+      document.body.removeChild(ta);
     }
 
     function abrirWhatsappMotoboy(telefone) {

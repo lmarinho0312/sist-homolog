@@ -813,6 +813,7 @@
       motoboy: null,
       pedidosAtivos: [],
       pedidosBalcao: [],
+      pedidoAtivoSelecionadoId: null,
       pedidoParaFinalizar: null,
       filtroBalcao: '',
       abaAtual: 'inicio',
@@ -977,6 +978,9 @@
 
         if (ativosRes && ativosRes.success) {
           state.pedidosAtivos = ativosRes.pedidos || [];
+          if (!state.pedidosAtivos.some(p => p.id === state.pedidoAtivoSelecionadoId)) {
+            state.pedidoAtivoSelecionadoId = state.pedidosAtivos.length > 0 ? state.pedidosAtivos[0].id : null;
+          }
           renderizarEntregaAtiva();
           renderizarProximasEntregas();
           atualizarMétricasPerfil();
@@ -1042,21 +1046,7 @@
     }
 
     function renderizarBlocoContato(p) {
-      const tel = p.telefone_cliente ? String(p.telefone_cliente).trim() : '';
       const loc = p.localizador ? String(p.localizador).trim() : '';
-
-      if (!tel && !loc) return '';
-
-      const telLimpo = tel.replace(/\D/g, '');
-      const telFormatado = formatarTelefone(tel);
-      const is0800 = telLimpo.startsWith('0800');
-      const is99 = (p.origem || '').toUpperCase().includes('99');
-      const isIfood = (p.origem || '').toUpperCase().includes('IFOOD');
-
-      let tipoCentral = 'Cliente / Suporte';
-      if (isIfood) tipoCentral = 'Central iFood (0800)';
-      else if (is99) tipoCentral = 'Central Telefônica 99Food';
-      else if (is0800) tipoCentral = 'Central Telefônica (0800)';
 
       return `
         <div class="hero-contact-block">
@@ -1067,21 +1057,25 @@
                 <button type="button" class="btn-copiar-pin" onclick="copiarTexto('${loc}', 'PIN copiado!')" style="display: inline-flex; align-items: center; gap: 4px;">${SVG_ICONS.copy} Copiar</button>
               </div>
               <div class="localizador-codigo">${loc}</div>
-              <div class="localizador-aviso" style="display: flex; align-items: center; gap: 6px;">${SVG_ICONS.alert} Digite este número no teclado do celular quando a central pedir.</div>
+              <div class="localizador-aviso" style="display: flex; align-items: center; gap: 6px;">${SVG_ICONS.alert} Digite este código no teclado do celular se a central solicitar.</div>
             </div>
           ` : ''}
 
-          ${tel ? `
-            <a href="tel:${telLimpo}" class="btn-ligar-master">
-              <span class="btn-ligar-icon">${SVG_ICONS.phone}</span>
-              <div class="btn-ligar-text-wrap">
-                <span class="btn-ligar-titulo">LIGAR: ${telFormatado}</span>
-                <span class="btn-ligar-sub">${tipoCentral}</span>
-              </div>
-            </a>
-          ` : ''}
+          <div style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 8px; background: rgba(255, 255, 255, 0.03); border-radius: var(--radius-sm); border: 1px dashed var(--border-subtle); display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <span>🔒 Contato do cliente protegido pela cozinha. Em caso de necessidade, contate a cozinha.</span>
+          </div>
         </div>
       `;
+    }
+
+    function selecionarEntregaAtiva(pedidoId) {
+      state.pedidoAtivoSelecionadoId = Number(pedidoId);
+      renderizarEntregaAtiva();
+      renderizarProximasEntregas();
+      const p = state.pedidosAtivos.find(x => x.id === Number(pedidoId));
+      if (p) {
+        showToast(`Foco de rota alterado para o pedido #${p.numero_pedido}`, 'info');
+      }
     }
 
     // RENDERIZAR CARD DOMINANTE DA ENTREGA ATIVA
@@ -1105,13 +1099,36 @@
         return;
       }
 
-      // O primeiro pedido é a entrega dominante ativa
-      const p = state.pedidosAtivos[0];
+      // Pedido selecionado ou o primeiro por padrão
+      const p = state.pedidosAtivos.find(x => x.id === state.pedidoAtivoSelecionadoId) || state.pedidosAtivos[0];
       const taxaRepasse = Number(p.taxa_repasse !== undefined && p.taxa_repasse !== null ? p.taxa_repasse : (p.taxa_entrega || 10.00));
       const taxaStr = `R$ ${taxaRepasse.toFixed(2).replace('.', ',')}`;
       const enderecoCompleto = `${p.endereco}${p.bairro ? ' — ' + p.bairro : ''}`;
 
+      // Se houver mais de uma entrega ativa, exibir seletor rápido no topo
+      let abasMultiplasHtml = '';
+      if (state.pedidosAtivos.length > 1) {
+        abasMultiplasHtml = `
+          <div style="margin-bottom: 12px; display: flex; gap: 8px; overflow-x: auto; padding: 2px; -webkit-overflow-scrolling: touch;">
+            ${state.pedidosAtivos.map((item, idx) => {
+              const isFoco = item.id === p.id;
+              return `
+                <button type="button" 
+                        onclick="selecionarEntregaAtiva(${item.id})"
+                        style="flex: 1; min-width: 130px; padding: 8px 10px; border-radius: var(--radius-md); border: 2px solid ${isFoco ? 'var(--brand-gold)' : 'var(--border-subtle)'}; background: ${isFoco ? 'rgba(245, 158, 11, 0.18)' : 'var(--bg-surface)'}; color: ${isFoco ? 'var(--brand-gold-light)' : 'var(--text-secondary)'}; cursor: pointer; text-align: center; transition: all var(--transition-fast);">
+                  <div style="font-size: 10px; font-weight: 800; color: ${isFoco ? 'var(--brand-gold)' : 'var(--text-muted)'}; text-transform: uppercase; letter-spacing: 0.05em;">
+                    ${isFoco ? '★ ROTA ATIVA' : `ENTREGA ${idx + 1}`}
+                  </div>
+                  <div style="font-size: 15px; font-weight: 900; color: ${isFoco ? '#ffffff' : 'var(--text-primary)'}; margin-top: 2px;">#${item.numero_pedido}</div>
+                </button>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+
       container.innerHTML = `
+        ${abasMultiplasHtml}
         <div class="hero-active-card">
           <!-- Topo do Card -->
           <div class="hero-card-header">
@@ -1149,17 +1166,22 @@
           <!-- CONTATO / CENTRAL / LOCALIZADOR -->
           ${renderizarBlocoContato(p)}
 
-          <!-- BOTÃO PRIORITÁRIO "VER ROTA" (INTEGRAÇÃO NATIVA GOOGLE MAPS / APPLE MAPS) -->
-          <button class="btn-ver-rota-master" onclick="abrirRotaNativa('${encodeURIComponent(enderecoCompleto)}')">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
-            </svg>
-            <span>VER ROTA NO MAPA</span>
-          </button>
+          <!-- BOTÕES DE NAVEGAÇÃO / GPS (GOOGLE MAPS & WAZE) -->
+          <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <button class="btn-ver-rota-master" style="flex: 1.3;" onclick="abrirRotaNativa('${encodeURIComponent(enderecoCompleto)}')">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+              </svg>
+              <span>GOOGLE MAPS</span>
+            </button>
+            <button type="button" class="btn btn-secondary" style="flex: 1; font-weight: 800; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-color: rgba(59, 130, 246, 0.5); color: #60a5fa; background: rgba(59, 130, 246, 0.12);" onclick="abrirRotaWaze('${encodeURIComponent(enderecoCompleto)}')">
+              <span>WAZE</span>
+            </button>
+          </div>
 
           <!-- BOTÃO FINALIZAR ENTREGA -->
-          <button class="btn-finalizar-master" onclick="solicitarFinalizarEntrega(${p.id}, '${p.numero_pedido}')">
-            <span>✓ FINALIZAR ENTREGA</span>
+          <button class="btn-finalizar-master" style="margin-top: 10px;" onclick="solicitarFinalizarEntrega(${p.id}, '${p.numero_pedido}')">
+            <span>✓ FINALIZAR ENTREGA #${p.numero_pedido}</span>
           </button>
         </div>
       `;
@@ -1175,14 +1197,21 @@
 
       let urlRota = '';
       if (isIOS) {
-        // Apple Maps Deep Link
         urlRota = `http://maps.apple.com/?daddr=${encodeURIComponent(enderecoLimpo)}&dirflg=d`;
       } else {
-        // Google Maps Navigation Deep Link
         urlRota = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(enderecoLimpo)}&travelmode=driving`;
       }
 
       window.open(urlRota, '_blank');
+    }
+
+    function abrirRotaWaze(enderecoEncoded) {
+      let enderecoLimpo = decodeURIComponent(enderecoEncoded).trim();
+      if (!/Teres[oó]polis/i.test(enderecoLimpo)) {
+        enderecoLimpo += ', Teresópolis - RJ';
+      }
+      const urlWaze = `https://waze.com/ul?q=${encodeURIComponent(enderecoLimpo)}&navigate=yes`;
+      window.open(urlWaze, '_blank');
     }
 
     // RENDERIZAR PRÓXIMAS ENTREGAS
@@ -1191,39 +1220,47 @@
       const badgeTotal = document.getElementById('badgeTotalFila');
       if (!container) return;
 
-      const fila = state.pedidosAtivos.slice(1);
+      const pAtivo = state.pedidosAtivos.find(x => x.id === state.pedidoAtivoSelecionadoId) || state.pedidosAtivos[0];
+      const fila = pAtivo 
+        ? state.pedidosAtivos.filter(x => x.id !== pAtivo.id)
+        : state.pedidosAtivos;
+
       if (badgeTotal) badgeTotal.textContent = fila.length;
 
       if (fila.length === 0) {
         container.innerHTML = `
           <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 14px; background: var(--bg-surface-card); border-radius: var(--radius-md);">
-            Sem outras entregas pendentes na fila.
+            Sem outras entregas ativas na fila.
           </div>
         `;
         return;
       }
 
       container.innerHTML = fila.map(p => {
-        const tel = p.telefone_cliente ? String(p.telefone_cliente).trim() : '';
         const loc = p.localizador ? String(p.localizador).trim() : '';
+        const taxaRepasse = Number(p.taxa_repasse !== undefined && p.taxa_repasse !== null ? p.taxa_repasse : (p.taxa_entrega || 10.00));
         return `
-        <div class="queue-card">
+        <div class="queue-card" onclick="selecionarEntregaAtiva(${p.id})" style="cursor: pointer;" title="Toque para alternar o foco para esta rota">
           <div class="queue-info">
             <div class="queue-num-row">
               <strong style="font-size: 15px; color: var(--text-primary);">#${p.numero_pedido}</strong>
               <span class="origem-badge ${obterOrigemClasse(p.origem)}">${obterOrigemNome(p.origem)}</span>
-              <span style="display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--brand-gold);">${SVG_ICONS.clock} Fila</span>
+              <span style="display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--brand-gold);">${SVG_ICONS.clock} Na Fila</span>
             </div>
-            <div class="queue-address" style="display: flex; align-items: center; gap: 4px;">${SVG_ICONS.mapPin} <span>${p.endereco}</span></div>
-            ${(loc || tel) ? `
+            <div class="queue-address" style="display: flex; align-items: center; gap: 4px;">${SVG_ICONS.mapPin} <span>${p.endereco}${p.bairro ? ' — ' + p.bairro : ''}</span></div>
+            ${loc ? `
               <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; font-size: 11px;">
-                ${loc ? `<span class="badge-balcao-loc" style="display: inline-flex; align-items: center; gap: 4px;">${SVG_ICONS.key} PIN: <strong>${loc}</strong></span>` : ''}
-                ${tel ? `<a href="tel:${tel.replace(/\D/g, '')}" class="badge-balcao-tel" onclick="event.stopPropagation()" style="display: inline-flex; align-items: center; gap: 4px;">${SVG_ICONS.phone} ${formatarTelefone(tel)}</a>` : ''}
+                <span class="badge-balcao-loc" style="display: inline-flex; align-items: center; gap: 4px;">${SVG_ICONS.key} PIN: <strong>${loc}</strong></span>
               </div>
             ` : ''}
+            <div style="margin-top: 8px;">
+              <button class="btn btn-secondary btn-sm" onclick="selecionarEntregaAtiva(${p.id}); event.stopPropagation();" style="border-color: rgba(245, 158, 11, 0.4); color: var(--brand-gold-light); font-weight: 700; font-size: 11px; padding: 4px 8px;">
+                Alternar para esta Rota ➔
+              </button>
+            </div>
           </div>
-          <div style="text-align: right;">
-            <span style="font-size: 13px; font-weight: 700; color: #34d399;">R$ ${(Number(p.taxa_repasse !== undefined && p.taxa_repasse !== null ? p.taxa_repasse : (p.taxa_entrega || 10.00))).toFixed(2).replace('.', ',')}</span>
+          <div style="text-align: right; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end;">
+            <span style="font-size: 13px; font-weight: 700; color: #34d399;">R$ ${taxaRepasse.toFixed(2).replace('.', ',')}</span>
           </div>
         </div>
       `;
@@ -1344,14 +1381,9 @@
             <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin: 4px 0;">${p.cliente || 'Cliente'}</div>
             <div class="order-address" style="margin-bottom: 8px; display: flex; align-items: center; gap: 4px;">${SVG_ICONS.mapPin} <span>${p.endereco} ${p.bairro ? '— ' + p.bairro : ''}</span></div>
             
-            ${(tel || loc) ? `
+            ${loc ? `
               <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; align-items: center;">
-                ${loc ? `<span class="badge-balcao-loc" title="Código Localizador / PIN" style="display: inline-flex; align-items: center; gap: 4px;">${SVG_ICONS.key} PIN: <strong>${loc}</strong></span>` : ''}
-                ${tel ? `
-                  <a href="tel:${telLimpo}" class="badge-balcao-tel" onclick="event.stopPropagation()" title="Ligar para a central ou cliente" style="display: inline-flex; align-items: center; gap: 4px;">
-                    ${SVG_ICONS.phone} <span>${telFormatado}</span>
-                  </a>
-                ` : ''}
+                <span class="badge-balcao-loc" title="Código Localizador / PIN" style="display: inline-flex; align-items: center; gap: 4px;">${SVG_ICONS.key} PIN: <strong>${loc}</strong></span>
               </div>
             ` : ''}
 
