@@ -715,6 +715,29 @@
           <div id="perfilGrupoBadge" style="margin-top: 6px; display: inline-block; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 12px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4);">Equipe VELOZ</div>
         </div>
 
+        <!-- CARD CHAVE PIX PARA REPASSES -->
+        <div class="card card-elevated" style="padding: 18px 20px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+            <span style="font-size: 13px; font-weight: 800; color: var(--text-primary); display: inline-flex; align-items: center; gap: 6px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--brand-gold);"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+              <span>Chave Pix para Repasses</span>
+            </span>
+            <span id="perfilPixStatusBadge" style="font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 10px; background: rgba(107, 114, 128, 0.15); color: var(--text-muted); border: 1px solid rgba(107, 114, 128, 0.3);">Não cadastrada</span>
+          </div>
+
+          <!-- AVISO AMIGÁVEL DE RESPONSABILIDADE -->
+          <div style="background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.35); border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 12px; font-size: 11px; line-height: 1.45; color: #fbbf24;">
+            💡 <strong>Atenção amigo entregador:</strong> confira sua chave Pix com carinho antes de salvar. A inserção correta dos seus dados bancários é de sua responsabilidade para garantir que seus repasses caiam certinho na sua conta! 😊
+          </div>
+
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="inpPerfilChavePix" class="form-input" placeholder="Digite seu CPF, Celular, E-mail ou Aleatória" style="flex: 1; font-size: 13px; padding: 10px 12px;">
+            <button type="button" class="btn btn-gold btn-sm" onclick="salvarChavePixPerfil()" style="padding: 10px 14px; font-weight: 800; white-space: nowrap;">
+              <span>Salvar Pix</span>
+            </button>
+          </div>
+        </div>
+
         <!-- Seletores de Período -->
         <div style="display: flex; gap: 8px; justify-content: center;">
           <button class="filter-pill active" id="pfPeriodoHoje" onclick="selecionarPeriodoRendimento('hoje', this)">Hoje</button>
@@ -722,9 +745,13 @@
           <button class="filter-pill" id="pfPeriodoMes" onclick="selecionarPeriodoRendimento('mes', this)">Este Mês</button>
         </div>
 
-        <!-- KPIs de Rendimento -->
+        <!-- KPIs de Rendimento e Status de Pagamento -->
         <div class="card">
-          <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 12px;" id="perfilPeriodoLabel">Desempenho de Hoje</span>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;" id="perfilPeriodoLabel">Desempenho de Hoje</span>
+            <span id="perfilStatusPagamentoPill" style="font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 10px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">⏳ Pendente</span>
+          </div>
+
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
             <div style="background: var(--bg-surface); padding: 14px; border-radius: var(--radius-md); text-align: center;">
               <span style="font-size: 11px; color: var(--text-muted); display: block;">Entregas Concluídas</span>
@@ -735,6 +762,19 @@
               <strong style="font-size: 22px; color: #34d399;" id="perfilTotalTaxas">R$ 0,00</strong>
             </div>
           </div>
+
+          <!-- BANNER STATUS PAGAMENTO CONFIRMADO -->
+          <div id="perfilStatusPagamentoBanner" style="margin-top: 12px; padding: 10px 12px; border-radius: var(--radius-md); background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); display: flex; align-items: center; justify-content: space-between; font-size: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span id="perfilStatusPagamentoIcon">⏳</span>
+              <div>
+                <strong id="perfilStatusPagamentoTexto" style="color: var(--text-primary); font-size: 12px; display: block;">Aguardando Fechamento</strong>
+                <span id="perfilStatusPagamentoSub" style="color: var(--text-muted); font-size: 11px;">O acerto será efetuado pela administração</span>
+              </div>
+            </div>
+            <span id="perfilStatusPagamentoBadge" style="font-weight: 800; font-size: 11px; color: #fbbf24;">(Pendente)</span>
+          </div>
+
           <div style="margin-top: 10px; text-align: center; font-size: 11px; color: var(--text-faint);">
             Taxas Oficiais Ao Ponto por Bairro (Tabela Oficial)
           </div>
@@ -892,6 +932,13 @@
         elPBadge.textContent = `Equipe ${badgeText}`;
         elPBadge.style.cssText = `margin-top: 6px; display: inline-block; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 12px; ${badgeStyle}`;
       }
+
+      // Inicializar Chave Pix no Perfil
+      const inpPix = document.getElementById('inpPerfilChavePix');
+      if (inpPix && state.motoboy.chave_pix) {
+        inpPix.value = state.motoboy.chave_pix;
+      }
+      atualizarBadgePix();
 
       solicitarWakeLock();
       iniciarGps();
@@ -1230,6 +1277,29 @@
           <div style="margin-top: 12px; padding: 7px 12px; background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.3); border-radius: 8px; font-size: 11px; font-weight: 700; color: #fbbf24; display: flex; align-items: center; justify-content: center; gap: 6px; text-align: center;">
             ${SVG_ICONS.alert}
             <span>Lembre-se de confirmar o código e a entrega</span>
+          </div>
+
+          <!-- BOTÕES DE CONFIRMAÇÃO DE CÓDIGO POR PLATAFORMA (TRANCADOS: EM BREVE) -->
+          <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">
+            ${(p.origem === 'IFOOD' || !p.origem || p.origem === 'MANUAL') ? `
+              <button type="button" class="btn-codigo-plataforma" onclick="clicarConfirmarCodigoPlataforma('iFood')" style="width: 100%; padding: 10px 14px; border-radius: var(--radius-md); background: rgba(239, 68, 68, 0.08); border: 1px dashed rgba(239, 68, 68, 0.4); color: #f87171; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all var(--transition-fast);">
+                <span style="display: inline-flex; align-items: center; gap: 8px;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                  <span>Confirmar com Código (iFood)</span>
+                </span>
+                <span style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">🔒 Em Breve</span>
+              </button>
+            ` : ''}
+
+            ${(p.origem === '99FOOD' || !p.origem || p.origem === 'MANUAL') ? `
+              <button type="button" class="btn-codigo-plataforma" onclick="clicarConfirmarCodigoPlataforma('99Food')" style="width: 100%; padding: 10px 14px; border-radius: var(--radius-md); background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.4); color: #fbbf24; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all var(--transition-fast);">
+                <span style="display: inline-flex; align-items: center; gap: 8px;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                  <span>Confirmar com Código (99Food)</span>
+                </span>
+                <span style="background: rgba(245, 158, 11, 0.2); color: #fde68a; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">🔒 Em Breve</span>
+              </button>
+            ` : ''}
           </div>
 
           <!-- BOTÃO FINALIZAR ENTREGA -->
@@ -1633,6 +1703,58 @@
           document.getElementById('perfilQtdEntregas').textContent = data.resumo.total_entregas;
           document.getElementById('perfilTotalTaxas').textContent = 'R$ ' + data.resumo.total_a_receber.toFixed(2).replace('.', ',');
 
+          // Status de Pagamento (Confirmado / Pendente)
+          const pag = data.pagamento;
+          const elPill = document.getElementById('perfilStatusPagamentoPill');
+          const elBanner = document.getElementById('perfilStatusPagamentoBanner');
+          const elIcon = document.getElementById('perfilStatusPagamentoIcon');
+          const elTexto = document.getElementById('perfilStatusPagamentoTexto');
+          const elSub = document.getElementById('perfilStatusPagamentoSub');
+          const elBadge = document.getElementById('perfilStatusPagamentoBadge');
+
+          if (pag && pag.confirmado) {
+            let dataFmt = '';
+            if (pag.confirmado_em) {
+              const dt = new Date(pag.confirmado_em);
+              dataFmt = ' em ' + dt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) + ' às ' + dt.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+            }
+            if (elPill) {
+              elPill.textContent = '✓ Pago';
+              elPill.style.background = 'rgba(16, 185, 129, 0.2)';
+              elPill.style.color = '#34d399';
+              elPill.style.border = '1px solid rgba(16, 185, 129, 0.4)';
+            }
+            if (elBanner) {
+              elBanner.style.background = 'rgba(16, 185, 129, 0.1)';
+              elBanner.style.border = '1px solid rgba(16, 185, 129, 0.35)';
+            }
+            if (elIcon) elIcon.textContent = '✅';
+            if (elTexto) elTexto.textContent = 'Pagamento Confirmado';
+            if (elSub) elSub.textContent = `Acerto realizado pela administração${dataFmt}`;
+            if (elBadge) {
+              elBadge.textContent = '(Pagamento Confirmado)';
+              elBadge.style.color = '#34d399';
+            }
+          } else {
+            if (elPill) {
+              elPill.textContent = '⏳ Pendente';
+              elPill.style.background = 'rgba(245, 158, 11, 0.15)';
+              elPill.style.color = '#fbbf24';
+              elPill.style.border = '1px solid rgba(245, 158, 11, 0.3)';
+            }
+            if (elBanner) {
+              elBanner.style.background = 'rgba(59, 130, 246, 0.08)';
+              elBanner.style.border = '1px solid rgba(59, 130, 246, 0.25)';
+            }
+            if (elIcon) elIcon.textContent = '⏳';
+            if (elTexto) elTexto.textContent = 'Aguardando Fechamento';
+            if (elSub) elSub.textContent = 'O acerto será efetuado pela administração';
+            if (elBadge) {
+              elBadge.textContent = '(Pendente)';
+              elBadge.style.color = '#fbbf24';
+            }
+          }
+
           // Histórico de entregas
           const hist = document.getElementById('perfilHistoricoEntregas');
           if (hist) {
@@ -1653,6 +1775,57 @@
         }
       } catch (err) {
         console.error('Erro ao carregar rendimentos:', err);
+      }
+    }
+
+    function clicarConfirmarCodigoPlataforma(plataforma) {
+      showToast(`Link de confirmação ${plataforma} em breve! Por favor, confira o código diretamente com o cliente no ato da entrega.`, 'info');
+    }
+
+    function atualizarBadgePix() {
+      const elBadge = document.getElementById('perfilPixStatusBadge');
+      if (!elBadge) return;
+      if (state.motoboy && state.motoboy.chave_pix) {
+        elBadge.textContent = 'Cadastrada';
+        elBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+        elBadge.style.color = '#34d399';
+        elBadge.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+      } else {
+        elBadge.textContent = 'Não cadastrada';
+        elBadge.style.background = 'rgba(107, 114, 128, 0.15)';
+        elBadge.style.color = 'var(--text-muted)';
+        elBadge.style.border = '1px solid rgba(107, 114, 128, 0.3)';
+      }
+    }
+
+    async function salvarChavePixPerfil() {
+      const inp = document.getElementById('inpPerfilChavePix');
+      if (!inp) return;
+      const chavePix = inp.value.trim();
+      if (!state.motoboy || !state.motoboy.id) {
+        showToast('Erro: sessão de motoboy inválida.', 'error');
+        return;
+      }
+      try {
+        const res = await fetch('/api/motoboy/chave-pix', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            motoboy_id: state.motoboy.id,
+            chave_pix: chavePix
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          state.motoboy.chave_pix = chavePix;
+          localStorage.setItem('motoboySession', JSON.stringify(state.motoboy));
+          showToast('Chave Pix salva com sucesso!', 'success');
+          atualizarBadgePix();
+        } else {
+          showToast(data.message || 'Erro ao salvar chave Pix.', 'error');
+        }
+      } catch (err) {
+        showToast('Erro de conexão ao salvar chave Pix.', 'error');
       }
     }
 

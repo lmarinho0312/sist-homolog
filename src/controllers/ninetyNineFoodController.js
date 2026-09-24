@@ -58,7 +58,7 @@ async function injectOrderToDb(payload) {
 
     const addr = orderInfo.receive_address || {};
     const cliente = addr.name || [addr.first_name, addr.last_name].filter(Boolean).join(' ') || 'Cliente 99Food';
-    const tel = addr.virtual_phone_number || addr.phone || '';
+    const tel = addr.phone || addr.virtual_phone_number || '';
     const loc = addr.locator ? String(addr.locator).trim() : null;
     
     // Concatena endereço completo incluindo número, complemento e ponto de referência

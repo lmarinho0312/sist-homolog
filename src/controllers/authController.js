@@ -16,7 +16,7 @@ async function login(req, res) {
     const db = getDb();
 
     const motoboy = await db.queryOne(
-      `SELECT id, nome, telefone, senha, traccar_device_id, grupo, status FROM motoboys WHERE telefone = ? OR telefone = ?`,
+      `SELECT id, nome, telefone, senha, traccar_device_id, grupo, status, chave_pix FROM motoboys WHERE telefone = ? OR telefone = ?`,
       [cleanTelefone, String(telefone).trim()]
     );
 
@@ -54,7 +54,8 @@ async function login(req, res) {
         nome: motoboy.nome,
         telefone: motoboy.telefone,
         traccar_device_id: motoboy.traccar_device_id,
-        grupo: motoboy.grupo || 'VELOZ'
+        grupo: motoboy.grupo || 'VELOZ',
+        chave_pix: motoboy.chave_pix || null
       }
     });
   } catch (error) {
@@ -214,4 +215,31 @@ async function alterarSenhaAdmin(req, res) {
   }
 }
 
-module.exports = { login, register, loginAdmin, alterarSenhaAdmin };
+/**
+ * Salvar / Atualizar Chave Pix do Motoboy
+ * POST /api/motoboys/chave-pix
+ */
+async function salvarChavePix(req, res) {
+  try {
+    const { motoboy_id, chave_pix } = req.body || {};
+    if (!motoboy_id) {
+      return res.json(400, { success: false, message: 'motoboy_id é obrigatório.' });
+    }
+    const cleanPix = chave_pix !== undefined ? String(chave_pix).trim() : '';
+    const db = getDb();
+    await db.execute(
+      `UPDATE motoboys SET chave_pix = ? WHERE id = ?`,
+      [cleanPix, Number(motoboy_id)]
+    );
+    return res.json(200, {
+      success: true,
+      message: 'Chave Pix atualizada com sucesso!',
+      chave_pix: cleanPix
+    });
+  } catch (error) {
+    console.error('❌ Erro ao salvar chave Pix do motoboy:', error);
+    return res.json(500, { success: false, message: 'Erro ao salvar chave Pix.', error: error.message });
+  }
+}
+
+module.exports = { login, register, loginAdmin, alterarSenhaAdmin, salvarChavePix };

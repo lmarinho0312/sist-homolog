@@ -438,7 +438,8 @@ async function obterFechamentoEntregas(req, res) {
         p.texto_bruto,
         m.nome as motoboy_nome,
         m.telefone as motoboy_telefone,
-        m.grupo as motoboy_grupo
+        m.grupo as motoboy_grupo,
+        m.chave_pix as motoboy_chave_pix
       FROM pedidos p
       LEFT JOIN motoboys m ON p.motoboy_id = m.id
       WHERE p.status = 'entregue'
@@ -448,6 +449,24 @@ async function obterFechamentoEntregas(req, res) {
         ${grupoFiltro}
       ORDER BY p.data_fim DESC
     `, params);
+
+    // Buscar pagamentos já confirmados pela administração para os motoboys
+    let pagamentosConfirmados = [];
+    try {
+      pagamentosConfirmados = await db.query(`
+        SELECT motoboy_id, periodo, data_referencia, status, confirmado_em, valor
+        FROM pagamentos_motoboys
+        WHERE DATE(confirmado_em) = DATE(DATETIME('now', '-3 hours'))
+           OR periodo = ?
+      `, [periodo]);
+    } catch (e) {
+      console.warn('⚠️ Consulta a pagamentos_motoboys ignorada:', e.message);
+    }
+
+    const mapaPagamentos = {};
+    for (const pg of pagamentosConfirmados) {
+      mapaPagamentos[pg.motoboy_id] = pg;
+    }
 
     const porMotoboy = {};
     let totalGeralEntregas = 0;
@@ -461,11 +480,15 @@ async function obterFechamentoEntregas(req, res) {
       totalGeralTaxas += taxaEfetiva;
 
       if (!porMotoboy[e.motoboy_id]) {
+        const pag = mapaPagamentos[e.motoboy_id];
         porMotoboy[e.motoboy_id] = {
           motoboy_id: e.motoboy_id,
           nome: e.motoboy_nome,
           telefone: e.motoboy_telefone,
           grupo: e.motoboy_grupo || 'VELOZ',
+          chave_pix: e.motoboy_chave_pix || null,
+          pagamento_confirmado: !!pag,
+          pagamento_confirmado_em: pag ? pag.confirmado_em : null,
           total_entregas: 0,
           total_taxas: 0,
           entregas: []
@@ -497,7 +520,7 @@ async function obterFechamentoEntregas(req, res) {
         origem: e.origem,
         data_inicio: e.data_inicio,
         data_fim: e.data_fim,
-        motoboy: { id: e.motoboy_id, nome: e.motoboy_nome, telefone: e.motoboy_telefone, grupo: e.motoboy_grupo || 'VELOZ' },
+        motoboy: { id: e.motoboy_id, nome: e.motoboy_nome, telefone: e.motoboy_telefone, grupo: e.motoboy_grupo || 'VELOZ', chave_pix: e.motoboy_chave_pix || null },
         taxa_repasse: taxaEfetiva
       };
     });
@@ -979,12 +1002,45 @@ async function descartarPedido(req, res) {
   }
 }
 
+/**
+ * Confirmação de Pagamento de Fechamento do Motoboy
+ * POST /api/admin/confirmar-pagamento
+ */
+async function confirmarPagamentoMotoboy(req, res) {
+  try {
+    const { motoboy_id, periodo = 'hoje', valor = 0 } = req.body || {};
+    if (!motoboy_id) {
+      return res.json(400, { success: false, message: 'motoboy_id é obrigatório.' });
+    }
+    const db = getDb();
+    const dataRef = new Date().toISOString().substring(0, 10);
+
+    // Registra o pagamento na tabela de auditoria
+    await db.execute(`
+      INSERT INTO pagamentos_motoboys (motoboy_id, periodo, data_referencia, valor, status, confirmado_em)
+      VALUES (?, ?, ?, ?, 'confirmado', DATETIME('now', '-3 hours'))
+    `, [Number(motoboy_id), String(periodo), dataRef, Number(valor || 0)]);
+
+    return res.json(200, {
+      success: true,
+      message: 'Pagamento confirmado com sucesso!',
+      motoboy_id: Number(motoboy_id),
+      status: 'confirmado',
+      confirmado_em: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Erro ao confirmar pagamento:', error);
+    return res.json(500, { success: false, message: 'Erro ao confirmar pagamento.', error: error.message });
+  }
+}
+
 module.exports = {
   getPosicoesMapa,
   getDashboardStats,
   listarTodosPedidos,
   listarMotoboysAdmin,
   obterFechamentoEntregas,
+  confirmarPagamentoMotoboy,
   criarPedidoManual,
   limparPedidosPendentesAntigos,
   verificarSenhaMotoboys,

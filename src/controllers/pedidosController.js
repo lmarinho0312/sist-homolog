@@ -586,13 +586,14 @@ async function listarPedidosDisponiveis(req, res) {
           telCentral = '08007053040';
         }
 
+        const { telefone_cliente, ...pBalcao } = p;
         return {
-          ...p,
+          ...pBalcao,
           bairro: bairroNome,
           grupo: p.grupo || null,
           taxa_repasse: repasse,
           taxa_entrega: repasse, // Garantir que a taxa exibida para o motoboy seja sempre o repasse oficial Ao Ponto
-          telefone_central: telCentral || p.telefone_cliente || null,
+          telefone_central: telCentral || null,
           localizador: locPin || p.localizador || null,
           minutos_aguardando: Math.max(0, Math.round(Number(p.minutos_aguardando || 0)))
         };
@@ -857,12 +858,13 @@ async function listarPedidosMotoboy(req, res) {
           telCentral = '08007053040';
         }
 
+        const { telefone_cliente, ...pAtivoSemTel } = p;
         return {
-          ...p,
+          ...pAtivoSemTel,
           bairro: bairroNome,
           taxa_repasse: repasse,
           taxa_entrega: repasse, // Sempre mostrar para o motoboy o repasse oficial Ao Ponto
-          telefone_central: telCentral || p.telefone_cliente || null,
+          telefone_central: telCentral || null,
           localizador: locPin || p.localizador || null,
           minutos_em_rota: Math.max(0, Math.round(Number(p.minutos_em_rota || 0)))
         };
@@ -999,6 +1001,20 @@ async function obterDetalhesPedido(req, res) {
       [p.id]
     );
 
+    let telReal = p.telefone_cliente || null;
+    let telVirtual = null;
+    let locPin = p.localizador || null;
+
+    if (p.origem === '99FOOD' && p.texto_bruto) {
+      try {
+        const rawObj = JSON.parse(p.texto_bruto);
+        const addr = rawObj.data?.order_info?.receive_address || rawObj.data?.receive_address || {};
+        if (addr.phone) telReal = addr.phone;
+        if (addr.virtual_phone_number) telVirtual = addr.virtual_phone_number;
+        if (addr.locator) locPin = addr.locator;
+      } catch (e) {}
+    }
+
     return res.json(200, {
       success: true,
       pedido: {
@@ -1007,11 +1023,12 @@ async function obterDetalhesPedido(req, res) {
         status: p.status,
         origem: p.origem || 'MANUAL',
         grupo: p.grupo || null,
-        localizador: p.localizador || null,
+        localizador: locPin,
         cliente: {
           nome: p.cliente || 'Cliente Balcão',
-          telefone: p.telefone_cliente || null,
-          localizador: p.localizador || null,
+          telefone: telReal,
+          telefone_virtual: telVirtual,
+          localizador: locPin,
           endereco: p.endereco || 'Endereço não informado',
           bairro: bairroFormatado || 'Centro'
         },
@@ -1124,12 +1141,39 @@ async function obterRendimentosMotoboy(req, res) {
 
     const totalEntregas = entregasProcessadas.length;
 
+    // Verificar se a administração já confirmou o pagamento para este período ou hoje
+    let statusPagamento = { confirmado: false, status: 'pendente' };
+    try {
+      const pag = await db.queryOne(`
+        SELECT id, periodo, valor, status, confirmado_em 
+        FROM pagamentos_motoboys 
+        WHERE motoboy_id = ? 
+          AND (
+            DATE(confirmado_em) = DATE(DATETIME('now', '-3 hours'))
+            OR periodo = ?
+          )
+        ORDER BY id DESC LIMIT 1
+      `, [motoboyIdNum, periodo]);
+
+      if (pag) {
+        statusPagamento = {
+          confirmado: true,
+          status: 'confirmado',
+          valor: pag.valor,
+          confirmado_em: pag.confirmado_em
+        };
+      }
+    } catch (e) {
+      console.warn('⚠️ Erro ao consultar pagamento do motoboy:', e.message);
+    }
+
     return res.json(200, {
       success: true,
       motoboy_id: motoboyIdNum,
       motoboy_grupo: grupoMotoboy,
       periodo,
       taxa_padrao_sem_bairro: grupoMotoboy === 'SPEED' ? 11.00 : 10.00,
+      pagamento: statusPagamento,
       resumo: {
         total_entregas: totalEntregas,
         total_a_receber: Number(totalTaxas.toFixed(2)),

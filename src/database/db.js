@@ -122,6 +122,7 @@ CREATE TABLE IF NOT EXISTS motoboys (
     velocidade REAL DEFAULT 0,
     ultima_atualizacao DATETIME,
     status TEXT NOT NULL DEFAULT 'aprovado',
+    chave_pix TEXT,
     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -167,6 +168,19 @@ CREATE TABLE IF NOT EXISTS taxa_bairro_speed (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     bairro TEXT NOT NULL UNIQUE COLLATE NOCASE,
     taxa REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS pagamentos_motoboys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    motoboy_id INTEGER NOT NULL,
+    periodo TEXT NOT NULL,
+    data_referencia TEXT NOT NULL,
+    valor REAL NOT NULL,
+    status TEXT NOT NULL DEFAULT 'confirmado',
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    confirmado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    confirmado_por TEXT DEFAULT 'ADMIN',
+    FOREIGN KEY (motoboy_id) REFERENCES motoboys(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS ifood_events (

@@ -87,8 +87,11 @@ registerRoute('POST', '/api/admin/motoboys/aprovar', adminController.aprovarMoto
 registerRoute('POST', '/api/admin/motoboys/recusar', adminController.recusarMotoboy);
 registerRoute('GET', '/api/admin/taxas', adminController.obterTaxasBairros);
 registerRoute('POST', '/api/admin/taxas/atualizar', adminController.atualizarTaxaBairro);
+registerRoute('POST', '/api/admin/confirmar-pagamento', adminController.confirmarPagamentoMotoboy);
 
-// Rendimentos Motoboy
+// Chave Pix e Rendimentos Motoboy
+registerRoute('POST', '/api/motoboys/chave-pix', authController.salvarChavePix);
+registerRoute('POST', '/api/motoboy/chave-pix', authController.salvarChavePix);
 registerRoute('GET', '/api/motoboy/rendimentos', pedidosController.obterRendimentosMotoboy);
 
 // ── Homologação Oficial iFood API ─────────────────────────────────────────────
