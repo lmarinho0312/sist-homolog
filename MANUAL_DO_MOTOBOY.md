@@ -107,10 +107,11 @@ Se você chegar ao local e não conseguir contato imediato pelo interfone ou por
 - O sistema abre instantaneamente o seu aplicativo de mapas favorito (Google Maps ou Waze) já com as coordenadas do cliente traçadas.
 - Você não precisa digitar nem copiar nenhum endereço.
 
-### 5.2. Confirmação do Código e Botão "FINALIZAR ENTREGA"
+#### 5.2. Confirmação do Código e Botão "FINALIZAR ENTREGA"
 - ⚠️ **CONFIRMAÇÃO DO CÓDIGO NO ATO DA ENTREGA (OBRIGATÓRIO):**
   - Para evitar cancelamentos indevidos e proteger o pagamento do motoboy e da loja, **sempre peça e confirme o código de entrega com o cliente no ato da entrega**.
   - O aplicativo exibe um alerta logo acima do botão: **"⚠️ Lembre-se de confirmar o código e a entrega"**.
+  - **Links Diretos de Confirmação por Plataforma (Em Breve):** O aplicativo disponibiliza botões específicos para confirmação rápida do código conforme a plataforma parceira (iFood ou 99Food). Enquanto os links oficiais são integrados, os botões permanecem sinalizados como **"(Em Breve)"**.
   - Só entregue o pacote e finalize após validar esse código.
 - **Passo a passo da finalização:**
   1. No ato da entrega ao cliente, confira o código.
@@ -131,7 +132,7 @@ Se você pegou 2 ou mais entregas na mesma viagem:
   - Endereço de destino e bairro;
   - PIN / Localizador com botão de ligação para a Central;
   - Valor da taxa a receber (ex: `R$ 10,00`, `R$ 13,00`);
-  - **Botão "Alternar para esta Rota →"**: Caso você conheça a cidade e perceba que é mais vantajoso entregar outro pedido primeiro, basta clicar neste botão. Ele se tornará a **Rota Ativa** imediatamente e o mapa traçará o novo caminho!
+  - **Botão "Alternar para esta Rota →"**: Caso você conheça a cidade e percebe que é mais vantajoso entregar outro pedido primeiro, basta clicar neste botão. Ele se tornará a **Rota Ativa** imediatamente e o mapa traçará o novo caminho!
 
 ---
 
@@ -155,12 +156,17 @@ No menu inferior, ao acessar a aba **Balcão**:
 
 ---
 
-## 8. Aba Perfil — Fechamento Financeiro e Taxas a Receber
+## 8. Aba Perfil — Chave Pix, Fechamento Financeiro e Confirmação de Pagamento
 
 ![Fechamento Financeiro](imagens_instrucoes/05_perfil_historico_fechamento_taxas.jpg)
 
 No menu inferior, toque no ícone de usuário **Perfil**:
-- Aqui fica o seu extrato de ganhos, com 100% de clareza:
+- **Cadastro da Chave Pix:**
+  - Diretamente no seu perfil, há um campo seguro para você cadastrar e atualizar sua **Chave Pix** para recebimento das suas taxas.
+  - *💡 Aviso Amigável:* "Atenção amigo entregador: confira sua chave Pix com atenção antes de salvar. A inserção correta dos seus dados bancários é de sua responsabilidade para garantir que seus repasses cheguem sem problemas à sua conta!"
+- **Status "Pagamento Confirmado":**
+  - Quando a administração confere e realiza o repasse do seu fechamento no painel, o status na sua aba Perfil é atualizado automaticamente para **"✅ Pagamento Confirmado"**, com o registro da data e valor pago.
+- **Extrato Financeiro e Rendimentos:**
   - **Filtros por Período**: Escolha entre **Hoje**, **Esta Semana** ou **Este Mês**.
   - **Entregas Concluídas**: Total de corridas que você finalizou com sucesso no período selecionado.
   - **Total a Receber**: Valor acumulado em Reais (**R$**) das suas taxas de entrega.

@@ -60,6 +60,7 @@ Divida o roteiro em Cenas cronológicas, informando para cada cena:
    - Botão amarelo **"VER ROTA NO MAPA"**: abre direto o aplicativo de GPS padrão do celular (Google Maps, Waze ou Apple Maps) com o endereço já preenchido.
    - **Lembrete de Segurança no App**: Destacar o alerta exibido na tela logo acima do botão: *"Lembre-se de confirmar o código e a entrega"*.
    - **CONFIRMAÇÃO DO CÓDIGO NO ATO DA ENTREGA**: O motoboy DEVE sempre solicitar e validar o código com o cliente antes de entregar o pedido. Isso evita fraudes e impede cancelamentos indevidos posteriores que poderiam prejudicar o repasse do motoboy.
+   - **Botões de Confirmação com Código por Plataforma (Em Breve)**: Explicar os novos botões de link direto para validar o código de acordo com a plataforma (iFood e 99Food), ressaltando que, enquanto os links finais são integrados, os botões permanecem sinalizados como **"(Em Breve)"**.
    - Botão vermelho **"FINALIZAR ENTREGA"**: tocar logo após validar o código e entregar a encomenda ao cliente.
 
 6. **Múltiplas Entregas e Fila de Pedidos (Print 01 e Print 03)**:
@@ -75,17 +76,20 @@ Divida o roteiro em Cenas cronológicas, informando para cada cena:
      3. O **Endereço de Entrega**.
    - Somente após conferir os 3 dados, ele toca em "RETIRAR PEDIDO" e inicia a rota.
 
-8. **Aba Perfil — Transparência e Fechamento Financeiro (Print 05)**:
-   - Mostrar os filtros de período: "Hoje", "Esta Semana" e "Este Mês".
-   - Exibir o resumo financeiro: quantidade de entregas realizadas e o **Total a Receber em R$**.
-   - Mostrar a lista do histórico auditado com cada corrida, cliente, bairro atendido e o valor creditado (+R$ 7,00, +R$ 8,00, +R$ 10,00, +R$ 13,00, etc.).
+8. **Aba Perfil — Chave Pix, Fechamento e Confirmação de Pagamento (Print 05)**:
+   - **Cadastro da Chave Pix**: Apresentar o campo seguro para o motoboy registrar e atualizar sua chave Pix para repasses.
+   - **Aviso Amigável de Responsabilidade**: Destacar a orientação fraterna na tela lembrando que a inserção correta da chave é responsabilidade do motoboy, garantindo que o valor caia sem erros na conta correta.
+   - **Selo "Pagamento Confirmado"**: Mostrar como o entregador visualiza com total segurança e transparência o status **"Pagamento Confirmado"** assim que a administração confere e realiza o repasse no painel.
+   - **Resumo Financeiro & Extrato**: Mostrar os filtros "Hoje", "Esta Semana" e "Este Mês", a quantidade de entregas, o total em R$ e a lista detalhada de cada taxa auditada (+R$ 7,00, +R$ 8,00, +R$ 10,00, +R$ 13,00, etc.).
 
 9. **Encerramento & Boas Práticas**:
    - Resumo das regras de ouro:
      1. Manter o GPS sempre ativado no navegador;
      2. Retirar pedidos no app apenas no balcão e após a tripla conferência (número, cliente e endereço);
-     3. Sempre exigir e validar o código com o cliente no ato da entrega;
-     4. Finalizar a entrega imediatamente ao entregar o pedido;
-     5. Utilizar o PIN e o botão Ligar Central caso o cliente não atenda, sem depender da cozinha.
+     3. Sempre exigir e validar o código com o cliente no ato da entrega (usando os botões de código da plataforma quando disponíveis);
+     4. Conferir atentamente a Chave Pix no perfil para receber os repasses;
+     5. Acompanhar o status "Pagamento Confirmado" na aba Perfil;
+     6. Finalizar a entrega imediatamente ao entregar o pedido;
+     7. Utilizar o PIN e o botão Ligar Central caso o cliente não atenda, sem depender da cozinha.
    - Mensagem de encerramento motivadora e votos de excelentes entregas para toda a equipe!
 ```
