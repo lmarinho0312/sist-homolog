@@ -60,7 +60,7 @@ Divida o roteiro em Cenas cronológicas, informando para cada cena:
    - Botão amarelo **"VER ROTA NO MAPA"**: abre direto o aplicativo de GPS padrão do celular (Google Maps, Waze ou Apple Maps) com o endereço já preenchido.
    - **Lembrete de Segurança no App**: Destacar o alerta exibido na tela logo acima do botão: *"Lembre-se de confirmar o código e a entrega"*.
    - **CONFIRMAÇÃO DO CÓDIGO NO ATO DA ENTREGA**: O motoboy DEVE sempre solicitar e validar o código com o cliente antes de entregar o pedido. Isso evita fraudes e impede cancelamentos indevidos posteriores que poderiam prejudicar o repasse do motoboy.
-   - **Botões de Confirmação com Código por Plataforma (Em Breve)**: Explicar os novos botões de link direto para validar o código de acordo com a plataforma (iFood e 99Food), ressaltando que, enquanto os links finais são integrados, os botões permanecem sinalizados como **"(Em Breve)"**.
+   - **Botão Oficial "Confirmar Código" por Plataforma**: Explicar a funcionalidade oficial com o botão **"Confirmar Código"** direto na tela do pedido. Se o pedido for do iFood ou da 99Food, o app disponibiliza o botão que abre diretamente a página oficial da plataforma correspondente para validação rápida do código no ato da entrega. Caso a entrega seja do Cardápio Web (pedido direto), o botão não é exibido, pois não requer código externo.
    - Botão vermelho **"FINALIZAR ENTREGA"**: tocar logo após validar o código e entregar a encomenda ao cliente.
 
 6. **Múltiplas Entregas e Fila de Pedidos (Print 01 e Print 03)**:
@@ -86,7 +86,7 @@ Divida o roteiro em Cenas cronológicas, informando para cada cena:
    - Resumo das regras de ouro:
      1. Manter o GPS sempre ativado no navegador;
      2. Retirar pedidos no app apenas no balcão e após a tripla conferência (número, cliente e endereço);
-     3. Sempre exigir e validar o código com o cliente no ato da entrega (usando os botões de código da plataforma quando disponíveis);
+     3. Sempre exigir e validar o código com o cliente no ato da entrega através do botão "Confirmar Código" (iFood / 99Food);
      4. Conferir atentamente a Chave Pix no perfil para receber os repasses;
      5. Acompanhar o status "Pagamento Confirmado" na aba Perfil;
      6. Finalizar a entrega imediatamente ao entregar o pedido;

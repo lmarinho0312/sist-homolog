@@ -824,10 +824,13 @@
       <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 8px;">Finalizar Entrega?</h3>
       <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;" id="modalFinalizarTexto">Confirmar conclusão do pedido #--?</p>
       
-      <div style="margin-bottom: 18px; padding: 8px 10px; background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.3); border-radius: 8px; font-size: 11px; font-weight: 700; color: #fbbf24; display: flex; align-items: center; justify-content: center; gap: 6px;">
+      <div style="margin-bottom: 14px; padding: 8px 10px; background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.3); border-radius: 8px; font-size: 11px; font-weight: 700; color: #fbbf24; display: flex; align-items: center; justify-content: center; gap: 6px;">
         <i data-lucide="shield-alert" style="width: 14px; height: 14px;"></i>
         <span>Lembre-se de confirmar o código e a entrega</span>
       </div>
+
+      <!-- BOTÃO DIRETO DE CONFIRMAÇÃO DE CÓDIGO NO MODAL (SE FOR MARKETPLACE) -->
+      <div id="modalConfirmarCodigoContainer" style="margin-bottom: 14px; display: none;"></div>
 
       <div style="display: flex; gap: 10px;">
         <button class="btn btn-secondary" style="flex: 1;" onclick="fecharModalFinalizar()">Cancelar</button>
@@ -1204,6 +1207,28 @@
       const taxaStr = `R$ ${taxaRepasse.toFixed(2).replace('.', ',')}`;
       const enderecoCompleto = `${p.endereco}${p.bairro ? ' — ' + p.bairro : ''}`;
 
+      // Configuração dinâmica de confirmação de código por marketplace
+      const infoCodigo = obterInfoConfirmacaoCodigo(p.origem);
+      let btnConfirmarCodigoHtml = '';
+      if (infoCodigo) {
+        btnConfirmarCodigoHtml = `
+          <!-- BOTÃO OFICIAL CONFIRMAR CÓDIGO (${infoCodigo.nome}) -->
+          <a href="${infoCodigo.url}" target="_blank" rel="noopener noreferrer" style="margin-top: 10px; width: 100%; padding: 12px 14px; border-radius: var(--radius-md); background: ${infoCodigo.btnBg}; border: 1.5px solid ${infoCodigo.btnBorder}; color: ${infoCodigo.btnColor}; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: space-between; text-decoration: none; box-sizing: border-box; transition: transform 0.15s ease;" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'">
+            <span style="display: inline-flex; align-items: center; gap: 8px;">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+              <span>Confirmar Código</span>
+            </span>
+            <span style="display: inline-flex; align-items: center; gap: 4px; background: ${infoCodigo.badgeBg}; color: ${infoCodigo.badgeColor}; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 6px;">
+              <span>${infoCodigo.nome}</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </span>
+          </a>
+        `;
+      }
+
       // Se houver mais de uma entrega ativa, exibir seletor rápido no topo
       let abasMultiplasHtml = '';
       if (state.pedidosAtivos.length > 1) {
@@ -1279,31 +1304,11 @@
             <span>Lembre-se de confirmar o código e a entrega</span>
           </div>
 
-          <!-- BOTÕES DE CONFIRMAÇÃO DE CÓDIGO POR PLATAFORMA (TRANCADOS: EM BREVE) -->
-          <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">
-            ${(p.origem === 'IFOOD' || !p.origem || p.origem === 'MANUAL') ? `
-              <button type="button" class="btn-codigo-plataforma" onclick="clicarConfirmarCodigoPlataforma('iFood')" style="width: 100%; padding: 10px 14px; border-radius: var(--radius-md); background: rgba(239, 68, 68, 0.08); border: 1px dashed rgba(239, 68, 68, 0.4); color: #f87171; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all var(--transition-fast);">
-                <span style="display: inline-flex; align-items: center; gap: 8px;">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                  <span>Confirmar com Código (iFood)</span>
-                </span>
-                <span style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">🔒 Em Breve</span>
-              </button>
-            ` : ''}
-
-            ${(p.origem === '99FOOD' || !p.origem || p.origem === 'MANUAL') ? `
-              <button type="button" class="btn-codigo-plataforma" onclick="clicarConfirmarCodigoPlataforma('99Food')" style="width: 100%; padding: 10px 14px; border-radius: var(--radius-md); background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.4); color: #fbbf24; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all var(--transition-fast);">
-                <span style="display: inline-flex; align-items: center; gap: 8px;">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                  <span>Confirmar com Código (99Food)</span>
-                </span>
-                <span style="background: rgba(245, 158, 11, 0.2); color: #fde68a; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px;">🔒 Em Breve</span>
-              </button>
-            ` : ''}
-          </div>
+          <!-- BOTÃO OFICIAL CONFIRMAR CÓDIGO (IFOOD / 99FOOD) -->
+          ${btnConfirmarCodigoHtml}
 
           <!-- BOTÃO FINALIZAR ENTREGA -->
-          <button class="btn-finalizar-master" style="margin-top: 8px;" onclick="solicitarFinalizarEntrega(${p.id}, '${p.numero_pedido}')">
+          <button class="btn-finalizar-master" style="margin-top: 8px;" onclick="solicitarFinalizarEntrega(${p.id}, '${p.numero_pedido}', '${p.origem || ''}')">
             <span>✓ FINALIZAR ENTREGA #${p.numero_pedido}</span>
           </button>
         </div>
@@ -1553,14 +1558,43 @@
     }
 
     // AÇÃO: FINALIZAR ENTREGA
-    function solicitarFinalizarEntrega(pedidoId, numero) {
-      state.pedidoParaFinalizar = { id: pedidoId, numero: numero };
+    function solicitarFinalizarEntrega(pedidoId, numero, origem) {
+      state.pedidoParaFinalizar = { id: pedidoId, numero: numero, origem: origem };
       document.getElementById('modalFinalizarTexto').textContent = `Confirmar conclusão da entrega do pedido #${numero}?`;
+
+      const containerCodigo = document.getElementById('modalConfirmarCodigoContainer');
+      if (containerCodigo) {
+        const infoCodigo = obterInfoConfirmacaoCodigo(origem);
+        if (infoCodigo) {
+          containerCodigo.style.display = 'block';
+          containerCodigo.innerHTML = `
+            <a href="${infoCodigo.url}" target="_blank" rel="noopener noreferrer" style="width: 100%; padding: 10px 12px; border-radius: var(--radius-md); background: ${infoCodigo.btnBg}; border: 1.5px solid ${infoCodigo.btnBorder}; color: ${infoCodigo.btnColor}; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: space-between; text-decoration: none; box-sizing: border-box;">
+              <span style="display: inline-flex; align-items: center; gap: 6px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                <span>Confirmar Código</span>
+              </span>
+              <span style="display: inline-flex; align-items: center; gap: 4px; background: ${infoCodigo.badgeBg}; color: ${infoCodigo.badgeColor}; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">
+                <span>${infoCodigo.nome}</span>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              </span>
+            </a>
+          `;
+        } else {
+          containerCodigo.style.display = 'none';
+          containerCodigo.innerHTML = '';
+        }
+      }
+
       document.getElementById('modalFinalizar').style.display = 'flex';
     }
 
     function fecharModalFinalizar() {
       document.getElementById('modalFinalizar').style.display = 'none';
+      const containerCodigo = document.getElementById('modalConfirmarCodigoContainer');
+      if (containerCodigo) {
+        containerCodigo.style.display = 'none';
+        containerCodigo.innerHTML = '';
+      }
       state.pedidoParaFinalizar = null;
     }
 
@@ -1779,7 +1813,10 @@
     }
 
     function clicarConfirmarCodigoPlataforma(plataforma) {
-      showToast(`Link de confirmação ${plataforma} em breve! Por favor, confira o código diretamente com o cliente no ato da entrega.`, 'info');
+      const info = obterInfoConfirmacaoCodigo(plataforma);
+      if (info && info.url) {
+        window.open(info.url, '_blank');
+      }
     }
 
     function atualizarBadgePix() {
@@ -1960,6 +1997,34 @@
       if (o.includes('99')) return '99 Food';
       if (o.includes('CARDAPIO')) return 'Cardápio';
       return 'Balcão';
+    }
+
+    function obterInfoConfirmacaoCodigo(origem) {
+      const o = (origem || '').toUpperCase();
+      if (o.includes('IFOOD')) {
+        return {
+          nome: 'iFood',
+          url: 'https://confirmacao-entrega-propria.ifood.com.br/',
+          badgeBg: 'rgba(239, 68, 68, 0.2)',
+          badgeColor: '#fca5a5',
+          btnBg: 'rgba(239, 68, 68, 0.12)',
+          btnBorder: 'rgba(239, 68, 68, 0.45)',
+          btnColor: '#ef4444'
+        };
+      }
+      if (o.includes('99')) {
+        return {
+          nome: '99Food',
+          url: 'https://food-b-h5.99app.com/pt-BR/v2/confirmation-entrega',
+          badgeBg: 'rgba(245, 158, 11, 0.2)',
+          badgeColor: '#fde68a',
+          btnBg: 'rgba(245, 158, 11, 0.12)',
+          btnBorder: 'rgba(245, 158, 11, 0.45)',
+          btnColor: '#f59e0b'
+        };
+      }
+      // Cardápio Web e balcão não possuem link externo de código
+      return null;
     }
 
     function showToast(mensagem, tipo = 'success') {

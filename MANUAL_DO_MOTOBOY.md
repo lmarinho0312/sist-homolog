@@ -109,12 +109,15 @@ Se você chegar ao local e não conseguir contato imediato pelo interfone ou por
 
 #### 5.2. Confirmação do Código e Botão "FINALIZAR ENTREGA"
 - ⚠️ **CONFIRMAÇÃO DO CÓDIGO NO ATO DA ENTREGA (OBRIGATÓRIO):**
-  - Para evitar cancelamentos indevidos e proteger o pagamento do motoboy e da loja, **sempre peça e confirme o código de entrega com o cliente no ato da entrega**.
-  - O aplicativo exibe um alerta logo acima do botão: **"⚠️ Lembre-se de confirmar o código e a entrega"**.
-  - **Links Diretos de Confirmação por Plataforma (Em Breve):** O aplicativo disponibiliza botões específicos para confirmação rápida do código conforme a plataforma parceira (iFood ou 99Food). Enquanto os links oficiais são integrados, os botões permanecem sinalizados como **"(Em Breve)"**.
+  - Para evitar cancelamentos indevidos e proteger o pagamento do motoboy e da loja, **sempre peça e valide o código de entrega com o cliente no ato da entrega**.
+  - O aplicativo exibe um alerta claro logo acima dos botões: **"⚠️ Lembre-se de confirmar o código e a entrega"**.
+  - **Botão Oficial "Confirmar Código":** Para entregas dos marketplaces parceiros, o aplicativo disponibiliza o link oficial direto para validação rápida do código:
+    - **iFood:** Botão **"Confirmar Código (iFood)"** que redireciona diretamente para a página de confirmação da entrega própria do iFood.
+    - **99Food:** Botão **"Confirmar Código (99Food)"** que direciona para a validação oficial da 99Food.
+    - **Cardápio Web:** Em entregas próprias da casa (Cardápio Web) essa funcionalidade não é exibida, pois não existe confirmação por código externo nessas entregas.
   - Só entregue o pacote e finalize após validar esse código.
 - **Passo a passo da finalização:**
-  1. No ato da entrega ao cliente, confira o código.
+  1. No ato da entrega ao cliente, confira o código pelo botão **"Confirmar Código"** (se for iFood ou 99Food).
   2. Toque no botão vermelho **✓ FINALIZAR ENTREGA #XXXX**.
   3. No modal de confirmação, confirme o encerramento.
   4. A corrida é dada como concluída, o horário final é registrado e o valor do repasse cai imediatamente no seu fechamento financeiro do dia.
