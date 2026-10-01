@@ -1857,17 +1857,7 @@
         const statusBorderClass = `status-border-${badgeInfo.classe.replace('badge-', '')}`;
 
         let grupoHtml = '';
-        if (!p.grupo) {
-          grupoHtml = `
-            <div style="margin-top: 6px; padding: 6px 8px; background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.35); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; gap: 6px;" onclick="event.stopPropagation()">
-              <span style="font-size: 10px; font-weight: 800; color: #fbbf24;">DESTINAR:</span>
-              <div style="display: flex; gap: 4px;">
-                <button class="btn-grupo-selecionar btn-grupo-speed" onclick="definirGrupoPedido(${p.id}, 'SPEED'); event.stopPropagation();" title="Destinar entrega ao grupo SPEED">SPEED</button>
-                <button class="btn-grupo-selecionar btn-grupo-veloz" onclick="definirGrupoPedido(${p.id}, 'VELOZ'); event.stopPropagation();" title="Destinar entrega ao grupo VELOZ">VELOZ</button>
-              </div>
-            </div>
-          `;
-        } else {
+        if (p.grupo) {
           const isSpeed = p.grupo === 'SPEED';
           grupoHtml = `
             <span class="badge-grupo-pedido ${isSpeed ? 'badge-grupo-speed' : 'badge-grupo-veloz'}" onclick="alternarGrupoPedido(${p.id}, '${p.grupo}'); event.stopPropagation();" title="Clique para transferir de grupo">
@@ -1885,8 +1875,8 @@
                 <span class="status-badge ${badgeInfo.classe}">${badgeInfo.label}</span>
               </div>
               <div style="display: flex; gap: 4px; align-items: center;">
-                ${p.grupo ? grupoHtml : ''}
-                ${renderizarOrigemBadge(p.origem, p.texto_bruto)}
+                ${grupoHtml}
+                ${renderizarOrigemBadge(p.origem)}
               </div>
             </div>
 
@@ -1894,8 +1884,6 @@
               ${SVG_ICONS.mapPin}
               <span>${escapeHtml(p.endereco)} ${p.bairro ? '— ' + escapeHtml(p.bairro) : ''}</span>
             </div>
-
-            ${!p.grupo ? grupoHtml : ''}
 
             <div class="order-meta">
               <span class="order-motoboy">
@@ -2229,17 +2217,7 @@
       }
 
       let grupoKanban = '';
-      if (!p.grupo) {
-        grupoKanban = `
-          <div style="margin: 8px 0 6px; padding: 6px 8px; background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.35); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; gap: 6px;">
-            <span style="font-size: 10px; font-weight: 800; color: #fbbf24;">DESTINAR:</span>
-            <div style="display: flex; gap: 4px;">
-              <button class="btn-grupo-selecionar btn-grupo-speed" onclick="definirGrupoPedido(${p.id}, 'SPEED'); event.stopPropagation();" title="Destinar ao grupo SPEED">SPEED</button>
-              <button class="btn-grupo-selecionar btn-grupo-veloz" onclick="definirGrupoPedido(${p.id}, 'VELOZ'); event.stopPropagation();" title="Destinar ao grupo VELOZ">VELOZ</button>
-            </div>
-          </div>
-        `;
-      } else {
+      if (p.grupo) {
         const isSpeed = p.grupo === 'SPEED';
         grupoKanban = `
           <span class="badge-grupo-pedido ${isSpeed ? 'badge-grupo-speed' : 'badge-grupo-veloz'}" onclick="alternarGrupoPedido(${p.id}, '${p.grupo}')" title="Clique para transferir de grupo">
@@ -2253,14 +2231,13 @@
           <div class="order-card-row">
             <strong class="order-number">#${p.numero_pedido}</strong>
             <div style="display: flex; gap: 4px; align-items: center;">
-              ${p.grupo ? grupoKanban : ''}
+              ${grupoKanban}
               ${p.localizador ? `<span style="font-size: 10px; font-weight: 700; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); padding: 1px 6px; border-radius: 4px; font-family: monospace;">PIN: ${p.localizador}</span>` : ''}
-              ${renderizarOrigemBadge(p.origem, p.texto_bruto)}
+              ${renderizarOrigemBadge(p.origem)}
             </div>
           </div>
           <div style="font-size: 13px; font-weight: 700; color: var(--text-primary);">${escapeHtml(p.cliente)}</div>
           <div class="order-address">${SVG_ICONS.mapPin} <span>${escapeHtml(p.endereco)}</span></div>
-          ${!p.grupo ? grupoKanban : ''}
           ${motoboyInfo}
           <div class="order-meta">
             <span style="display: flex; align-items: center; gap: 4px;">${SVG_ICONS.clock} <span>${p.tempo_decorrido_minutos} min</span></span>
