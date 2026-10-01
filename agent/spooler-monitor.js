@@ -241,10 +241,10 @@ async function processarArquivoSpool(filePath) {
     return;
   }
 
-  // ── FILTRO 99FOOD: Integração direta via API/Webhook ativada ──
-  // A 99Food agora é recebida oficialmente via API. O spooler processa apenas iFood.
-  if (parsed.origem === '99FOOD') {
-    log(`ℹ️ Pedido 99Food #${parsed.pedidoId} ignorado no spooler (agora integrado via API/Webhook oficial). [${fileName}]`);
+  // ── FILTRO OFICIAL: 99Food e iFood são recebidos oficialmente via API/Webhook ──
+  // O spooler processa exclusivamente comandas de entrega própria do Cardápio Web.
+  if (parsed.origem === '99FOOD' || parsed.origem === 'IFOOD') {
+    log(`ℹ️ Pedido ${parsed.origem} #${parsed.pedidoId} ignorado no spooler (integrado via API/Webhook oficial). Apenas Cardápio Web é monitorado. [${fileName}]`);
     processedCache.add(cacheKeyFile);
     arquivosPendentes.delete(fileName);
     salvarCache();

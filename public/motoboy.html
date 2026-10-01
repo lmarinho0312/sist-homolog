@@ -1257,8 +1257,8 @@
           <!-- Topo do Card -->
           <div class="hero-card-header">
             <div>
-              <span class="origem-badge ${obterOrigemClasse(p.origem)}">${obterOrigemNome(p.origem)}</span>
-              <div class="hero-order-id">#${p.numero_pedido}</div>
+              ${renderizarOrigemBadge(p.origem)}
+              <div class="hero-order-id" style="margin-top: 4px;">#${p.numero_pedido}</div>
             </div>
             <div style="text-align: right;">
               <span class="status-badge badge-rota">EM ROTA</span>
@@ -1376,8 +1376,8 @@
           <div class="queue-info">
             <div class="queue-num-row">
               <strong style="font-size: 15px; color: var(--text-primary);">#${p.numero_pedido}</strong>
-              <span class="origem-badge ${obterOrigemClasse(p.origem)}">${obterOrigemNome(p.origem)}</span>
-              <span style="display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--brand-gold);">${SVG_ICONS.clock} Na Fila</span>
+              ${renderizarOrigemBadge(p.origem)}
+              <span style="display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--brand-gold); margin-left: auto;">${SVG_ICONS.clock} Na Fila</span>
             </div>
             <div class="queue-address" style="display: flex; align-items: center; gap: 4px;">${SVG_ICONS.mapPin} <span>${p.endereco}${p.bairro ? ' — ' + p.bairro : ''}</span></div>
             ${(loc || telLimpo) ? `
@@ -1509,7 +1509,7 @@
           <div class="card" style="margin-bottom: 12px; border-left: 3px solid #3b82f6;">
             <div class="order-card-row">
               <strong class="order-number">#${p.numero_pedido}</strong>
-              <span class="origem-badge ${obterOrigemClasse(p.origem)}">${obterOrigemNome(p.origem)}</span>
+              ${renderizarOrigemBadge(p.origem)}
             </div>
             <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin: 4px 0;">${p.cliente || 'Cliente'}</div>
             <div class="order-address" style="margin-bottom: 8px; display: flex; align-items: center; gap: 4px;">${SVG_ICONS.mapPin} <span>${p.endereco} ${p.bairro ? '— ' + p.bairro : ''}</span></div>
@@ -1520,10 +1520,10 @@
               </div>
             ` : ''}
 
-            <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px;">
-              <span style="font-size: 13px; font-weight: 700; color: #34d399;">Taxa repasse: ${taxaStr}</span>
-              <button class="btn btn-gold btn-sm" onclick="retirarPedidoBalcao(${p.id}, '${p.numero_pedido}')">
-                RETIRAR PEDIDO
+            <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px;">
+              <button class="btn btn-gold btn-sm" onclick="retirarPedidoBalcao(${p.id}, '${p.numero_pedido}')" style="width: 100%; padding: 10px 14px; font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <span>RETIRAR PEDIDO</span>
+                <span style="font-size: 14px;">➔</span>
               </button>
             </div>
           </div>
@@ -1997,6 +1997,29 @@
       if (o.includes('99')) return '99 Food';
       if (o.includes('CARDAPIO')) return 'Cardápio';
       return 'Balcão';
+    }
+
+    function renderizarOrigemBadge(origem) {
+      const o = (origem || '').toUpperCase();
+      if (o.includes('IFOOD')) {
+        return `<span class="origem-badge-logo" title="iFood" style="display: inline-flex; align-items: center; justify-content: center; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; padding: 2px 7px; height: 24px; vertical-align: middle;">
+          <img src="/assets/iFood-New-Logo-Small.png" alt="iFood" style="height: 14px; width: auto; object-fit: contain; display: block;">
+        </span>`;
+      }
+      if (o.includes('99')) {
+        return `<span class="origem-badge-logo" title="99 Food" style="display: inline-flex; align-items: center; justify-content: center; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 6px; padding: 2px 7px; height: 24px; vertical-align: middle;">
+          <img src="/assets/Logotipo_da_99.svg" alt="99 Food" style="height: 14px; width: auto; object-fit: contain; display: block;">
+        </span>`;
+      }
+      if (o.includes('CARDAPIO')) {
+        return `<span class="origem-badge origem-cardapio_web" style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.35); height: 24px; box-sizing: border-box;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+          <span>Cardápio</span>
+        </span>`;
+      }
+      return `<span class="origem-badge origem-manual" style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.35); height: 24px; box-sizing: border-box;">
+        <span>Balcão</span>
+      </span>`;
     }
 
     function obterInfoConfirmacaoCodigo(origem) {

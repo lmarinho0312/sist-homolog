@@ -246,14 +246,24 @@ async function webhookSpool(req, res) {
     const cleanTextoBruto = textoBruto ? String(textoBruto).trim() : null;
     const taxa = !isNaN(Number(taxaEntrega)) ? Number(taxaEntrega) : 0.0;
 
-    // Corte imediato: 99Food agora é 100% via API/Webhook oficial
-    if (cleanOrigem === '99FOOD') {
-      console.log(`ℹ️ [webhookSpool] Pedido 99Food #${cleanPedidoId} descartado do puller (agora integrado via API/Webhook oficial).`);
+    // Corte imediato: 99Food e iFood agora são 100% via API/Webhook oficial
+    if (cleanOrigem === '99FOOD' || cleanOrigem.includes('99')) {
+      console.log(`ℹ️ [webhookSpool] Pedido 99Food #${cleanPedidoId} descartado do puller (integrado via API/Webhook oficial).`);
       return res.json(200, {
         success: true,
         descartado: true,
         motivo: '99food_integrado_via_api',
         message: 'Pedidos 99Food são processados exclusivamente via API/Webhook oficial. Descartado do puller de impressão.'
+      });
+    }
+
+    if (cleanOrigem === 'IFOOD' || cleanOrigem.includes('IFOOD')) {
+      console.log(`ℹ️ [webhookSpool] Pedido iFood #${cleanPedidoId} descartado do puller (integrado via API/Webhook oficial).`);
+      return res.json(200, {
+        success: true,
+        descartado: true,
+        motivo: 'ifood_integrado_via_api',
+        message: 'Pedidos iFood são processados exclusivamente via API/Webhook oficial. Descartado do puller de impressão.'
       });
     }
 
@@ -280,9 +290,9 @@ async function webhookSpool(req, res) {
         cleanOrigem = '99FOOD';
       }
 
-      // ── CORTE DE DADOS DO PULLER / SPOOLER PARA 99FOOD ──────────────────────────
-      // A 99Food já está integrada oficialmente via API e Webhook direto.
-      // O puller de impressão processa exclusivamente iFood.
+      // ── CORTE DE DADOS DO PULLER / SPOOLER PARA 99FOOD E IFOOD ──────────────────
+      // iFood e 99Food estão integrados oficialmente via API/Webhook direto.
+      // O puller de impressão processa exclusivamente Cardápio Web.
       if (cleanOrigem === '99FOOD') {
         console.log(`ℹ️ [webhookSpool] Pedido 99Food #${cleanPedidoId} descartado do puller (agora integrado via API/Webhook oficial).`);
         return res.json(200, {
@@ -290,6 +300,16 @@ async function webhookSpool(req, res) {
           descartado: true,
           motivo: '99food_integrado_via_api',
           message: 'Pedidos 99Food são processados exclusivamente via API/Webhook oficial. Descartado do puller de impressão.'
+        });
+      }
+
+      if (cleanOrigem === 'IFOOD' || tbUpper.includes('IFOOD') || tbUpper.includes('I FOOD')) {
+        console.log(`ℹ️ [webhookSpool] Pedido iFood #${cleanPedidoId} descartado do puller (integrado via API/Webhook oficial).`);
+        return res.json(200, {
+          success: true,
+          descartado: true,
+          motivo: 'ifood_integrado_via_api',
+          message: 'Pedidos iFood são processados exclusivamente via API/Webhook oficial. Descartado do puller de impressão.'
         });
       }
 
@@ -523,37 +543,19 @@ async function listarPedidosDisponiveis(req, res) {
     await expirarPedidosPendentesDiasAnteriores(db);
 
     const { motoboy_id, grupo } = req.query || {};
-    let grupoFiltro = null;
-    let tabelaTaxa = 'taxa_bairro';
+    let grupoMotoboy = 'SPEED';
 
     if (motoboy_id) {
       const motoboy = await db.queryOne('SELECT id, nome, grupo FROM motoboys WHERE id = ?', [Number(motoboy_id)]);
       if (motoboy && motoboy.grupo) {
-        grupoFiltro = String(motoboy.grupo).toUpperCase();
+        grupoMotoboy = String(motoboy.grupo).toUpperCase();
       }
     } else if (grupo) {
-      grupoFiltro = String(grupo).toUpperCase();
+      grupoMotoboy = String(grupo).toUpperCase();
     }
 
-    if (grupoFiltro === 'SPEED') {
-      tabelaTaxa = 'taxa_bairro_speed';
-    } else {
-      tabelaTaxa = 'taxa_bairro';
-    }
-
-    // Regra de Ouro: motoboys de um grupo só veem pedidos expressamente destinados ao seu grupo!
-    // Pedidos sem grupo definido (aguardando seleção da cozinha) NÃO aparecem no app para nenhum grupo.
-    let whereGrupo = '';
-    const params = [];
-
-    if (grupoFiltro) {
-      whereGrupo = `AND p.grupo = ?`;
-      params.push(grupoFiltro);
-    } else {
-      // Se não houver identificação do grupo, nenhum pedido é retornado para impedir vazamento entre grupos
-      whereGrupo = `AND 1 = 0`;
-    }
-
+    // Com o fluxo automático, todos os pedidos disponíveis de hoje aparecem no balcão
+    // sem necessidade de pré-atribuição de equipe pela cozinha
     const pedidos = await db.query(`
       SELECT p.id, p.numero_pedido, p.status, p.origem, p.grupo, p.pedido_id_origem, p.cliente, p.endereco, p.bairro, p.taxa_entrega, p.telefone_cliente, p.localizador, p.texto_bruto, p.criado_em,
              ROUND((julianday(DATETIME('now', '-3 hours')) - julianday(COALESCE(p.criado_em, DATETIME('now', '-3 hours')))) * 1440) as minutos_aguardando
@@ -562,15 +564,14 @@ async function listarPedidosDisponiveis(req, res) {
         AND (p.motoboy_id IS NULL OR p.status != 'em_rota')
         AND p.status NOT IN ('entregue', 'expirado', 'cancelado')
         AND DATE(COALESCE(p.criado_em, DATETIME('now', '-3 hours'))) = DATE(DATETIME('now', '-3 hours'))
-        ${whereGrupo}
       ORDER BY p.id DESC
-    `, params);
+    `);
 
     return res.json(200, {
       success: true,
       total: pedidos.length,
       pedidos: pedidos.map(p => {
-        const repasse = obterTaxaRepasse(p.bairro, p.endereco, p.texto_bruto, grupoFiltro || p.grupo || 'VELOZ');
+        const repasse = obterTaxaRepasse(p.bairro, p.endereco, p.texto_bruto, grupoMotoboy);
         const bairroNome = obterNomeBairroCanonica(p.bairro, p.endereco, p.texto_bruto) || p.bairro;
         let telCentral = p.telefone_cliente;
         let locPin = p.localizador;
@@ -592,7 +593,7 @@ async function listarPedidosDisponiveis(req, res) {
           bairro: bairroNome,
           grupo: p.grupo || null,
           taxa_repasse: repasse,
-          taxa_entrega: repasse, // Garantir que a taxa exibida para o motoboy seja sempre o repasse oficial Ao Ponto
+          taxa_entrega: repasse,
           telefone_central: telCentral || null,
           localizador: locPin || p.localizador || null,
           minutos_aguardando: Math.max(0, Math.round(Number(p.minutos_aguardando || 0)))
@@ -622,31 +623,50 @@ async function assumirPedido(req, res) {
     const motoboyIdNum = Number(motoboy_id);
     const db = getDb();
 
-    // 1. Validar se o pedido tem grupo definido e se coincide com o grupo do motoboy
+    // 1. Obter motoboy e seu grupo oficial
     const motoboy = await db.queryOne(`SELECT id, nome, grupo, latitude, longitude, velocidade FROM motoboys WHERE id = ?`, [motoboyIdNum]);
-    const pedidoAtual = await db.queryOne(`SELECT id, numero_pedido, grupo, status, motoboy_id FROM pedidos WHERE id = ?`, [pedidoIdNum]);
+    if (!motoboy) {
+      return res.json(404, { success: false, message: 'Motoboy não encontrado ou não cadastrado.' });
+    }
+
+    const grupoMotoboy = (motoboy.grupo && String(motoboy.grupo).toUpperCase() === 'VELOZ') ? 'VELOZ' : 'SPEED';
+
+    // 2. Obter pedido atual
+    const pedidoAtual = await db.queryOne(`SELECT id, numero_pedido, cliente, endereco, bairro, texto_bruto, grupo, status, motoboy_id FROM pedidos WHERE id = ?`, [pedidoIdNum]);
 
     if (!pedidoAtual) {
       return res.json(404, { success: false, message: 'Pedido não encontrado.' });
     }
 
-    if (!pedidoAtual.grupo) {
-      return res.json(400, { success: false, message: 'Este pedido ainda está aguardando direcionamento de grupo pela cozinha.' });
+    // 3. Calcular a taxa oficial de repasse com base no grupo do motoboy que assumiu
+    let taxaRepasseCalculada = null;
+    const cleanBairro = (pedidoAtual.bairro || '').trim();
+
+    if (cleanBairro) {
+      const tabelaTaxa = grupoMotoboy === 'SPEED' ? 'taxa_bairro_speed' : 'taxa_bairro';
+      try {
+        const taxaRow = await db.queryOne(
+          `SELECT taxa FROM ${tabelaTaxa} WHERE LOWER(TRIM(bairro)) = LOWER(?) LIMIT 1`,
+          [cleanBairro]
+        );
+        if (taxaRow && taxaRow.taxa !== undefined && taxaRow.taxa !== null) {
+          taxaRepasseCalculada = Number(taxaRow.taxa);
+        }
+      } catch (errDbTaxa) {
+        console.warn(`⚠️ Erro ao consultar ${tabelaTaxa}:`, errDbTaxa.message);
+      }
     }
 
-    if (motoboy && motoboy.grupo && pedidoAtual.grupo !== motoboy.grupo) {
-      return res.json(403, { 
-        success: false, 
-        message: `Este pedido foi destinado exclusivamente ao grupo ${pedidoAtual.grupo}. Você está registrado no grupo ${motoboy.grupo}.` 
-      });
+    if (taxaRepasseCalculada === null) {
+      taxaRepasseCalculada = obterTaxaRepasse(pedidoAtual.bairro, pedidoAtual.endereco, pedidoAtual.texto_bruto, grupoMotoboy);
     }
 
-    // 2. Atualização atômica para evitar concorrência (qualquer status pré-saída sem motoboy atribuído)
+    // 4. Atualização atômica para evitar concorrência
     const result = await db.execute(
       `UPDATE pedidos 
-       SET motoboy_id = ?, status = 'em_rota', data_inicio = DATETIME('now', '-3 hours') 
+       SET motoboy_id = ?, status = 'em_rota', grupo = ?, taxa_repasse = ?, data_inicio = DATETIME('now', '-3 hours') 
        WHERE id = ? AND (status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo') OR status IS NULL) AND (motoboy_id IS NULL OR motoboy_id = ?)`,
-      [motoboyIdNum, pedidoIdNum, motoboyIdNum]
+      [motoboyIdNum, grupoMotoboy, taxaRepasseCalculada, pedidoIdNum, motoboyIdNum]
     );
 
     if (result.changes === 0) {

@@ -1416,6 +1416,29 @@
         <button class="btn btn-secondary btn-icon" onclick="fecharModalTabelaTaxas()">✕</button>
       </div>
 
+      <!-- FORMULÁRIO DE INCLUSÃO DE NOVO BAIRRO / TAXA -->
+      <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 12px;">
+        <div style="font-size: 12px; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+          <i data-lucide="plus-circle" style="width: 15px; height: 15px; color: var(--accent-primary);"></i>
+          <span>Cadastrar Novo Bairro ou Taxa</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 140px 1fr 110px auto; gap: 8px; align-items: center;">
+          <select id="novoTaxaGrupo" class="form-input" style="padding: 6px 8px; font-size: 12px; font-weight: 700;">
+            <option value="AMBOS">SPEED & VELOZ</option>
+            <option value="SPEED">Apenas SPEED</option>
+            <option value="VELOZ">Apenas VELOZ</option>
+          </select>
+          <input type="text" id="novoTaxaBairro" class="form-input" placeholder="Nome do bairro (ex: Granja Florestal)" style="padding: 6px 10px; font-size: 12px;">
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span style="font-size: 11px; font-weight: 800; color: var(--brand-gold);">R$</span>
+            <input type="number" id="novoTaxaValor" class="form-input" placeholder="10.00" step="0.50" min="0" style="padding: 6px 8px; font-size: 12px; font-weight: 700;">
+          </div>
+          <button type="button" class="btn btn-gold btn-sm" onclick="adicionarNovoBairroTaxa()" style="padding: 6px 12px; font-size: 12px; font-weight: 800; white-space: nowrap;">
+            <span>+ Adicionar</span>
+          </button>
+        </div>
+      </div>
+
       <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap;">
         <div style="display: flex; gap: 6px;">
           <button class="filter-pill active" id="tabTaxaSpeed" onclick="alternarAbaTaxas('SPEED')">Tabela SPEED</button>
@@ -1863,7 +1886,7 @@
               </div>
               <div style="display: flex; gap: 4px; align-items: center;">
                 ${p.grupo ? grupoHtml : ''}
-                <span class="origem-badge ${obterOrigemClasse(p.origem)}">${obterOrigemNome(p.origem, p.texto_bruto)}</span>
+                ${renderizarOrigemBadge(p.origem, p.texto_bruto)}
               </div>
             </div>
 
@@ -1934,6 +1957,42 @@
       if (o.includes('99')) return `99 Food${subloja}`;
       if (o.includes('CARDAPIO')) return `Cardápio${subloja}`;
       return subloja ? `Balcão${subloja}` : 'Balcão';
+    }
+
+    function renderizarOrigemBadge(origem, textoBruto) {
+      const o = (origem || '').toUpperCase();
+      const txt = (textoBruto || '').toUpperCase();
+
+      let subloja = '';
+      if (txt.includes('COMIDAS BRASILEIRAS') || txt.includes('COMIDA BRASILEIRA')) {
+        subloja = ' • Brasileira';
+      } else if (txt.includes('BURGER') || txt.includes('SANDUICH') || txt.includes('SANDUÏCH')) {
+        subloja = ' • Burgers';
+      } else if (txt.includes('AO PONTO CARNES') || txt.includes('AO PONTO CARNE')) {
+        subloja = ' • Carnes';
+      }
+
+      if (o.includes('IFOOD')) {
+        return `<span class="origem-badge-logo" title="iFood${subloja}" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; padding: 2px 7px; height: 24px; vertical-align: middle;">
+          <img src="/assets/iFood-New-Logo-Small.png" alt="iFood" style="height: 14px; width: auto; object-fit: contain; display: block;">
+          ${subloja ? `<span style="font-size: 10px; font-weight: 800; color: #fca5a5;">${subloja}</span>` : ''}
+        </span>`;
+      }
+      if (o.includes('99')) {
+        return `<span class="origem-badge-logo" title="99 Food${subloja}" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 6px; padding: 2px 7px; height: 24px; vertical-align: middle;">
+          <img src="/assets/Logotipo_da_99.svg" alt="99 Food" style="height: 14px; width: auto; object-fit: contain; display: block;">
+          ${subloja ? `<span style="font-size: 10px; font-weight: 800; color: #fde68a;">${subloja}</span>` : ''}
+        </span>`;
+      }
+      if (o.includes('CARDAPIO')) {
+        return `<span class="origem-badge origem-cardapio_web" style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.35); height: 24px; box-sizing: border-box;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+          <span>Cardápio${subloja}</span>
+        </span>`;
+      }
+      return `<span class="origem-badge origem-manual" style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.35); height: 24px; box-sizing: border-box;">
+        <span>Balcão${subloja}</span>
+      </span>`;
     }
 
     function filtrarStatusLista(status, btn) {
@@ -2219,7 +2278,7 @@
             <div style="display: flex; gap: 4px; align-items: center;">
               ${p.grupo ? grupoKanban : ''}
               ${p.localizador ? `<span style="font-size: 10px; font-weight: 700; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); padding: 1px 6px; border-radius: 4px; font-family: monospace;">PIN: ${p.localizador}</span>` : ''}
-              <span class="origem-badge ${obterOrigemClasse(p.origem)}">${obterOrigemNome(p.origem, p.texto_bruto)}</span>
+              ${renderizarOrigemBadge(p.origem, p.texto_bruto)}
             </div>
           </div>
           <div style="font-size: 13px; font-weight: 700; color: var(--text-primary);">${escapeHtml(p.cliente)}</div>
@@ -2474,7 +2533,7 @@
             <div class="order-num-time">
               <strong class="order-number">#${e.numero_pedido}</strong>
               <span class="status-badge badge-entregue">Entregue</span>
-              <span class="origem-badge ${obterOrigemClasse(e.origem)}">${obterOrigemNome(e.origem, e.texto_bruto)}</span>
+              ${renderizarOrigemBadge(e.origem, e.texto_bruto)}
             </div>
             <span style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px;">
               ${SVG_ICONS.clock} <span>Concluído em ${e.tempo_decorrido_minutos} min</span>
@@ -2505,8 +2564,11 @@
           state.pedidoDetalheCache = p;
 
           document.getElementById('dtlNumeroPedido').textContent = `#${p.numero_pedido}`;
-          document.getElementById('dtlOrigem').textContent = obterOrigemNome(p.origem, p.texto_bruto);
-          document.getElementById('dtlOrigem').className = `origem-badge ${obterOrigemClasse(p.origem)}`;
+          const elOrigem = document.getElementById('dtlOrigem');
+          if (elOrigem) {
+            elOrigem.innerHTML = renderizarOrigemBadge(p.origem, p.texto_bruto);
+            elOrigem.className = '';
+          }
 
           const badge = obterBadgeStatus(p.status);
           document.getElementById('dtlStatus').textContent = badge.label;
@@ -3947,6 +4009,57 @@
         }
       } catch (err) {
         showToast('Erro de conexão ao atualizar taxa.', 'error');
+      }
+    }
+
+    async function adicionarNovoBairroTaxa() {
+      const inpBairro = document.getElementById('novoTaxaBairro');
+      const inpValor = document.getElementById('novoTaxaValor');
+      const selGrupo = document.getElementById('novoTaxaGrupo');
+
+      const bairro = inpBairro ? inpBairro.value.trim() : '';
+      const taxa = inpValor ? parseFloat(inpValor.value) : NaN;
+      const grupoDestino = selGrupo ? selGrupo.value : 'AMBOS';
+
+      if (!bairro) {
+        showToast('Informe o nome do bairro.', 'error');
+        if (inpBairro) inpBairro.focus();
+        return;
+      }
+      if (isNaN(taxa) || taxa < 0) {
+        showToast('Informe um valor de taxa válido (R$).', 'error');
+        if (inpValor) inpValor.focus();
+        return;
+      }
+
+      const senhaAdmin = sessionStorage.getItem('admin_motoboy_pass') || 'boijoaocarnes01';
+
+      try {
+        const grupos = grupoDestino === 'AMBOS' ? ['SPEED', 'VELOZ'] : [grupoDestino];
+        for (const g of grupos) {
+          const res = await fetch('/api/admin/taxas/atualizar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              bairro,
+              taxa,
+              grupo: g,
+              senha_admin: senhaAdmin
+            })
+          });
+          const data = await res.json();
+          if (!data || !data.success) {
+            showToast(data.message || `Erro ao salvar taxa para ${g}.`, 'error');
+            return;
+          }
+        }
+
+        showToast(`Bairro "${bairro}" cadastrado com sucesso (R$ ${taxa.toFixed(2)})!`, 'success');
+        if (inpBairro) inpBairro.value = '';
+        if (inpValor) inpValor.value = '';
+        await carregarTaxasAdmin();
+      } catch (err) {
+        showToast('Erro de conexão ao cadastrar novo bairro.', 'error');
       }
     }
 
