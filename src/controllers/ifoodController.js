@@ -204,30 +204,57 @@ async function processNewOrder(orderId) {
     try {
       details = await ifoodService.getOrderDetails(orderId);
     } catch (e) {
-      console.warn(`⚠️ Não foi possível buscar detalhes da API do iFood para o pedido ${orderId}: ${e.message}`);
+      console.warn(`⚠️ [iFood processNewOrder] Não foi possível buscar detalhes da API do iFood para o pedido ${orderId}: ${e.message}`);
     }
 
-    const numeroExibicao = details?.displayId || orderId.substring(0, 8);
-    const clienteNome = details?.customer?.name || 'Cliente iFood';
-    const clienteTel = details?.customer?.phone?.number || null;
-    const enderecoEntrega = details?.delivery?.deliveryAddress;
+    // Se os detalhes não foram obtidos (ex: loja não autorizada no token ou falha de rede),
+    // NUNCA cria um pedido oco ("Endereço não informado" / #uuid) para evitar poluição e duplicação
+    if (!details || (!details.displayId && !details.delivery?.deliveryAddress?.streetName)) {
+      console.warn(`⚠️ [iFood processNewOrder] Pedido ${orderId} sem detalhes cadastrais válidos da API. Criação abortada para evitar pedidos duplicados ou sem endereço.`);
+      return;
+    }
+
+    const numeroExibicao = String(details.displayId || orderId.substring(0, 8));
+    const clienteNome = details.customer?.name || 'Cliente iFood';
+    const clienteTel = details.customer?.phone?.number || null;
+    const enderecoEntrega = details.delivery?.deliveryAddress;
     
-    const rua = enderecoEntrega?.streetName ? `${enderecoEntrega.streetName}, ${enderecoEntrega.streetNumber || 'S/N'}` : 'Endereço não informado';
+    const rua = enderecoEntrega?.streetName 
+      ? `${enderecoEntrega.streetName}, ${enderecoEntrega.streetNumber || 'S/N'}${enderecoEntrega.complement ? ' ' + enderecoEntrega.complement : ''}` 
+      : 'Endereço não informado';
     const bairroBruto = enderecoEntrega?.neighborhood || 'Centro';
-    const bairroCanonica = obterNomeBairroCanonica(bairroBruto) || bairroBruto;
+    const bairroCanonica = obterNomeBairroCanonica(bairroBruto, rua) || bairroBruto;
     const taxaEntrega = obterTaxaRepasse(bairroCanonica, 'VELOZ');
 
-    // Verifica se já existe na base
+    // Mecanismo rigoroso anti-duplicação: verifica tanto por pedido_id_origem (UUID) quanto por numero_pedido (#8639)
     const existente = await db.queryOne(
-      'SELECT id FROM pedidos WHERE pedido_id_origem = ? AND origem = ?',
-      [orderId, 'IFOOD']
+      `SELECT id, status, cliente, endereco FROM pedidos 
+       WHERE (pedido_id_origem = ? OR numero_pedido = ?) AND origem = 'IFOOD'`,
+      [orderId, numeroExibicao]
     );
 
-    if (!existente) {
+    if (existente) {
+      console.log(`ℹ️ [iFood] Pedido #${numeroExibicao} (${orderId}) já existe na base (ID ${existente.id}). Atualizando dados cadastrais.`);
+      await db.execute(
+        `UPDATE pedidos 
+         SET pedido_id_origem = ?, cliente = ?, endereco = ?, bairro = ?, taxa_entrega = ?, telefone_cliente = ?, texto_bruto = ?
+         WHERE id = ?`,
+        [
+          orderId,
+          clienteNome,
+          rua,
+          bairroCanonica,
+          taxaEntrega,
+          clienteTel,
+          JSON.stringify(details),
+          existente.id
+        ]
+      );
+    } else {
       await db.execute(
         `INSERT INTO pedidos 
-         (numero_pedido, origem, pedido_id_origem, cliente, endereco, bairro, taxa_entrega, telefone_cliente, status, texto_bruto)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'disponivel', ?)`,
+         (numero_pedido, origem, pedido_id_origem, cliente, endereco, bairro, taxa_entrega, telefone_cliente, status, texto_bruto, criado_em)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'disponivel', ?, DATETIME('now', '-3 hours'))`,
         [
           numeroExibicao,
           'IFOOD',
@@ -237,13 +264,13 @@ async function processNewOrder(orderId) {
           bairroCanonica,
           taxaEntrega,
           clienteTel,
-          JSON.stringify(details || { orderId })
+          JSON.stringify(details)
         ]
       );
-      console.log(`✅ [iFood] Pedido #${numeroExibicao} (${orderId}) inserido no banco de dados local!`);
+      console.log(`✅ [iFood] Pedido #${numeroExibicao} (${orderId}) inserido com sucesso na base de entregas!`);
     }
   } catch (err) {
-    console.warn('⚠️ Erro ao registrar pedido localmente:', err.message);
+    console.warn('⚠️ Erro ao registrar pedido iFood:', err.message);
   }
 }
 

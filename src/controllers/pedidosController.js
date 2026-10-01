@@ -664,7 +664,7 @@ async function assumirPedido(req, res) {
     // 4. Atualização atômica para evitar concorrência
     const result = await db.execute(
       `UPDATE pedidos 
-       SET motoboy_id = ?, status = 'em_rota', grupo = ?, taxa_repasse = ?, data_inicio = DATETIME('now', '-3 hours') 
+       SET motoboy_id = ?, status = 'em_rota', grupo = ?, taxa_entrega = ?, data_inicio = DATETIME('now', '-3 hours') 
        WHERE id = ? AND (status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo') OR status IS NULL) AND (motoboy_id IS NULL OR motoboy_id = ?)`,
       [motoboyIdNum, grupoMotoboy, taxaRepasseCalculada, pedidoIdNum, motoboyIdNum]
     );
