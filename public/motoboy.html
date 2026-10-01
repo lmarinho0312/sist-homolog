@@ -2002,22 +2002,22 @@
     function renderizarOrigemBadge(origem) {
       const o = (origem || '').toUpperCase();
       if (o.includes('IFOOD')) {
-        return `<span class="origem-badge-logo" title="iFood" style="display: inline-flex; align-items: center; justify-content: center; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; padding: 2px 7px; height: 24px; vertical-align: middle;">
-          <img src="/assets/iFood-New-Logo-Small.png" alt="iFood" style="height: 14px; width: auto; object-fit: contain; display: block;">
+        return `<span class="origem-badge-logo" title="iFood" style="display: inline-flex; align-items: center; justify-content: center; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; padding: 2px 6px; height: 28px; vertical-align: middle;">
+          <img src="/assets/iFood-New-Logo-Small.png" alt="iFood" style="height: 22px; width: 22px; object-fit: contain; display: block; border-radius: 4px; image-rendering: -webkit-optimize-contrast;">
         </span>`;
       }
       if (o.includes('99')) {
-        return `<span class="origem-badge-logo" title="99 Food" style="display: inline-flex; align-items: center; justify-content: center; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 6px; padding: 2px 7px; height: 24px; vertical-align: middle;">
-          <img src="/assets/Logotipo_da_99.svg" alt="99 Food" style="height: 14px; width: auto; object-fit: contain; display: block;">
+        return `<span class="origem-badge-logo" title="99 Food" style="display: inline-flex; align-items: center; justify-content: center; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 6px; padding: 2px 6px; height: 28px; vertical-align: middle;">
+          <img src="/assets/Logotipo_da_99.svg" alt="99 Food" style="height: 22px; width: 22px; object-fit: contain; display: block; border-radius: 4px; image-rendering: -webkit-optimize-contrast;">
         </span>`;
       }
       if (o.includes('CARDAPIO')) {
-        return `<span class="origem-badge origem-cardapio_web" style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.35); height: 24px; box-sizing: border-box;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        return `<span class="origem-badge origem-cardapio_web" style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px; border-radius: 6px; font-size: 12px; font-weight: 800; background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.35); height: 28px; box-sizing: border-box; vertical-align: middle;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
           <span>Cardápio</span>
         </span>`;
       }
-      return `<span class="origem-badge origem-manual" style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.35); height: 24px; box-sizing: border-box;">
+      return `<span class="origem-badge origem-manual" style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px; border-radius: 6px; font-size: 12px; font-weight: 800; background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.35); height: 28px; box-sizing: border-box; vertical-align: middle;">
         <span>Balcão</span>
       </span>`;
     }
