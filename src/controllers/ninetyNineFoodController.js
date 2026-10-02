@@ -1,5 +1,6 @@
 const ninetyNineService = require('../services/ninetyNineFoodService');
 const env = require('../config/env');
+const memoryCache = require('../utils/memoryCache');
 
 const recentEvents = [];
 
@@ -45,14 +46,15 @@ async function injectOrderToDb(payload) {
 
     // 2. Se não achou pelo ID oficial, só busca por número se for pedido de HOJE e ainda no balcão
     if (!existe && numeroPedido) {
+      const hojeInicio = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) + ' 00:00:00';
       existe = await db.queryOne(
         `SELECT id, numero_pedido, status, motoboy_id FROM pedidos 
          WHERE origem = '99FOOD' 
            AND numero_pedido IN (?, ?)
-           AND DATE(COALESCE(criado_em, DATETIME('now', '-3 hours'))) = DATE(DATETIME('now', '-3 hours'))
+           AND criado_em >= ?
            AND status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo')
          ORDER BY id DESC LIMIT 1`,
-        [numeroPedido, `#${numeroPedido}`]
+        [numeroPedido, `#${numeroPedido}`, hojeInicio]
       );
     }
 
@@ -94,6 +96,7 @@ async function injectOrderToDb(payload) {
         [numeroPedido, orderId, cliente, ruaCompleta, bairro, taxa, tel, loc, novoStatus, rawText, existe.id]
       );
       console.log(`🔄 [99Food] Pedido existente (ID ${existe.id}) atualizado com dados da API: #${numeroPedido} (${orderId}) [Status: ${novoStatus}]`);
+      memoryCache.clear();
       return;
     }
 
@@ -105,6 +108,7 @@ async function injectOrderToDb(payload) {
       [numeroPedido, orderId, cliente, ruaCompleta, bairro, taxa, tel, loc, rawText]
     );
     console.log(`✅ [99Food] Novo pedido inserido via API no painel: #${numeroPedido} (${orderId})`);
+    memoryCache.clear();
   } catch (err) {
     console.warn('⚠️ Erro ao injetar pedido 99Food:', err.message);
   }
@@ -117,6 +121,7 @@ async function cancelOrderInDb(orderId) {
       `UPDATE pedidos SET status = 'cancelado' WHERE pedido_id_origem = ? AND origem = '99FOOD'`,
       [String(orderId)]
     );
+    memoryCache.clear();
   } catch (err) {}
 }
 
@@ -129,6 +134,7 @@ async function finishOrderInDb(orderId) {
        WHERE pedido_id_origem = ? AND origem = '99FOOD' AND status NOT IN ('em_rota', 'entregue')`,
       [String(orderId)]
     );
+    memoryCache.clear();
   } catch (err) {}
 }
 

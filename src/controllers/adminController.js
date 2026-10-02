@@ -2,9 +2,15 @@ const { getDb } = require('../database/db');
 const { getPosicoesMotoboys } = require('../services/traccarService');
 const { expirarPedidosPendentesDiasAnteriores } = require('./pedidosController');
 const { obterTaxaRepasse, obterNomeBairroCanonica } = require('../utils/rateResolver');
+const memoryCache = require('../utils/memoryCache');
 
 async function getPosicoesMapa(req, res) {
   try {
+    const cached = memoryCache.get('admin_posicoes_mapa');
+    if (cached) {
+      return res.json(200, cached);
+    }
+
     const db = getDb();
     await expirarPedidosPendentesDiasAnteriores(db);
 
@@ -14,16 +20,20 @@ async function getPosicoesMapa(req, res) {
     );
 
     if (!motoboys || motoboys.length === 0) {
-      return res.json(200, { success: true, traccar_online: false, motoboys: [] });
+      const respVazia = { success: true, traccar_online: false, motoboys: [] };
+      memoryCache.set('admin_posicoes_mapa', respVazia, 3000);
+      return res.json(200, respVazia);
     }
 
+    const hojeInicio = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) + ' 00:00:00';
     const pedidosEmRota = await db.query(
       `SELECT id, numero_pedido, motoboy_id, data_inicio,
               ROUND((julianday('now') - julianday(data_inicio)) * 1440) as minutos_em_rota
        FROM pedidos 
        WHERE status = 'em_rota' 
-         AND DATE(COALESCE(data_inicio, criado_em, DATETIME('now', '-3 hours'))) = DATE(DATETIME('now', '-3 hours'))
-       ORDER BY data_inicio ASC`
+         AND criado_em >= ?
+       ORDER BY data_inicio ASC`,
+      [hojeInicio]
     );
 
     const pedidosPorMotoboy = {};
@@ -99,14 +109,17 @@ async function getPosicoesMapa(req, res) {
       };
     });
 
-    return res.json(200, {
+    const responseData = {
       success: true,
       timestamp: new Date().toISOString(),
       traccar_online: temGpsRealEmAlgumMotoboy || gpsInfo.traccar_online,
       total_motoboys: motoboys.length,
       total_pedidos_em_rota: pedidosEmRota.length,
       data: resultado
-    });
+    };
+
+    memoryCache.set('admin_posicoes_mapa', responseData, 3000);
+    return res.json(200, responseData);
   } catch (error) {
     console.error('❌ Erro ao obter posições para o mapa:', error);
     return res.json(500, { success: false, message: 'Erro interno ao consultar mapa da cozinha.', error: error.message });
@@ -119,45 +132,37 @@ async function getPosicoesMapa(req, res) {
  */
 async function getDashboardStats(req, res) {
   try {
+    const cached = memoryCache.get('admin_dashboard_stats');
+    if (cached) {
+      return res.json(200, cached);
+    }
+
     const db = getDb();
     await expirarPedidosPendentesDiasAnteriores(db);
 
-    const [aguardandoRes, emRotaRes, entreguesRes, totalRes, faturamentoRes, motoboysCountRes] = await Promise.all([
+    const hojeInicio = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) + ' 00:00:00';
+
+    const [statsRes, motoboysCountRes] = await Promise.all([
       db.queryOne(`
-        SELECT COUNT(*) as count FROM pedidos 
-        WHERE (status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo') OR status IS NULL) 
-          AND motoboy_id IS NULL 
-          AND status NOT IN ('entregue', 'expirado', 'cancelado')
-          AND DATE(COALESCE(criado_em, DATETIME('now', '-3 hours'))) = DATE(DATETIME('now', '-3 hours'))
-      `),
-      db.queryOne(`
-        SELECT COUNT(*) as count FROM pedidos 
-        WHERE status = 'em_rota'
-          AND DATE(COALESCE(data_inicio, criado_em, DATETIME('now', '-3 hours'))) = DATE(DATETIME('now', '-3 hours'))
-      `),
-      db.queryOne(`
-        SELECT COUNT(*) as count FROM pedidos 
-        WHERE status = 'entregue'
-          AND DATE(COALESCE(data_fim, data_inicio, criado_em, DATETIME('now', '-3 hours'))) = DATE(DATETIME('now', '-3 hours'))
-      `),
-      db.queryOne(`
-        SELECT COUNT(*) as count FROM pedidos
-        WHERE DATE(COALESCE(criado_em, DATETIME('now', '-3 hours'))) = DATE(DATETIME('now', '-3 hours'))
-          AND status NOT IN ('expirado', 'cancelado')
-      `),
-      db.queryOne(`
-        SELECT COALESCE(SUM(taxa_entrega), 0) as total_taxas FROM pedidos 
-        WHERE status = 'entregue'
-          AND DATE(COALESCE(data_fim, data_inicio, criado_em, DATETIME('now', '-3 hours'))) = DATE(DATETIME('now', '-3 hours'))
-      `),
+        SELECT 
+          COUNT(CASE WHEN (status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo') OR status IS NULL) 
+                          AND motoboy_id IS NULL 
+                          AND status NOT IN ('entregue', 'expirado', 'cancelado') THEN 1 END) as aguardando,
+          COUNT(CASE WHEN status = 'em_rota' THEN 1 END) as em_rota,
+          COUNT(CASE WHEN status = 'entregue' THEN 1 END) as entregues,
+          COUNT(CASE WHEN status NOT IN ('expirado', 'cancelado') THEN 1 END) as total,
+          COALESCE(SUM(CASE WHEN status = 'entregue' THEN taxa_entrega ELSE 0 END), 0) as total_taxas
+        FROM pedidos 
+        WHERE criado_em >= ?
+      `, [hojeInicio]),
       db.queryOne(`SELECT COUNT(*) as count FROM motoboys`)
     ]);
 
-    const aguardando = Number(aguardandoRes?.count || 0);
-    const emRota = Number(emRotaRes?.count || 0);
-    const entregues = Number(entreguesRes?.count || 0);
-    const total = Number(totalRes?.count || 0);
-    const faturamentoTaxas = Number(faturamentoRes?.total_taxas || 0);
+    const aguardando = Number(statsRes?.aguardando || 0);
+    const emRota = Number(statsRes?.em_rota || 0);
+    const entregues = Number(statsRes?.entregues || 0);
+    const total = Number(statsRes?.total || 0);
+    const faturamentoTaxas = Number(statsRes?.total_taxas || 0);
     const totalMotoboys = Number(motoboysCountRes?.count || 0);
 
     // Estimativa de faturamento operacional do dia (ticket médio + taxas)
@@ -165,7 +170,7 @@ async function getDashboardStats(req, res) {
       ? (entregues * 45.80) + faturamentoTaxas 
       : 0;
 
-    return res.json(200, {
+    const responseData = {
       success: true,
       timestamp: new Date().toISOString(),
       stats: {
@@ -177,7 +182,10 @@ async function getDashboardStats(req, res) {
         faturamento_hoje: Number(faturamentoEstimado.toFixed(2)),
         total_motoboys: totalMotoboys
       }
-    });
+    };
+
+    memoryCache.set('admin_dashboard_stats', responseData, 3000);
+    return res.json(200, responseData);
   } catch (error) {
     console.error('❌ Erro ao obter estatísticas:', error);
     return res.json(500, { success: false, message: 'Erro ao obter estatísticas do dashboard.', error: error.message });
@@ -190,6 +198,12 @@ async function getDashboardStats(req, res) {
  */
 async function listarTodosPedidos(req, res) {
   try {
+    const cacheKey = 'admin_pedidos_' + JSON.stringify(req.query || {});
+    const cached = memoryCache.get(cacheKey);
+    if (cached) {
+      return res.json(200, cached);
+    }
+
     const db = getDb();
     await expirarPedidosPendentesDiasAnteriores(db);
 
@@ -210,7 +224,7 @@ async function listarTodosPedidos(req, res) {
                  ROUND((julianday(p.data_fim) - julianday(p.data_inicio)) * 1440)
                ELSE 0
              END as tempo_decorrido_minutos,
-             (SELECT COUNT(*) FROM pedido_rotas pr WHERE pr.pedido_id = p.id) as total_pontos_gps
+             0 as total_pontos_gps
       FROM pedidos p
       LEFT JOIN motoboys m ON p.motoboy_id = m.id
     `;
@@ -228,10 +242,12 @@ async function listarTodosPedidos(req, res) {
     } else {
       // Regra de virada de data: por padrão no painel ativo da cozinha, apenas pedidos de HOJE são exibidos
       if (data === 'hoje') {
-        conditions.push(`DATE(COALESCE(p.criado_em, DATETIME('now', '-3 hours'))) = DATE(DATETIME('now', '-3 hours'))`);
+        const hojeInicio = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) + ' 00:00:00';
+        conditions.push(`p.criado_em >= ?`);
+        params.push(hojeInicio);
       } else if (data && data !== 'todos' && data !== 'all') {
-        conditions.push(`DATE(COALESCE(p.criado_em, DATETIME('now', '-3 hours'))) = ?`);
-        params.push(data);
+        conditions.push(`p.criado_em >= ? AND p.criado_em <= ?`);
+        params.push(`${data} 00:00:00`, `${data} 23:59:59`);
       }
 
       // Ignora pedidos cancelados ou expirados na visualização operacional normal
@@ -257,7 +273,7 @@ async function listarTodosPedidos(req, res) {
 
     const pedidos = await db.query(query, params);
 
-    return res.json(200, {
+    const responseData = {
       success: true,
       total: pedidos.length,
       pedidos: pedidos.map(p => {
@@ -291,7 +307,10 @@ async function listarTodosPedidos(req, res) {
           total_pontos_gps: Number(p.total_pontos_gps || 0)
         };
       })
-    });
+    };
+
+    memoryCache.set(cacheKey, responseData, 3000);
+    return res.json(200, responseData);
   } catch (error) {
     console.error('❌ Erro ao listar todos os pedidos:', error);
     return res.json(500, { success: false, message: 'Erro ao listar pedidos.', error: error.message });
@@ -304,6 +323,11 @@ async function listarTodosPedidos(req, res) {
  */
 async function listarMotoboysAdmin(req, res) {
   try {
+    const cached = memoryCache.get('admin_motoboys');
+    if (cached) {
+      return res.json(200, cached);
+    }
+
     const db = getDb();
     const motoboys = await db.query(
       `SELECT id, nome, telefone, traccar_device_id, latitude, longitude, velocidade, ultima_atualizacao, criado_em, grupo, status FROM motoboys ORDER BY id ASC`
@@ -348,11 +372,14 @@ async function listarMotoboysAdmin(req, res) {
       };
     });
 
-    return res.json(200, {
+    const responseData = {
       success: true,
       total: resultado.length,
       motoboys: resultado
-    });
+    };
+
+    memoryCache.set('admin_motoboys', responseData, 3000);
+    return res.json(200, responseData);
   } catch (error) {
     console.error('❌ Erro ao listar motoboys:', error);
     return res.json(500, { success: false, message: 'Erro ao listar motoboys.', error: error.message });
@@ -595,6 +622,8 @@ async function criarPedidoManual(req, res) {
     const novoPedidoId = Number(result.lastInsertRowid);
     const novoPedido = await db.queryOne(`SELECT * FROM pedidos WHERE id = ?`, [novoPedidoId]);
 
+    memoryCache.clear();
+
     return res.json(201, {
       success: true,
       message: `Pedido #${cleanPedidoId} cadastrado com sucesso!`,
@@ -613,7 +642,8 @@ async function criarPedidoManual(req, res) {
 async function limparPedidosPendentesAntigos(req, res) {
   try {
     const db = getDb();
-    const count = await expirarPedidosPendentesDiasAnteriores(db);
+    const count = await expirarPedidosPendentesDiasAnteriores(db, true);
+    memoryCache.clear();
     return res.json(200, {
       success: true,
       count,
@@ -695,6 +725,8 @@ async function atualizarMotoboy(req, res) {
       [motoboyId]
     );
 
+    memoryCache.clear();
+
     return res.json(200, {
       success: true,
       message: `Entregador "${cleanNome}" atualizado com sucesso! (Grupo: ${cleanGrupo})`,
@@ -745,6 +777,8 @@ async function cadastrarMotoboyAdmin(req, res) {
       [novoId]
     );
 
+    memoryCache.clear();
+
     return res.json(201, {
       success: true,
       message: `Entregador "${novoMotoboy.nome}" cadastrado com sucesso no grupo ${cleanGrupo}!`,
@@ -786,6 +820,8 @@ async function aprovarMotoboy(req, res) {
       [Number(motoboy_id)]
     );
 
+    memoryCache.clear();
+
     return res.json(200, {
       success: true,
       message: `Cadastro de "${m.nome}" APROVADO com sucesso no grupo ${cleanGrupo}!`,
@@ -816,6 +852,8 @@ async function recusarMotoboy(req, res) {
     }
 
     await db.execute('DELETE FROM motoboys WHERE id = ?', [Number(motoboy_id)]);
+
+    memoryCache.clear();
 
     return res.json(200, {
       success: true,
@@ -874,6 +912,8 @@ async function atualizarTaxaBairro(req, res) {
        ON CONFLICT(bairro) DO UPDATE SET taxa = excluded.taxa`,
       [cleanBairro, cleanTaxa]
     );
+
+    memoryCache.clear();
 
     return res.json(200, {
       success: true,
@@ -958,6 +998,8 @@ async function atribuirPedidoMotoboy(req, res) {
       [pedidoIdNum]
     );
 
+    memoryCache.clear();
+
     return res.json(200, {
       success: true,
       message: `Pedido #${pedido.numero_pedido} atribuído com sucesso a ${motoboy.nome} (${grupoFinal})!`,
@@ -991,6 +1033,8 @@ async function descartarPedido(req, res) {
     await db.execute('DELETE FROM pedido_rotas WHERE pedido_id = ?', [pedidoIdNum]);
     // Excluir o pedido permanentemente do sistema
     await db.execute('DELETE FROM pedidos WHERE id = ?', [pedidoIdNum]);
+
+    memoryCache.clear();
 
     return res.json(200, {
       success: true,

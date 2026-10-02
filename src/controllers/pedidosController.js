@@ -1,6 +1,7 @@
 const config = require('../config/env');
 const { getDb } = require('../database/db');
 const { obterTaxaRepasse, obterNomeBairroCanonica } = require('../utils/rateResolver');
+const memoryCache = require('../utils/memoryCache');
 
 /**
  * Extrai telefone e código localizador / PIN do texto da comanda
@@ -439,6 +440,8 @@ async function webhookSpool(req, res) {
     const novoPedidoId = Number(result.lastInsertRowid);
     const novoPedido = await db.queryOne(`SELECT * FROM pedidos WHERE id = ?`, [novoPedidoId]);
 
+    memoryCache.clear();
+
     return res.json(201, {
       success: true,
       duplicado: false,
@@ -451,23 +454,32 @@ async function webhookSpool(req, res) {
   }
 }
 
+let ultimaDataExpiracao = null;
+
 /**
  * Ignora e expira automaticamente pedidos que ficaram pendentes de entrega
  * de dias anteriores toda vez que a data vira (horário de Brasília).
  * Atualiza status para 'expirado', garantindo que não acumulem no painel da cozinha ou app motoboy.
+ * Roda apenas 1 vez por virada de data para não queimar Row Reads no Turso.
  */
-async function expirarPedidosPendentesDiasAnteriores(db) {
+async function expirarPedidosPendentesDiasAnteriores(db, forcar = false) {
+  const hojeStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  if (!forcar && ultimaDataExpiracao === hojeStr) {
+    return 0; // Já executou hoje! Zero leituras/escritas gastas.
+  }
   try {
     const result = await db.execute(`
       UPDATE pedidos 
       SET status = 'expirado',
           data_fim = COALESCE(data_fim, DATETIME('now', '-3 hours'))
       WHERE (status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo', 'em_rota') OR status IS NULL)
-        AND DATE(COALESCE(criado_em, DATETIME('now', '-3 hours'))) < DATE(DATETIME('now', '-3 hours'))
-    `);
+        AND criado_em < ?
+    `, [hojeStr + ' 00:00:00']);
 
+    ultimaDataExpiracao = hojeStr;
     if (result && result.changes > 0) {
       console.log(`🧹 [VIRADA DE DATA] ${result.changes} pedido(s) pendente(s) de data anterior foram ignorados/expirados.`);
+      memoryCache.clear();
     }
     return result?.changes || 0;
   } catch (err) {
@@ -476,10 +488,6 @@ async function expirarPedidosPendentesDiasAnteriores(db) {
   }
 }
 
-/**
- * Lista todos os pedidos disponíveis no balcão aguardando retirada por um motoboy
- * GET /api/pedidos/disponiveis (Apenas pedidos de HOJE, ignorando viradas de data)
- */
 /**
  * Define ou altera o grupo de entrega responsável pelo pedido (VELOZ ou SPEED)
  * POST /api/pedidos/definir-grupo
@@ -515,6 +523,8 @@ async function definirGrupoPedido(req, res) {
       [cleanGrupo, novaTaxa, pedidoIdNum]
     );
 
+    memoryCache.clear();
+
     const pedidoAtualizado = await db.queryOne(
       `SELECT * FROM pedidos WHERE id = ?`,
       [pedidoIdNum]
@@ -535,14 +545,20 @@ async function definirGrupoPedido(req, res) {
 
 /**
  * Lista todos os pedidos disponíveis no balcão aguardando retirada por um motoboy
- * GET /api/pedidos/disponiveis (Apenas pedidos de HOJE, isolados por grupo VELOZ ou SPEED)
+ * GET /api/pedidos/disponiveis (Apenas pedidos de HOJE, com cache curto de 3s para economia no Turso)
  */
 async function listarPedidosDisponiveis(req, res) {
   try {
+    const { motoboy_id, grupo } = req.query || {};
+    const cacheKey = `pedidos_disponiveis_${motoboy_id || grupo || 'todos'}`;
+    const cached = memoryCache.get(cacheKey);
+    if (cached) {
+      return res.json(200, cached);
+    }
+
     const db = getDb();
     await expirarPedidosPendentesDiasAnteriores(db);
 
-    const { motoboy_id, grupo } = req.query || {};
     let grupoMotoboy = 'SPEED';
 
     if (motoboy_id) {
@@ -554,8 +570,8 @@ async function listarPedidosDisponiveis(req, res) {
       grupoMotoboy = String(grupo).toUpperCase();
     }
 
-    // Com o fluxo automático, todos os pedidos disponíveis de hoje aparecem no balcão
-    // sem necessidade de pré-atribuição de equipe pela cozinha
+    // Busca rápida indexada por data de hoje
+    const hojeInicio = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) + ' 00:00:00';
     const pedidos = await db.query(`
       SELECT p.id, p.numero_pedido, p.status, p.origem, p.grupo, p.pedido_id_origem, p.cliente, p.endereco, p.bairro, p.taxa_entrega, p.telefone_cliente, p.localizador, p.texto_bruto, p.criado_em,
              ROUND((julianday(DATETIME('now', '-3 hours')) - julianday(COALESCE(p.criado_em, DATETIME('now', '-3 hours')))) * 1440) as minutos_aguardando
@@ -563,11 +579,11 @@ async function listarPedidosDisponiveis(req, res) {
       WHERE (p.status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo') OR p.status IS NULL)
         AND (p.motoboy_id IS NULL OR p.status != 'em_rota')
         AND p.status NOT IN ('entregue', 'expirado', 'cancelado')
-        AND DATE(COALESCE(p.criado_em, DATETIME('now', '-3 hours'))) = DATE(DATETIME('now', '-3 hours'))
+        AND p.criado_em >= ?
       ORDER BY p.id DESC
-    `);
+    `, [hojeInicio]);
 
-    return res.json(200, {
+    const resultado = {
       success: true,
       total: pedidos.length,
       pedidos: pedidos.map(p => {
@@ -599,7 +615,10 @@ async function listarPedidosDisponiveis(req, res) {
           minutos_aguardando: Math.max(0, Math.round(Number(p.minutos_aguardando || 0)))
         };
       })
-    });
+    };
+
+    memoryCache.set(cacheKey, resultado, 3000);
+    return res.json(200, resultado);
   } catch (error) {
     console.error('❌ Erro ao listar pedidos disponíveis:', error);
     return res.json(500, { success: false, message: 'Erro interno ao consultar pedidos disponíveis.', error: error.message });
@@ -695,6 +714,8 @@ async function assumirPedido(req, res) {
       );
     }
 
+    memoryCache.clear();
+
     const pedidoAtualizado = await db.queryOne(`SELECT * FROM pedidos WHERE id = ?`, [pedidoIdNum]);
 
     return res.json(200, {
@@ -764,6 +785,8 @@ async function iniciarPedido(req, res) {
       );
     }
 
+    memoryCache.clear();
+
     return res.json(201, {
       success: true,
       message: `Pedido #${numPedido} iniciado com sucesso!`,
@@ -826,6 +849,8 @@ async function finalizarPedido(req, res) {
       return res.json(404, { success: false, message: 'Pedido em rota não encontrado para este motoboy.' });
     }
 
+    memoryCache.clear();
+
     return res.json(200, { success: true, message: 'Entrega finalizada com sucesso!' });
   } catch (error) {
     console.error('❌ Erro ao finalizar pedido:', error);
@@ -844,6 +869,12 @@ async function listarPedidosMotoboy(req, res) {
       return res.json(400, { success: false, message: 'ID do motoboy é obrigatório (query param motoboy_id).' });
     }
 
+    const cacheKey = `pedidos_motoboy_${motoboy_id}`;
+    const cached = memoryCache.get(cacheKey);
+    if (cached) {
+      return res.json(200, cached);
+    }
+
     const db = getDb();
     await expirarPedidosPendentesDiasAnteriores(db);
 
@@ -859,7 +890,7 @@ async function listarPedidosMotoboy(req, res) {
       [Number(motoboy_id)]
     );
 
-    return res.json(200, {
+    const resultado = {
       success: true,
       pedidos: pedidos.map(p => {
         const repasse = obterTaxaRepasse(p.bairro, p.endereco, p.texto_bruto, grupoMotoboy);
@@ -889,7 +920,10 @@ async function listarPedidosMotoboy(req, res) {
           minutos_em_rota: Math.max(0, Math.round(Number(p.minutos_em_rota || 0)))
         };
       })
-    });
+    };
+
+    memoryCache.set(cacheKey, resultado, 3000);
+    return res.json(200, resultado);
   } catch (error) {
     console.error('❌ Erro ao listar pedidos do motoboy:', error);
     return res.json(500, { success: false, message: 'Erro interno ao consultar pedidos.', error: error.message });
@@ -947,6 +981,8 @@ async function atualizarStatusPedido(req, res) {
        WHERE p.id = ?`,
       [pedidoIdNum]
     );
+
+    memoryCache.clear();
 
     return res.json(200, {
       success: true,

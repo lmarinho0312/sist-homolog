@@ -950,7 +950,7 @@
       if (state.pollingTimer) clearInterval(state.pollingTimer);
       state.pollingTimer = setInterval(() => {
         if (state.motoboy) carregarDados();
-      }, 5000);
+      }, 8000);
     }
 
     // Wake Lock API: Impede a tela do celular de apagar durante a rota
@@ -968,6 +968,7 @@
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && state.motoboy) {
         solicitarWakeLock();
+        carregarDados();
       }
     });
 
@@ -1013,10 +1014,10 @@
       state.gpsWatcherId = setInterval(() => {
         navigator.geolocation.getCurrentPosition(enviarPonto, () => {}, {
           enableHighAccuracy: true,
-          maximumAge: 3000,
-          timeout: 5000
+          maximumAge: 5000,
+          timeout: 7000
         });
-      }, 5000);
+      }, 8000);
     }
 
     function pararGps() {

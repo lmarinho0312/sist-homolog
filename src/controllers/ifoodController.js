@@ -1,6 +1,7 @@
 const ifoodService = require('../services/ifoodService');
 const { getDb } = require('../database/db');
 const { obterTaxaRepasse, obterNomeBairroCanonica } = require('../utils/rateResolver');
+const memoryCache = require('../utils/memoryCache');
 
 // Buffer em memória dos últimos 100 eventos recebidos do Webhook
 const webhookEventsBuffer = [];
@@ -269,6 +270,7 @@ async function processNewOrder(orderId) {
       );
       console.log(`✅ [iFood] Pedido #${numeroExibicao} (${orderId}) inserido com sucesso na base de entregas!`);
     }
+    memoryCache.clear();
   } catch (err) {
     console.warn('⚠️ Erro ao registrar pedido iFood:', err.message);
   }
@@ -284,6 +286,7 @@ async function updateOrderStatus(orderId, novoStatus) {
       'UPDATE pedidos SET status = ? WHERE pedido_id_origem = ? AND origem = ?',
       [novoStatus, orderId, 'IFOOD']
     );
+    memoryCache.clear();
   } catch (err) {
     console.warn('⚠️ Aviso ao atualizar status local do pedido no SQLite:', err.message);
   }
