@@ -70,8 +70,8 @@ public class MainActivity extends AppCompatActivity {
 
         verificarESolicitarPermissoes();
 
-        // Aponta para a página de homologação / teste
-        webView.loadUrl("https://sist-homolog.vercel.app/motoboy-teste");
+        // Aponta para a página oficial do sistema Ao Ponto
+        webView.loadUrl("https://sistrastreamento.vercel.app/motoboy");
     }
 
     private void verificarESolicitarPermissoes() {

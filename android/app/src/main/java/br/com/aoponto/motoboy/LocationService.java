@@ -106,7 +106,7 @@ public class LocationService extends Service implements LocationListener {
 
     private void enviarPosicaoAoServidor(double lat, double lng, float spd, float acc) {
         try {
-            URL url = new URL("https://sist-homolog.vercel.app/api/motoboy/posicao");
+            URL url = new URL("https://sistrastreamento.vercel.app/api/motoboy/posicao");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json; utf-8");

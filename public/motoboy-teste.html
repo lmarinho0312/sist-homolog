@@ -919,7 +919,7 @@
               resolve(true);
             }
           },
-          { timeout: 6000, enableHighAccuracy: true, maximumAge: 60000 }
+          { timeout: 6000, enableHighAccuracy: true, maximumAge: 0 }
         );
       });
     }
@@ -1112,7 +1112,7 @@
       // 1. Obter fix imediato ao abrir
       navigator.geolocation.getCurrentPosition(enviarPonto, tratarErroGps, {
         enableHighAccuracy: true,
-        maximumAge: 10000,
+        maximumAge: 0,
         timeout: 15000
       });
 
@@ -1122,7 +1122,7 @@
       }
       state.gpsWatchId = navigator.geolocation.watchPosition(enviarPonto, tratarErroGps, {
         enableHighAccuracy: true,
-        maximumAge: 3000,
+        maximumAge: 0,
         timeout: 20000
       });
 
@@ -1131,7 +1131,7 @@
       state.gpsIntervalId = setInterval(() => {
         navigator.geolocation.getCurrentPosition(enviarPonto, tratarErroGps, {
           enableHighAccuracy: true,
-          maximumAge: 5000,
+          maximumAge: 0,
           timeout: 12000
         });
       }, 8000);

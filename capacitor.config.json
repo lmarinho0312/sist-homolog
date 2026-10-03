@@ -4,7 +4,7 @@
   "webDir": "public",
   "bundledWebRuntime": false,
   "server": {
-    "url": "https://sist-homolog.vercel.app/motoboy",
+    "url": "https://sistrastreamento.vercel.app/motoboy",
     "cleartext": false
   },
   "android": {

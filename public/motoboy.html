@@ -1003,6 +1003,17 @@
 
       solicitarWakeLock();
       iniciarGps();
+
+      // Disparar serviço nativo Android de rastreamento contínuo em segundo plano (se executando no App APK)
+      if (window.AndroidBridge && window.AndroidBridge.iniciarRastreamentoNativo) {
+        try {
+          window.AndroidBridge.iniciarRastreamentoNativo(String(state.motoboy.id));
+          console.log('Serviço nativo Android de rastreamento iniciado para o motoboy:', state.motoboy.id);
+        } catch (e) {
+          console.warn('Erro ao acionar AndroidBridge:', e);
+        }
+      }
+
       carregarDados();
 
       if (state.pollingTimer) clearInterval(state.pollingTimer);
@@ -1026,6 +1037,7 @@
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && state.motoboy) {
         solicitarWakeLock();
+        iniciarGps();
         carregarDados();
       }
     });
@@ -1088,20 +1100,20 @@
         }
       };
 
-      // 1. Obter fix imediato ao abrir
+      // 1. Obter fix imediato ao abrir (maximumAge: 0 força satélite fresco)
       navigator.geolocation.getCurrentPosition(enviarPonto, tratarErroGps, {
         enableHighAccuracy: true,
-        maximumAge: 10000,
+        maximumAge: 0,
         timeout: 15000
       });
 
-      // 2. Hardware Geolocation Streaming via watchPosition nativo
+      // 2. Hardware Geolocation Streaming via watchPosition nativo (maximumAge: 0)
       if (state.gpsWatchId !== null && state.gpsWatchId !== undefined) {
         navigator.geolocation.clearWatch(state.gpsWatchId);
       }
       state.gpsWatchId = navigator.geolocation.watchPosition(enviarPonto, tratarErroGps, {
         enableHighAccuracy: true,
-        maximumAge: 3000,
+        maximumAge: 0,
         timeout: 20000
       });
 
@@ -1110,7 +1122,7 @@
       state.gpsIntervalId = setInterval(() => {
         navigator.geolocation.getCurrentPosition(enviarPonto, tratarErroGps, {
           enableHighAccuracy: true,
-          maximumAge: 5000,
+          maximumAge: 0,
           timeout: 12000
         });
       }, 8000);

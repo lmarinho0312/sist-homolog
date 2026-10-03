@@ -27,21 +27,22 @@ async function eOutlierGps(db, pedidoId, newLat, newLng) {
 
     const distMetros = calcularDistanciaMetros(ultimoPonto.latitude, ultimoPonto.longitude, newLat, newLng);
 
-    // Ignorar pontos idênticos ou com deslocamento insignificante (< 4 metros)
-    if (distMetros < 4) return true;
+    // Ignorar pontos idênticos ou com deslocamento insignificante (< 3 metros)
+    if (distMetros < 3) return true;
 
-    // Calcular tempo decorrido
+    // Calcular tempo decorrido com fuso horário correto
     let dtSeconds = 5;
     if (ultimoPonto.criado_em) {
-      const t1 = new Date(ultimoPonto.criado_em.includes('T') ? ultimoPonto.criado_em : ultimoPonto.criado_em.replace(' ', 'T') + 'Z').getTime();
+      const dataStr = ultimoPonto.criado_em.includes('T') ? ultimoPonto.criado_em : ultimoPonto.criado_em.replace(' ', 'T') + '-03:00';
+      const t1 = new Date(dataStr).getTime();
       const t2 = Date.now();
-      dtSeconds = Math.max(1, (t2 - t1) / 1000);
+      dtSeconds = Math.max(1, Math.abs((t2 - t1) / 1000));
     }
 
     const velocidadeImpliedKmH = (distMetros / dtSeconds) * 3.6;
 
-    // Se o ponto deu um salto instantâneo de mais de 70 metros a mais de 90 km/h na cidade, descarte o ruído
-    if (distMetros > 70 && velocidadeImpliedKmH > 90) {
+    // Descartar apenas teletransporte irreal (> 500m em segundos a mais de 180 km/h)
+    if (distMetros > 500 && velocidadeImpliedKmH > 180) {
       console.warn(`⚠️ GPS Outlier filtrado: salto de ${distMetros.toFixed(1)}m (${velocidadeImpliedKmH.toFixed(1)} km/h)`);
       return true;
     }
@@ -86,15 +87,20 @@ async function gravarHistoricoRota(db, motoboyId, lat, lng, spd) {
  */
 async function atualizarPosicaoMotoboy(req, res) {
   try {
-    const { motoboy_id, latitude, longitude, speed, accuracy } = req.body || {};
+    const { motoboy_id, id, telefone, latitude, longitude, speed, accuracy } = req.body || {};
 
-    if (!motoboy_id || latitude === undefined || longitude === undefined) {
-      return res.json(400, { success: false, message: 'motoboy_id, latitude e longitude são obrigatórios.' });
+    const targetIdRaw = motoboy_id || id;
+    if (!targetIdRaw && !telefone) {
+      return res.json(400, { success: false, message: 'motoboy_id ou telefone são obrigatórios.' });
     }
 
-    // FILTRO DE ACURÁCIA (LAYER 1): Aceitar leituras até 200m (não descartar conexões reais de motoboys em campo)
-    if (accuracy !== undefined && Number(accuracy) > 200) {
-      console.warn(`⚠️ Posição ignorada por acurácia excessivamente baixa (${accuracy}m > 200m)`);
+    if (latitude === undefined || longitude === undefined) {
+      return res.json(400, { success: false, message: 'latitude e longitude são obrigatórios.' });
+    }
+
+    // FILTRO DE ACURÁCIA (LAYER 1): Aceitar leituras até 250m para garantir fix mesmo em áreas urbanas densas
+    if (accuracy !== undefined && Number(accuracy) > 250) {
+      console.warn(`⚠️ Posição ignorada por acurácia excessivamente baixa (${accuracy}m > 250m)`);
       return res.json(200, { success: true, message: 'Posição ignorada por baixa precisão do GPS.' });
     }
 
@@ -107,21 +113,35 @@ async function atualizarPosicaoMotoboy(req, res) {
     }
 
     const db = getDb();
-    const motoboyIdNum = Number(motoboy_id);
-    
-    // Atualizar última posição do motoboy
-    const result = await db.execute(
-      `UPDATE motoboys 
-       SET latitude = ?, longitude = ?, velocidade = ?, ultima_atualizacao = DATETIME('now', '-3 hours') 
-       WHERE id = ?`,
-      [lat, lng, spd, motoboyIdNum]
-    );
+    let motoboyIdNum = targetIdRaw ? Number(targetIdRaw) : null;
 
-    if (result.changes === 0) {
-      return res.json(404, { success: false, message: 'Motoboy não encontrado.' });
+    if (!motoboyIdNum && telefone) {
+      const moto = await db.queryOne('SELECT id FROM motoboys WHERE telefone = ? OR telefone LIKE ?', [telefone, `%${telefone}%`]);
+      if (moto) motoboyIdNum = moto.id;
     }
 
-    await gravarHistoricoRota(db, motoboyIdNum, lat, lng, spd);
+    if (!motoboyIdNum) {
+      return res.json(404, { success: false, message: 'Motoboy não identificado.' });
+    }
+    
+    // Lista de IDs a sincronizar (garante que contas de teste e produção do mesmo motoboy fiquem 100% atualizadas)
+    let idsParaAtualizar = [motoboyIdNum];
+    if (motoboyIdNum === 4 || motoboyIdNum === 64) {
+      idsParaAtualizar = [4, 64]; // Lucas Pantufa (Oficial e Teste)
+    } else if (motoboyIdNum === 5 || motoboyIdNum === 63) {
+      idsParaAtualizar = [5, 63]; // Otávio Mickey (Oficial e Teste)
+    }
+
+    // Atualizar última posição do motoboy no banco Turso
+    for (const mId of idsParaAtualizar) {
+      await db.execute(
+        `UPDATE motoboys 
+         SET latitude = ?, longitude = ?, velocidade = ?, ultima_atualizacao = DATETIME('now', '-3 hours') 
+         WHERE id = ?`,
+        [lat, lng, spd, mId]
+      );
+      await gravarHistoricoRota(db, mId, lat, lng, spd);
+    }
 
     return res.json(200, {
       success: true,
