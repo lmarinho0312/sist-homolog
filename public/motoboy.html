@@ -554,174 +554,9 @@
       text-align: center;
       box-shadow: var(--shadow-lg);
     }
-
-    /* TRAVA DE SEGURANÇA MANDATÓRIA (GATEKEEPER GPS) */
-    .gps-gatekeeper-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 99999;
-      background: rgba(10, 11, 13, 0.98);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 24px 20px;
-      text-align: center;
-    }
-
-    .gps-gatekeeper-card {
-      width: 100%;
-      max-width: 420px;
-      background: var(--bg-surface-card);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-xl);
-      padding: 24px 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
-    }
-
-    .gps-gatekeeper-icon {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      background: rgba(245, 158, 11, 0.12);
-      border: 1px solid rgba(245, 158, 11, 0.35);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 14px;
-      color: var(--brand-gold);
-    }
-
-    .gps-gatekeeper-icon.pulse {
-      animation: gpsPulse 2s infinite;
-    }
-
-    @keyframes gpsPulse {
-      0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
-      70% { box-shadow: 0 0 0 16px rgba(245, 158, 11, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
-    }
-
-    .gps-check-list {
-      width: 100%;
-      margin: 16px 0;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      text-align: left;
-    }
-
-    .gps-check-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      background: rgba(20, 22, 27, 0.8);
-      border: 1px solid var(--border-subtle);
-      padding: 10px 12px;
-      border-radius: var(--radius-md);
-    }
-
-    .gps-check-indicator {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      margin-top: 1px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .gps-check-indicator.ok {
-      background: #10b981;
-      color: #000;
-    }
-
-    .gps-check-indicator.pending {
-      background: rgba(245, 158, 11, 0.2);
-      color: #f59e0b;
-      border: 1px solid rgba(245, 158, 11, 0.5);
-    }
-
-    .gps-check-indicator.fail {
-      background: #ef4444;
-      color: #fff;
-    }
   </style>
 </head>
 <body>
-
-  <!-- ======================================================================
-       TRAVA DE SEGURANÇA MANDATÓRIA: GATEKEEPER DE GPS E PRECISÃO
-       ====================================================================== -->
-  <div id="gpsGatekeeperOverlay" class="gps-gatekeeper-overlay" style="display: none;">
-    <div class="gps-gatekeeper-card">
-      <div class="gps-gatekeeper-icon pulse" id="iconGpsGatekeeper">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
-        </svg>
-      </div>
-
-      <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--brand-gold); margin-bottom: 4px;">
-        Segurança Operacional
-      </div>
-      <h3 style="font-size: 18px; font-weight: 900; color: var(--text-primary); margin-bottom: 6px;">
-        GPS de Alta Precisão Obrigatório
-      </h3>
-      <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.45; margin-bottom: 12px;">
-        Para garantir a auditoria e precisão em tempo real das entregas, o sistema só libera a operação com permissão total concedida e sinal de satélite ativo.
-      </p>
-
-      <div class="gps-check-list">
-        <div class="gps-check-item">
-          <div class="gps-check-indicator pending" id="indPermissaoGps">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-          </div>
-          <div>
-            <div style="font-size: 13px; font-weight: 700; color: var(--text-primary);" id="lblPermissaoGps">Permissão de Localização</div>
-            <div style="font-size: 11px; color: var(--text-muted);" id="descPermissaoGps">Aguardando autorização no dispositivo</div>
-          </div>
-        </div>
-
-        <div class="gps-check-item">
-          <div class="gps-check-indicator pending" id="indPrecisaoGps">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-          </div>
-          <div>
-            <div style="font-size: 13px; font-weight: 700; color: var(--text-primary);" id="lblPrecisaoGps">Precisão de Satélite (&le; 35m)</div>
-            <div style="font-size: 11px; color: var(--text-muted);" id="descPrecisaoGps">Calibrando sinal de GPS do aparelho...</div>
-          </div>
-        </div>
-
-        <div class="gps-check-item">
-          <div class="gps-check-indicator pending" id="indSegundoPlanoGps">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-          </div>
-          <div>
-            <div style="font-size: 13px; font-weight: 700; color: var(--text-primary);" id="lblSegundoPlanoGps">Rastreamento Contínuo</div>
-            <div style="font-size: 11px; color: var(--text-muted);" id="descSegundoPlanoGps">Ativo em primeiro e segundo plano</div>
-          </div>
-        </div>
-      </div>
-
-      <div id="boxStatusFeedbackGps" style="width: 100%; padding: 10px 12px; border-radius: var(--radius-md); background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); color: #fbbf24; font-size: 12px; line-height: 1.4; margin-bottom: 16px;">
-        Toque no botão abaixo para autorizar o acesso e calibrar a localização precisa.
-      </div>
-
-      <button type="button" class="btn btn-gold" id="btnAtivarGpsGatekeeper" onclick="solicitarPermissaoEAtivarGps()" style="width: 100%; padding: 14px; font-size: 14px; font-weight: 800;">
-        <span>ATIVAR E CALIBRAR GPS</span>
-      </button>
-
-      <button type="button" onclick="realizarLogout()" style="background: none; border: none; color: var(--text-muted); font-size: 12px; margin-top: 14px; text-decoration: underline; cursor: pointer;">
-        Sair da Conta
-      </button>
-    </div>
-  </div>
 
   <div class="mobile-app-wrapper">
 
@@ -763,9 +598,8 @@
 
         <!-- FORM CADASTRO -->
         <form id="formRegister" onsubmit="realizarCadastro(event)" style="display: none;">
-          <div style="font-size: 12px; color: var(--brand-gold-light); background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.3); padding: 8px 12px; border-radius: var(--radius-sm); margin-bottom: 14px; line-height: 1.4; display: flex; align-items: flex-start; gap: 8px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0; margin-top: 1px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-            <span>Cadastre seu número e senha. Após concluir, seu cadastro ficará <strong>pendente de aprovação</strong> pela administração antes do primeiro acesso.</span>
+          <div style="font-size: 12px; color: var(--brand-gold-light); background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.3); padding: 8px 12px; border-radius: var(--radius-sm); margin-bottom: 14px; line-height: 1.4;">
+            ℹ️ Cadastre seu número e senha. Após concluir, seu cadastro ficará <strong>pendente de aprovação</strong> pela administração antes do primeiro acesso.
           </div>
 
           <div class="form-group">
@@ -1119,211 +953,55 @@
       }
     });
 
-    // ========================================================================
-    // TRANSMISSÃO AUTOMÁTICA DE GPS & TRAVA DE ALTA PRECISÃO (GATEKEEPER)
-    // ========================================================================
-    let gatekeeperLiberado = false;
-    let ultimaAcuraciaGps = null;
-    let gpsWatchId = null;
-
-    function exibirGatekeeperGps(mensagem, statusPrecisao) {
-      gatekeeperLiberado = false;
-      const overlay = document.getElementById('gpsGatekeeperOverlay');
-      if (overlay) overlay.style.display = 'flex';
-
-      const boxFeedback = document.getElementById('boxStatusFeedbackGps');
-      if (boxFeedback && mensagem) {
-        boxFeedback.textContent = mensagem;
-      }
-
-      const indPerm = document.getElementById('indPermissaoGps');
-      const descPerm = document.getElementById('descPermissaoGps');
-      const indPrec = document.getElementById('indPrecisaoGps');
-      const descPrec = document.getElementById('descPrecisaoGps');
-
-      if (statusPrecisao !== undefined && statusPrecisao !== null) {
-        if (statusPrecisao <= 35) {
-          if (indPrec) indPrec.className = 'gps-check-indicator ok';
-          if (descPrec) descPrec.textContent = `Sinal excelente: ${Math.round(statusPrecisao)}m de precisão`;
-        } else {
-          if (indPrec) indPrec.className = 'gps-check-indicator fail';
-          if (descPrec) descPrec.textContent = `Precisão insuficiente (${Math.round(statusPrecisao)}m). Aguardando sinal < 35m...`;
-        }
-      }
-    }
-
-    function liberarGatekeeperGps(acuracia) {
-      gatekeeperLiberado = true;
-      const overlay = document.getElementById('gpsGatekeeperOverlay');
-      if (overlay) overlay.style.display = 'none';
-
-      const indPerm = document.getElementById('indPermissaoGps');
-      const descPerm = document.getElementById('descPermissaoGps');
-      const indPrec = document.getElementById('indPrecisaoGps');
-      const descPrec = document.getElementById('descPrecisaoGps');
-      const indBg = document.getElementById('indSegundoPlanoGps');
-      const descBg = document.getElementById('descSegundoPlanoGps');
-
-      if (indPerm) indPerm.className = 'gps-check-indicator ok';
-      if (descPerm) descPerm.textContent = 'Permissão concedida com sucesso';
-      if (indPrec) indPrec.className = 'gps-check-indicator ok';
-      if (descPrec) descPrec.textContent = `Satélites calibrados (${Math.round(acuracia)}m de precisão)`;
-      if (indBg) indBg.className = 'gps-check-indicator ok';
-      if (descBg) descBg.textContent = 'Transmissão contínua ativa';
-
-      const statusText = document.getElementById('gpsText');
-      if (statusText) {
-        statusText.textContent = `GPS ${Math.round(acuracia)}m`;
-      }
-    }
-
-    async function solicitarPermissaoEAtivarGps() {
-      const btn = document.getElementById('btnAtivarGpsGatekeeper');
-      if (btn) btn.innerHTML = '<span>CALIBRANDO GPS...</span>';
-
-      // 1. Se estiver rodando dentro do APK / Capacitor Nativo
-      if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Geolocation) {
-        try {
-          await window.Capacitor.Plugins.Geolocation.requestPermissions();
-        } catch (e) {
-          console.warn('Permissão nativa Capacitor:', e);
-        }
-      }
-
-      // 2. Chamar HTML5 Geolocation com Alta Precisão
-      if (!('geolocation' in navigator)) {
-        exibirGatekeeperGps('Seu aparelho não possui suporte a geolocalização por GPS.');
-        if (btn) btn.innerHTML = '<span>ATIVAR E CALIBRAR GPS</span>';
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          processarPontoGps(pos);
-          if (btn) btn.innerHTML = '<span>ATIVAR E CALIBRAR GPS</span>';
-        },
-        (err) => {
-          if (btn) btn.innerHTML = '<span>ATIVAR E CALIBRAR GPS</span>';
-          if (err.code === err.PERMISSION_DENIED) {
-            exibirGatekeeperGps('Permissão de GPS foi negada. Abra as configurações do aparelho e conceda a permissão de localização "Permitir o tempo todo".');
-          } else if (err.code === err.POSITION_UNAVAILABLE) {
-            exibirGatekeeperGps('Sinal de GPS indisponível. Verifique se a Localização/GPS do aparelho está ativada.');
-          } else {
-            exibirGatekeeperGps('Aguardando sinal dos satélites GPS. Mantenha o aparelho em local aberto.');
-          }
-        },
-        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
-      );
-    }
-
-    function processarPontoGps(pos) {
-      if (!pos || !pos.coords || !state.motoboy) return;
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-      const spd = Math.round((pos.coords.speed || 0) * 3.6);
-      const acc = Math.round(pos.coords.accuracy || 0);
-
-      ultimaAcuraciaGps = acc;
-
-      // TRAVA DE PRECISÃO MÁXIMA: se acurácia for pior que 35 metros, bloqueia
-      if (acc > 35) {
-        exibirGatekeeperGps(`Sinal de GPS impreciso (${acc}m). O sistema requer sinal de satélite com precisão inferior a 35m.`, acc);
-        return;
-      }
-
-      // Se passou na trava de acurácia, libera o app
-      if (!gatekeeperLiberado) {
-        liberarGatekeeperGps(acc);
-      }
-
-      state.ultimaLat = lat;
-      state.ultimaLng = lng;
-
-      // Enviar ao servidor com HTTPS e tratamento de segurança
-      fetch('/api/motoboy/posicao', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          motoboy_id: state.motoboy.id,
-          latitude: lat,
-          longitude: lng,
-          speed: spd,
-          accuracy: acc
-        })
-      }).then(r => r.json()).then(data => {
-        if (data.success) {
-          const statusText = document.getElementById('gpsText');
-          if (statusText) {
-            const h = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-            statusText.textContent = `GPS ${h} (${acc}m)`;
-          }
-        } else if (data.baixa_precisao) {
-          exibirGatekeeperGps(data.message || 'Precisão do GPS insuficiente detectada pelo servidor.', acc);
-        } else if (data.bloqueado) {
-          realizarLogout();
-          alert('Seu cadastro está bloqueado ou pendente de aprovação.');
-        }
-      }).catch(err => {
-        console.warn('Erro ao transmitir GPS:', err);
-      });
-
-      atualizarMarcadorMapaProprio(lat, lng);
-    }
-
+    // TRANSMISSÃO AUTOMÁTICA DE GPS (HTML5 Geolocation)
     function iniciarGps() {
+      const statusText = document.getElementById('gpsText');
       if (!('geolocation' in navigator)) {
-        exibirGatekeeperGps('Seu aparelho não possui suporte a geolocalização por GPS.');
+        if (statusText) statusText.textContent = 'GPS Indisponível';
         return;
       }
 
-      // Exibir gatekeeper inicial até validar primeira coordenada com precisão <= 35m
-      if (!gatekeeperLiberado) {
-        exibirGatekeeperGps('Validando permissão e sinal de satélite GPS...');
-      }
+      const enviarPonto = (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const spd = Math.round((pos.coords.speed || 0) * 3.6);
+        const acc = Math.round(pos.coords.accuracy || 0);
 
-      // 1. Obter posição inicial
-      navigator.geolocation.getCurrentPosition(
-        processarPontoGps,
-        (err) => {
-          if (err.code === err.PERMISSION_DENIED) {
-            exibirGatekeeperGps('Permissão de GPS negada. Conceda a permissão para utilizar o aplicativo.');
-          } else {
-            exibirGatekeeperGps('Aguardando sinal de satélite GPS com alta precisão...');
+        state.ultimaLat = lat;
+        state.ultimaLng = lng;
+
+        fetch('/api/motoboy/posicao', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            motoboy_id: state.motoboy.id,
+            latitude: lat,
+            longitude: lng,
+            speed: spd,
+            accuracy: acc
+          })
+        }).then(r => r.json()).then(data => {
+          if (data.success && statusText) {
+            const h = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+            statusText.textContent = `GPS ${h}`;
           }
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
+        }).catch(() => {});
 
-      // 2. Monitoramento contínuo via watchPosition (reativo em trânsito)
-      if (gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
-      gpsWatchId = navigator.geolocation.watchPosition(
-        processarPontoGps,
-        (err) => {
-          if (err.code === err.PERMISSION_DENIED) {
-            exibirGatekeeperGps('A permissão de localização foi revogada. O aplicativo foi pausado.');
-          }
-        },
-        { enableHighAccuracy: true, timeout: 12000, maximumAge: 3000 }
-      );
+        atualizarMarcadorMapaProprio(lat, lng);
+      };
 
-      // 3. Batimento cardíaco a cada 6s para garantir transmissão ininterrupta
-      if (state.gpsWatcherId) clearInterval(state.gpsWatcherId);
+      navigator.geolocation.getCurrentPosition(enviarPonto, () => {}, { enableHighAccuracy: true });
+
       state.gpsWatcherId = setInterval(() => {
-        if (!state.motoboy) return;
-        navigator.geolocation.getCurrentPosition(
-          processarPontoGps,
-          () => {},
-          { enableHighAccuracy: true, timeout: 6000, maximumAge: 4000 }
-        );
-      }, 6000);
+        navigator.geolocation.getCurrentPosition(enviarPonto, () => {}, {
+          enableHighAccuracy: true,
+          maximumAge: 5000,
+          timeout: 7000
+        });
+      }, 8000);
     }
 
     function pararGps() {
-      gatekeeperLiberado = false;
-      if (gpsWatchId) {
-        navigator.geolocation.clearWatch(gpsWatchId);
-        gpsWatchId = null;
-      }
       if (state.gpsWatcherId) {
         clearInterval(state.gpsWatcherId);
         state.gpsWatcherId = null;
@@ -1832,12 +1510,6 @@
 
     // AÇÃO: RETIRAR PEDIDO NO BALCÃO
     async function retirarPedidoBalcao(pedidoId, numero) {
-      if (!gatekeeperLiberado) {
-        showToast('GPS com alta precisão obrigatório para retirar pedidos!', 'warning');
-        exibirGatekeeperGps('É obrigatório calibrar o GPS com sinal de alta precisão (≤ 35m) antes de retirar entregas.');
-        return;
-      }
-
       try {
         const res = await fetch('/api/pedidos/retirar', {
           method: 'POST',
@@ -1855,9 +1527,6 @@
           trocarAbaApp('inicio');
           carregarDados();
         } else {
-          if (data.gps_obrigatorio) {
-            exibirGatekeeperGps(data.message);
-          }
           showToast(data.message || 'Erro ao retirar pedido.', 'error');
         }
       } catch (err) {

@@ -92,61 +92,41 @@ async function atualizarPosicaoMotoboy(req, res) {
       return res.json(400, { success: false, message: 'motoboy_id, latitude e longitude são obrigatórios.' });
     }
 
+    // FILTRO DE ACURÁCIA (LAYER 1): Descartar leituras de GPS do navegador com erro de precisão > 35m
+    if (accuracy !== undefined && Number(accuracy) > 35) {
+      console.warn(`⚠️ Posição ignorada por baixa acurácia do celular (${accuracy}m)`);
+      return res.json(200, { success: true, message: 'Posição ignorada por baixa precisão do GPS.' });
+    }
+
     const lat = Number(latitude);
     const lng = Number(longitude);
     const spd = Number(speed || 0);
-    const acc = accuracy !== undefined ? Number(accuracy) : null;
 
-    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-      return res.json(400, { success: false, message: 'Coordenadas de latitude ou longitude inválidas.' });
-    }
-
-    // FILTRO DE ACURÁCIA RIGOROSO: Descartar leituras com erro de precisão > 35m
-    if (acc !== null && (isNaN(acc) || acc > 35)) {
-      return res.json(422, { 
-        success: false, 
-        baixa_precisao: true,
-        accuracy: acc,
-        message: 'Precisão do GPS insuficiente (> 35m). É necessário sinal de GPS de Alta Precisão.' 
-      });
+    if (isNaN(lat) || isNaN(lng)) {
+      return res.json(400, { success: false, message: 'Latitude ou longitude inválidas.' });
     }
 
     const db = getDb();
     const motoboyIdNum = Number(motoboy_id);
-
-    // Validação de Segurança: Verificar existência e status de aprovação do motoboy
-    const motoboy = await db.queryOne(
-      'SELECT id, status FROM motoboys WHERE id = ?',
-      [motoboyIdNum]
-    );
-
-    if (!motoboy) {
-      return res.json(404, { success: false, message: 'Motoboy não cadastrado no sistema.' });
-    }
-
-    const statusLimpo = String(motoboy.status || 'aprovado').toLowerCase();
-    if (statusLimpo === 'bloqueado' || statusLimpo === 'recusado' || statusLimpo === 'pendente') {
-      return res.json(403, { 
-        success: false, 
-        bloqueado: true,
-        message: 'Acesso do entregador não autorizado ou pendente de aprovação.' 
-      });
-    }
     
     // Atualizar última posição do motoboy
-    await db.execute(
+    const result = await db.execute(
       `UPDATE motoboys 
        SET latitude = ?, longitude = ?, velocidade = ?, ultima_atualizacao = DATETIME('now', '-3 hours') 
        WHERE id = ?`,
       [lat, lng, spd, motoboyIdNum]
     );
 
+    if (result.changes === 0) {
+      return res.json(404, { success: false, message: 'Motoboy não encontrado.' });
+    }
+
     await gravarHistoricoRota(db, motoboyIdNum, lat, lng, spd);
 
     return res.json(200, {
       success: true,
-      message: 'Localização atualizada com precisão máxima!',
-      posicao: { latitude: lat, longitude: lng, speed: spd, accuracy: acc, timestamp: new Date().toISOString() }
+      message: 'Localização atualizada com sucesso!',
+      posicao: { latitude: lat, longitude: lng, speed: spd, timestamp: new Date().toISOString() }
     });
   } catch (error) {
     console.error('❌ Erro ao atualizar posição do motoboy:', error);
