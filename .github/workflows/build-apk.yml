@@ -20,6 +20,10 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Aceitar Licenças do Android SDK
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v3
 

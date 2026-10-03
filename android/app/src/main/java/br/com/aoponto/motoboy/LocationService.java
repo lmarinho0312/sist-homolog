@@ -38,7 +38,7 @@ public class LocationService extends Service implements LocationListener {
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("Ao Ponto Entregador")
                 .setContentText("Rastreamento GPS em tempo real ativo")
-                .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+                .setSmallIcon(android.R.drawable.stat_notify_sync)
                 .setOngoing(true)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .build();
