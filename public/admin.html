@@ -4,7 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Ao Ponto Carnes — Painel Operacional da Cozinha</title>
-  <link rel="icon" type="image/png" href="/assets/logo-transparent.png">
+  <link rel="apple-touch-icon" href="/assets/icon-512.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/assets/icon-512.png">
+  <link rel="shortcut icon" href="/favicon.ico">
 
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1550,7 +1553,7 @@
       markersDashboard: {},
       markersFullscreen: {},
       pollingTimer: null,
-      restauranteCoords: [-22.4123, -42.9664] // Teresópolis - RJ (Ao Ponto Carnes)
+      restauranteCoords: [-22.42232, -42.97864] // Rua Coronel Antônio Santiago, 70 - Agriões, Teresópolis - RJ
     };
 
     // Helper SVG Icons Centralizado
@@ -2055,7 +2058,7 @@
         .bindPopup(`
           <div style="padding: 6px 8px; text-align: center;">
             <strong style="color: var(--brand-gold-light); font-size: 14px;">AO PONTO CARNES</strong><br>
-            <span style="font-size: 11px; color: var(--text-muted);">Loja Matriz • Teresópolis/RJ</span>
+            <span style="font-size: 11px; color: var(--text-muted);">Rua Coronel Antônio Santiago, 70 • Agriões</span>
           </div>
         `)
         .addTo(state.mapDashboard);
@@ -2088,7 +2091,7 @@
         .bindPopup(`
           <div style="padding: 6px 8px; text-align: center;">
             <strong style="color: var(--brand-gold-light); font-size: 14px;">AO PONTO CARNES</strong><br>
-            <span style="font-size: 11px; color: var(--text-muted);">Loja Matriz • Teresópolis/RJ</span>
+            <span style="font-size: 11px; color: var(--text-muted);">Rua Coronel Antônio Santiago, 70 • Agriões</span>
           </div>
         `)
         .addTo(state.mapFullscreen);

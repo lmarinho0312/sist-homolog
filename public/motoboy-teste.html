@@ -9,8 +9,10 @@
   <meta name="apple-mobile-web-app-title" content="Entregador">
   <title>Ao Ponto Carnes — App do Entregador</title>
   <link rel="manifest" href="/manifest-motoboy.json">
-  <link rel="apple-touch-icon" href="/assets/logo-dark-theme.png">
-  <link rel="icon" type="image/png" href="/assets/logo-dark-theme.png">
+  <link rel="apple-touch-icon" href="/assets/icon-512.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/assets/icon-512.png">
+  <link rel="shortcut icon" href="/favicon.ico">
 
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1554,7 +1556,7 @@
       const container = document.getElementById('mapaMobile');
       if (!container || state.mapa) return;
 
-      const coords = state.ultimaLat ? [state.ultimaLat, state.ultimaLng] : [-22.4123, -42.9664];
+      const coords = state.ultimaLat ? [state.ultimaLat, state.ultimaLng] : [-22.42232, -42.97864];
 
       state.mapa = L.map('mapaMobile', {
         center: coords,
