@@ -9,7 +9,7 @@ android {
     defaultConfig {
         applicationId "br.com.aoponto.motoboy"
         minSdk 23
-        targetSdk 34
+        targetSdk 33
         versionCode 1
         versionName "1.0.0"
     }
