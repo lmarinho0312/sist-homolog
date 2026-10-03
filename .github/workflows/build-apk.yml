@@ -30,16 +30,10 @@ jobs:
       - name: Compilar APK Debug com Gradle
         run: |
           cd android
-          gradle assembleDebug --no-daemon --stacktrace > build.log 2>&1 || {
-            echo "### Erro de Compilação do Gradle" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            cat build.log | tail -n 120 >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            cat build.log | tail -n 120
-            exit 1
-          }
+          gradle assembleDebug --no-daemon --stacktrace
 
       - name: Fazer Upload do APK Compilado
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: AoPonto-Entregador-APK

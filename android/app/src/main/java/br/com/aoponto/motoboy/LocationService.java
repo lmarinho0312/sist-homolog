@@ -116,10 +116,11 @@ public class LocationService extends Service implements LocationListener {
             conn.setReadTimeout(4000);
 
             String jsonInputString = String.format(
-                    "{\"motoboy_id\":%s,\"latitude\":%f,\"longitude\":%f,\"speed\":%d,\"accuracy\":%d}",
+                    java.util.Locale.US,
+                    "{\"motoboy_id\":%s,\"latitude\":%.6f,\"longitude\":%.6f,\"speed\":%d,\"accuracy\":%d}",
                     motoboyId != null ? motoboyId : "60",
                     lat, lng, Math.round(spd), Math.round(acc)
-            ).replace(',', '.');
+            );
 
             try (OutputStream os = conn.getOutputStream()) {
                 byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
