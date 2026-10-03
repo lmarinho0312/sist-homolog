@@ -32,10 +32,11 @@ jobs:
       - name: Compilar APK Debug com Gradle
         run: |
           cd android
+          set -o pipefail
           gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log || {
-            echo "::error::FALHA NA COMPILACAO GRADLE"
-            tail -n 40 build.log | while IFS= read -r line; do
-              echo "::error file=build.gradle::$line"
+            echo "::error::FALHA_GRADLE_DETECTADA"
+            tail -n 60 build.log | while IFS= read -r line; do
+              echo "::error::$line"
             done
             exit 1
           }
