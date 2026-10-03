@@ -870,7 +870,8 @@
       marcadorMotoboy: null,
       marcadorDestino: null,
       wakeLock: null,
-      gpsWatcherId: null,
+      gpsWatchId: null,
+      gpsIntervalId: null,
       pollingTimer: null,
       ultimaLat: null,
       ultimaLng: null
@@ -1029,15 +1030,16 @@
       }
     });
 
-    // TRANSMISSÃO AUTOMÁTICA DE GPS (HTML5 Geolocation)
+    // TRANSMISSÃO AUTOMÁTICA DE GPS EM TEMPO REAL (HTML5 Geolocation + watchPosition)
     function iniciarGps() {
       const statusText = document.getElementById('gpsText');
       if (!('geolocation' in navigator)) {
-        if (statusText) statusText.textContent = 'GPS Indisponível';
+        if (statusText) statusText.innerHTML = '<span style="color: #ef4444;">●</span> GPS Não Suportado';
         return;
       }
 
       const enviarPonto = (pos) => {
+        if (!pos || !pos.coords) return;
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         const spd = Math.round((pos.coords.speed || 0) * 3.6);
@@ -1045,6 +1047,11 @@
 
         state.ultimaLat = lat;
         state.ultimaLng = lng;
+
+        if (statusText) {
+          const h = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+          statusText.innerHTML = `<span style="color: #22c55e;">●</span> GPS ${h} (${acc}m)`;
+        }
 
         fetch('/api/motoboy/posicao', {
           method: 'POST',
@@ -1057,30 +1064,66 @@
             accuracy: acc
           })
         }).then(r => r.json()).then(data => {
-          if (data.success && statusText) {
-            const h = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-            statusText.textContent = `GPS ${h}`;
+          if (!data.success) {
+            console.warn('⚠️ Servidor rejeitou posição:', data.message);
           }
-        }).catch(() => {});
+        }).catch(err => {
+          console.warn('⚠️ Falha de rede ao enviar GPS:', err.message);
+        });
 
         atualizarMarcadorMapaProprio(lat, lng);
       };
 
-      navigator.geolocation.getCurrentPosition(enviarPonto, () => {}, { enableHighAccuracy: true });
+      const tratarErroGps = (err) => {
+        console.warn('⚠️ Erro ao capturar GPS:', err.code, err.message);
+        if (statusText) {
+          if (err.code === 1) {
+            statusText.innerHTML = '<span style="color: #ef4444;">●</span> GPS Negado';
+            showToast('Permissão de GPS necessária para rastreamento!', 'error');
+          } else if (err.code === 2) {
+            statusText.innerHTML = '<span style="color: #f59e0b;">●</span> Buscando sinal...';
+          } else if (err.code === 3) {
+            statusText.innerHTML = '<span style="color: #f59e0b;">●</span> GPS Timeout';
+          }
+        }
+      };
 
-      state.gpsWatcherId = setInterval(() => {
-        navigator.geolocation.getCurrentPosition(enviarPonto, () => {}, {
+      // 1. Obter fix imediato ao abrir
+      navigator.geolocation.getCurrentPosition(enviarPonto, tratarErroGps, {
+        enableHighAccuracy: true,
+        maximumAge: 10000,
+        timeout: 15000
+      });
+
+      // 2. Hardware Geolocation Streaming via watchPosition nativo
+      if (state.gpsWatchId !== null && state.gpsWatchId !== undefined) {
+        navigator.geolocation.clearWatch(state.gpsWatchId);
+      }
+      state.gpsWatchId = navigator.geolocation.watchPosition(enviarPonto, tratarErroGps, {
+        enableHighAccuracy: true,
+        maximumAge: 3000,
+        timeout: 20000
+      });
+
+      // 3. Fallback contínuo a cada 8 segundos (evita travamento caso o navegador pause o stream)
+      if (state.gpsIntervalId) clearInterval(state.gpsIntervalId);
+      state.gpsIntervalId = setInterval(() => {
+        navigator.geolocation.getCurrentPosition(enviarPonto, tratarErroGps, {
           enableHighAccuracy: true,
           maximumAge: 5000,
-          timeout: 7000
+          timeout: 12000
         });
       }, 8000);
     }
 
     function pararGps() {
-      if (state.gpsWatcherId) {
-        clearInterval(state.gpsWatcherId);
-        state.gpsWatcherId = null;
+      if (state.gpsWatchId !== null && state.gpsWatchId !== undefined) {
+        navigator.geolocation.clearWatch(state.gpsWatchId);
+        state.gpsWatchId = null;
+      }
+      if (state.gpsIntervalId) {
+        clearInterval(state.gpsIntervalId);
+        state.gpsIntervalId = null;
       }
     }
 

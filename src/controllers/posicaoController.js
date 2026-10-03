@@ -92,9 +92,9 @@ async function atualizarPosicaoMotoboy(req, res) {
       return res.json(400, { success: false, message: 'motoboy_id, latitude e longitude são obrigatórios.' });
     }
 
-    // FILTRO DE ACURÁCIA (LAYER 1): Descartar leituras de GPS do navegador com erro de precisão > 35m
-    if (accuracy !== undefined && Number(accuracy) > 35) {
-      console.warn(`⚠️ Posição ignorada por baixa acurácia do celular (${accuracy}m)`);
+    // FILTRO DE ACURÁCIA (LAYER 1): Aceitar leituras até 200m (não descartar conexões reais de motoboys em campo)
+    if (accuracy !== undefined && Number(accuracy) > 200) {
+      console.warn(`⚠️ Posição ignorada por acurácia excessivamente baixa (${accuracy}m > 200m)`);
       return res.json(200, { success: true, message: 'Posição ignorada por baixa precisão do GPS.' });
     }
 
@@ -148,9 +148,9 @@ async function webhookTraccarClient(req, res) {
     const rawLng = query.lon ?? query.lng ?? query.longitude ?? body.lon ?? body.lng ?? body.longitude;
     const rawAcc = query.accuracy ?? body.accuracy ?? query.hdop ?? body.hdop;
     
-    // FILTRO DE ACURÁCIA (LAYER 1): Descartar leituras do Traccar Client se a acurácia/hdop estiver muito ruim
-    if (rawAcc !== undefined && Number(rawAcc) > 35) {
-      console.warn(`⚠️ Traccar ping ignorado por acurácia ruim (${rawAcc}m)`);
+    // FILTRO DE ACURÁCIA (LAYER 1): Descartar apenas se a acurácia/hdop estiver acima de 200m
+    if (rawAcc !== undefined && Number(rawAcc) > 200) {
+      console.warn(`⚠️ Traccar ping ignorado por acurácia excessivamente baixa (${rawAcc}m > 200m)`);
       if (!res.headersSent) res.writeHead(200, { 'Content-Type': 'text/plain' });
       return res.end('OK');
     }

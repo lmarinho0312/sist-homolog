@@ -14,9 +14,9 @@ async function getPosicoesMapa(req, res) {
     const db = getDb();
     await expirarPedidosPendentesDiasAnteriores(db);
 
-    // Buscar motoboys incluindo suas coordenadas gravadas em tempo real
+    // Buscar motoboys incluindo suas coordenadas gravadas em tempo real e grupo
     const motoboys = await db.query(
-      `SELECT id, nome, telefone, traccar_device_id, latitude, longitude, velocidade, ultima_atualizacao FROM motoboys`
+      `SELECT id, nome, telefone, grupo, traccar_device_id, latitude, longitude, velocidade, ultima_atualizacao FROM motoboys`
     );
 
     if (!motoboys || motoboys.length === 0) {
@@ -27,7 +27,7 @@ async function getPosicoesMapa(req, res) {
 
     const hojeInicio = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) + ' 00:00:00';
     const pedidosEmRota = await db.query(
-      `SELECT id, numero_pedido, motoboy_id, data_inicio,
+      `SELECT id, numero_pedido, cliente, endereco, bairro, motoboy_id, data_inicio,
               ROUND((julianday('now') - julianday(data_inicio)) * 1440) as minutos_em_rota
        FROM pedidos 
        WHERE status = 'em_rota' 
@@ -44,6 +44,9 @@ async function getPosicoesMapa(req, res) {
       pedidosPorMotoboy[p.motoboy_id].push({
         id: p.id,
         numero_pedido: p.numero_pedido,
+        cliente: p.cliente || 'Cliente',
+        endereco: p.endereco || '',
+        bairro: p.bairro || '',
         minutos_em_rota: p.minutos_em_rota || 0,
         data_inicio: p.data_inicio
       });
@@ -54,23 +57,34 @@ async function getPosicoesMapa(req, res) {
 
     let temGpsRealEmAlgumMotoboy = false;
 
-    const resultado = motoboys.map((m, index) => {
+    const resultado = motoboys.map((m) => {
       const pedidosDoMotoboy = pedidosPorMotoboy[m.id] || [];
 
-      let lat = 0;
-      let lng = 0;
+      let lat = null;
+      let lng = null;
       let speed = 0;
       let fixTime = null;
-      let origemGps = 'desconhecido';
+      let origemGps = 'sem_gps';
+      let segundosAtras = null;
+      let online = false;
 
       // 1. Prioridade MAXIMA: Posição GPS Real enviada pelo Web App do Motoboy ou Webhook Traccar Client
       if (m.latitude !== null && m.latitude !== undefined && m.longitude !== null && m.longitude !== undefined) {
         lat = Number(m.latitude);
         lng = Number(m.longitude);
         speed = Number(m.velocidade || 0);
-        fixTime = m.ultima_atualizacao || new Date().toISOString();
+        fixTime = m.ultima_atualizacao || null;
         origemGps = 'gps_real';
         temGpsRealEmAlgumMotoboy = true;
+
+        if (fixTime) {
+          const tFix = new Date(fixTime.includes('T') ? fixTime : fixTime.replace(' ', 'T') + '-03:00').getTime();
+          segundosAtras = Math.max(0, Math.round((Date.now() - tFix) / 1000));
+          // Considera online se atualizou nos últimos 15 minutos (900s)
+          online = segundosAtras <= 900;
+        } else {
+          online = true;
+        }
       }
       // 2. Segunda prioridade: Traccar Server API
       else if (gpsInfo.posicoes[m.id] && gpsInfo.posicoes[m.id].origem_gps === 'traccar_real') {
@@ -81,26 +95,30 @@ async function getPosicoesMapa(req, res) {
         fixTime = pos.fixTime;
         origemGps = 'traccar_real';
         temGpsRealEmAlgumMotoboy = true;
+        online = true;
       }
-      // 3. Fallback: Posição simulada realista se nenhum GPS real foi enviado ainda
+      // 3. Sem GPS real
       else {
-        const posSimulada = gpsInfo.posicoes[m.id];
-        lat = posSimulada ? posSimulada.latitude : -23.5615 + (index * 0.005);
-        lng = posSimulada ? posSimulada.longitude : -46.6560 + (index * 0.005);
-        speed = posSimulada ? posSimulada.speed : 0;
-        fixTime = new Date().toISOString();
-        origemGps = 'simulado_dev';
+        lat = null;
+        lng = null;
+        speed = 0;
+        fixTime = null;
+        origemGps = 'sem_gps';
+        online = false;
       }
 
       return {
         motoboy_id: m.id,
         nome: m.nome,
         telefone: m.telefone,
+        grupo: m.grupo || 'VELOZ',
         traccar_device_id: m.traccar_device_id,
         latitude: lat,
         longitude: lng,
         speed: speed,
         ultima_atualizacao: fixTime,
+        segundos_atras: segundosAtras,
+        online: online,
         origem_gps: origemGps,
         status_motoboy: pedidosDoMotoboy.length > 0 ? 'em_rota' : 'disponivel',
         qtd_pedidos: pedidosDoMotoboy.length,

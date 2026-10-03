@@ -242,6 +242,196 @@
       -webkit-filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3);
     }
 
+    .marker-restaurant {
+      background: #dc2626;
+      border: 3px solid #ffffff;
+      color: #ffffff;
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 14px rgba(220, 38, 38, 0.6);
+      transition: transform 0.2s ease;
+    }
+    .marker-restaurant:hover {
+      transform: scale(1.15);
+    }
+
+    .marker-motoboy-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .marker-motoboy-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+      transition: transform 0.2s ease;
+    }
+    .marker-motoboy-badge:hover {
+      transform: scale(1.18);
+    }
+
+    /* Status: Em rota (Verde esmeralda com onda radar pulsante) */
+    .marker-motoboy-badge.active {
+      background: linear-gradient(135deg, #10b981, #047857);
+      border: 2.5px solid #ffffff;
+      color: #ffffff;
+      animation: radar-pulse 2s infinite;
+    }
+
+    /* Status: Disponível / Retorno (Dourado/Âmbar) */
+    .marker-motoboy-badge.idle {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      border: 2px solid #ffffff;
+      color: #ffffff;
+    }
+
+    /* Status: Offline / sem sinal recente (Cinza) */
+    .marker-motoboy-badge.offline {
+      background: linear-gradient(135deg, #64748b, #475569);
+      border: 2px solid rgba(255,255,255,0.4);
+      color: #cbd5e1;
+      opacity: 0.75;
+    }
+
+    @keyframes radar-pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.75), 0 4px 12px rgba(0,0,0,0.5);
+      }
+      70% {
+        box-shadow: 0 0 0 16px rgba(16, 185, 129, 0), 0 4px 12px rgba(0,0,0,0.5);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0), 0 4px 12px rgba(0,0,0,0.5);
+      }
+    }
+
+    .marker-order-tag {
+      position: absolute;
+      top: -10px;
+      background: #0f172a;
+      color: #38bdf8;
+      border: 1px solid #38bdf8;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 6px;
+      white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+      z-index: 10;
+    }
+
+    .marker-name-tag {
+      margin-top: 3px;
+      background: rgba(15, 23, 42, 0.92);
+      color: #f1f5f9;
+      border: 1px solid rgba(255,255,255,0.2);
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* MAPA FULLSCREEN LAYOUT */
+    .mapa-fullscreen-wrapper {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: calc(100vh - 120px);
+      gap: 12px;
+    }
+
+    .mapa-fullscreen-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 12px 18px;
+    }
+
+    .mapa-content-grid {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 14px;
+      flex: 1;
+      min-height: 540px;
+    }
+
+    @media (max-width: 1024px) {
+      .mapa-content-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .mapa-sidebar {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      height: 100%;
+    }
+
+    .mapa-sidebar-header {
+      padding: 14px 16px;
+      background: var(--bg-surface-card);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .mapa-sidebar-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .motoboy-map-card {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .motoboy-map-card:hover {
+      border-color: var(--brand-gold);
+      background: rgba(245, 158, 11, 0.08);
+      transform: translateY(-1px);
+    }
+    .motoboy-map-card.selected {
+      border-color: var(--brand-gold);
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
+    }
+
     /* DASHBOARD GRID (2 COLUMNS) */
     .dashboard-split-grid {
       display: grid;
@@ -849,8 +1039,75 @@
       <!-- ====================================================================
            VISÃO 3: MAPA FULLSCREEN & ROTAS
            ==================================================================== -->
-      <section id="view-entregas" class="view-section">
-        <div class="map-container map-dark-tiles" id="mapFullscreen" style="flex: 1;"></div>
+      <section id="view-entregas" class="view-section" style="padding: 0;">
+        <div class="mapa-fullscreen-wrapper">
+          <!-- BARRA SUPERIOR DE CONTROLE E MONITORAMENTO DO MAPA -->
+          <div class="mapa-fullscreen-bar">
+            <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="status-dot-live"></span>
+                <strong style="font-size: 14px; color: var(--brand-gold-light);">Radar GPS em Tempo Real</strong>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <span id="lblMapaTotalOnline" class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 11px; padding: 4px 10px; border-radius: 12px; font-weight: 700;">
+                  0 Com GPS Ativo
+                </span>
+                <span id="lblMapaEmRota" class="badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 11px; padding: 4px 10px; border-radius: 12px; font-weight: 700;">
+                  0 Em Rota
+                </span>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <label for="filtroGrupoMapa" style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Filtrar:</label>
+                <select id="filtroGrupoMapa" class="form-input" style="padding: 6px 12px; font-size: 12px; height: 34px;" onchange="atualizarMarcadoresMapa()">
+                  <option value="todos">Todos os Entregadores</option>
+                  <option value="em_rota">Somente Em Rota</option>
+                  <option value="disponivel">Somente Livres / Retorno</option>
+                  <option value="SPEED">Equipe SPEED</option>
+                  <option value="VELOZ">Equipe VELOZ</option>
+                </select>
+              </div>
+
+              <button class="btn btn-secondary btn-sm" onclick="focarTodosMotoboys()" title="Enquadrar todos os motoboys e loja matriz">
+                <i data-lucide="maximize" style="width: 14px; height: 14px;"></i>
+                <span>Enquadrar Todos</span>
+              </button>
+
+              <button class="btn btn-secondary btn-sm" onclick="centralizarRestaurante()" title="Centralizar na Loja Matriz">
+                <i data-lucide="store" style="width: 14px; height: 14px;"></i>
+                <span>Loja Matriz</span>
+              </button>
+
+              <button class="btn btn-gold btn-sm" onclick="carregarTudo(false)" title="Forçar atualização de posições">
+                <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i>
+                <span>Atualizar</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- GRID: MAPA INTERATIVO + PAINEL LATERAL DE ENTREGADORES -->
+          <div class="mapa-content-grid">
+            <div class="map-container map-dark-tiles" id="mapFullscreen" style="border-radius: var(--radius-lg); border: 1px solid var(--border-subtle); min-height: 520px; z-index: 1;"></div>
+            
+            <div class="mapa-sidebar">
+              <div class="mapa-sidebar-header">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <i data-lucide="navigation" style="width: 16px; height: 16px; color: var(--brand-gold);"></i>
+                  <strong style="font-size: 13px; color: var(--text-primary);">Entregadores Ativos</strong>
+                </div>
+                <span id="badgeQtdMotoboysLista" class="badge" style="background: var(--brand-gold); color: #0b0d12; font-weight: 800; font-size: 11px; padding: 2px 7px; border-radius: 10px;">0</span>
+              </div>
+              <div class="mapa-sidebar-list" id="listaMotoboysMapa">
+                <div style="text-align: center; color: var(--text-muted); font-size: 12px; padding: 24px 10px;">
+                  <div style="font-size: 24px; margin-bottom: 6px;">📡</div>
+                  Aguardando sinal GPS dos motoboys...
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- ====================================================================
@@ -1762,7 +2019,10 @@
           iniciarMapaFullscreen();
         }
         setTimeout(() => {
-          if (state.mapFullscreen) state.mapFullscreen.invalidateSize(true);
+          if (state.mapFullscreen) {
+            state.mapFullscreen.invalidateSize(true);
+            atualizarMarcadoresMapa();
+          }
         }, 150);
       } else if (visao === 'motoboys') {
         verificarAbaMotoboysDesbloqueada();
@@ -2079,7 +2339,7 @@
         maxZoom: 19
       }).addTo(state.mapFullscreen);
 
-      const flameSvg = `<svg viewBox="0 0 24 24" width="22" height="22" fill="#f59e0b" stroke="#f59e0b" stroke-width="1"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>`;
+      const flameSvg = `<svg viewBox="0 0 24 24" width="24" height="24" fill="#f59e0b" stroke="#f59e0b" stroke-width="1"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>`;
       const flameIcon = L.divIcon({
         className: 'custom-icon',
         html: `<div class="marker-restaurant" title="Ao Ponto Carnes — Loja Matriz">${flameSvg}</div>`,
@@ -2089,72 +2349,296 @@
 
       L.marker(state.restauranteCoords, { icon: flameIcon })
         .bindPopup(`
-          <div style="padding: 6px 8px; text-align: center;">
+          <div style="padding: 8px 10px; text-align: center;">
             <strong style="color: var(--brand-gold-light); font-size: 14px;">AO PONTO CARNES</strong><br>
-            <span style="font-size: 11px; color: var(--text-muted);">Rua Coronel Antônio Santiago, 70 • Agriões</span>
+            <span style="font-size: 11px; color: var(--text-muted);">Loja Matriz • Teresópolis/RJ</span>
           </div>
         `)
         .addTo(state.mapFullscreen);
+
+      atualizarMarcadoresMapa();
     }
 
-    // Atualizar Filtro do Mapa (chamado pelo selectFiltroMapa)
+    // Helper de formatação de tempo decorrido do GPS
+    function formatarTempoAtras(segundos) {
+      if (segundos === null || segundos === undefined) return 'Sem sinal recente';
+      if (segundos < 10) return 'Agora mesmo (ao vivo)';
+      if (segundos < 60) return `Há ${segundos}s`;
+      const min = Math.floor(segundos / 60);
+      if (min < 60) return `Há ${min} min`;
+      const horas = Math.floor(min / 60);
+      return `Há ${horas}h`;
+    }
+
+    // Helper: Criação de Ícone Dinâmico do Motoboy para o Leaflet
+    function criarIconeMotoboy(m) {
+      const isEmRota = m.status_motoboy === 'em_rota';
+      const isOnline = m.online !== false;
+      const statusClass = isOnline ? (isEmRota ? 'active' : 'idle') : 'offline';
+      const numPedido = (m.pedidos_numeros && m.pedidos_numeros.length > 0) ? `#${m.pedidos_numeros[0]}` : null;
+      const speedKmH = Math.round(m.speed || 0);
+
+      const bikeSvg = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg>`;
+
+      return L.divIcon({
+        className: 'custom-icon',
+        html: `
+          <div class="marker-motoboy-container">
+            ${numPedido ? `<span class="marker-order-tag">${numPedido}</span>` : ''}
+            <div class="marker-motoboy-badge ${statusClass}">
+              ${bikeSvg}
+            </div>
+            <span class="marker-name-tag">${escapeHtml(m.nome.split(' ')[0])} • ${speedKmH}km/h</span>
+          </div>
+        `,
+        iconSize: [44, 60],
+        iconAnchor: [22, 50],
+        popupAnchor: [0, -45]
+      });
+    }
+
+    // Helper: Criação de Popup com Dados em Tempo Real do Motoboy
+    function criarPopupMotoboyHtml(m) {
+      const isEmRota = m.status_motoboy === 'em_rota';
+      const isOnline = m.online !== false;
+      const speedKmH = Math.round(m.speed || 0);
+      const tempoStr = formatarTempoAtras(m.segundos_atras);
+      const telLimpo = String(m.telefone || '').replace(/\D/g, '');
+      const grupoBadge = `<span class="badge" style="background: ${m.grupo === 'SPEED' ? 'rgba(245, 158, 11, 0.2); color: #fbbf24;' : 'rgba(59, 130, 246, 0.2); color: #60a5fa;'} font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">${m.grupo || 'VELOZ'}</span>`;
+
+      let detalhesEntregaHtml = '';
+      if (isEmRota && m.pedidos_detalhes && m.pedidos_detalhes.length > 0) {
+        detalhesEntregaHtml = `
+          <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1);">
+            <div style="font-size: 11px; font-weight: 800; color: #38bdf8; margin-bottom: 4px;">ENTREGA EM ANDAMENTO:</div>
+            ${m.pedidos_detalhes.map(p => `
+              <div style="font-size: 12px; margin-bottom: 4px; line-height: 1.4;">
+                <strong style="color: #ffffff;">#${p.numero_pedido}</strong> — ${escapeHtml(p.cliente)}<br>
+                <span style="color: var(--text-muted); font-size: 11px;">📍 ${escapeHtml(p.endereco)} ${p.bairro ? '(' + escapeHtml(p.bairro) + ')' : ''}</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } else {
+        detalhesEntregaHtml = `
+          <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 11px; color: #fbbf24; font-weight: 700;">
+            ● Disponível / Retornando ao balcão
+          </div>
+        `;
+      }
+
+      return `
+        <div style="padding: 10px 12px; min-width: 230px; font-family: inherit;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <strong style="font-size: 14px; color: #ffffff;">${escapeHtml(m.nome)}</strong>
+            ${grupoBadge}
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; display: flex; align-items: center; justify-content: space-between;">
+            <span>${escapeHtml(m.telefone)}</span>
+            ${telLimpo ? `<a href="tel:${telLimpo}" style="color: #38bdf8; text-decoration: underline; font-weight: 700;">Ligar</a>` : ''}
+          </div>
+          <div style="display: flex; gap: 10px; margin-top: 6px; font-size: 11px;">
+            <span>⚡ <strong>${speedKmH} km/h</strong></span>
+            <span>📡 <strong style="color: ${isOnline ? '#34d399' : '#94a3b8'};">${tempoStr}</strong></span>
+          </div>
+          ${detalhesEntregaHtml}
+        </div>
+      `;
+    }
+
+    // Atualizar Filtro do Mapa (chamado pelo selectFiltroMapa ou filtroGrupoMapa)
     function atualizarMapa() {
       atualizarMarcadoresMapa();
     }
 
-    // Atualizar Marcadores dos Motoboys no Mapa
+    // Atualizar Marcadores dos Motoboys no Mapa (Dashboard e Fullscreen)
     function atualizarMarcadoresMapa() {
-      if (!state.motoboysMapa || !state.mapDashboard) return;
+      if (!state.motoboysMapa) return;
 
-      const filtroEl = document.getElementById('selectFiltroMapa');
-      const filtro = filtroEl ? filtroEl.value : 'todos';
-      const bikeMarkerSvg = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg>`;
+      const filtroFs = document.getElementById('filtroGrupoMapa')?.value;
+      const filtroDash = document.getElementById('selectFiltroMapa')?.value;
+      const filtro = filtroFs || filtroDash || 'todos';
+
+      // Sincronizar os selects se ambos existirem
+      if (document.getElementById('filtroGrupoMapa') && filtroFs !== filtro) {
+        document.getElementById('filtroGrupoMapa').value = filtro;
+      }
+      if (document.getElementById('selectFiltroMapa') && filtroDash !== filtro) {
+        document.getElementById('selectFiltroMapa').value = filtro;
+      }
+
+      let totalComGpsAtivo = 0;
+      let totalEmRota = 0;
+      const motoboysParaLista = [];
 
       state.motoboysMapa.forEach(m => {
-        if (!m.latitude || !m.longitude) return;
-
+        const temGpsValido = m.latitude !== null && m.latitude !== undefined && m.longitude !== null && m.longitude !== undefined;
         const isEmRota = m.status_motoboy === 'em_rota';
+        const isOnline = m.online !== false;
 
-        if (filtro === 'em_rota' && !isEmRota) {
-          if (state.markersDashboard[m.motoboy_id]) {
-            state.mapDashboard.removeLayer(state.markersDashboard[m.motoboy_id]);
-            delete state.markersDashboard[m.motoboy_id];
+        if (temGpsValido && isOnline) totalComGpsAtivo++;
+        if (isEmRota) totalEmRota++;
+
+        // Critérios de Filtro
+        let passaFiltro = true;
+        if (filtro === 'em_rota' && !isEmRota) passaFiltro = false;
+        if (filtro === 'disponivel' && isEmRota) passaFiltro = false;
+        if (filtro === 'VELOZ' && m.grupo !== 'VELOZ') passaFiltro = false;
+        if (filtro === 'SPEED' && m.grupo !== 'SPEED') passaFiltro = false;
+
+        // Gerenciar Marcador no MAPA DASHBOARD (Início)
+        if (state.mapDashboard) {
+          if (!temGpsValido || !passaFiltro) {
+            if (state.markersDashboard[m.motoboy_id]) {
+              state.mapDashboard.removeLayer(state.markersDashboard[m.motoboy_id]);
+              delete state.markersDashboard[m.motoboy_id];
+            }
+          } else {
+            const icon = criarIconeMotoboy(m);
+            const popupHtml = criarPopupMotoboyHtml(m);
+
+            if (state.markersDashboard[m.motoboy_id]) {
+              state.markersDashboard[m.motoboy_id].setLatLng([m.latitude, m.longitude]);
+              state.markersDashboard[m.motoboy_id].setIcon(icon);
+              if (state.markersDashboard[m.motoboy_id].getPopup()) {
+                state.markersDashboard[m.motoboy_id].getPopup().setContent(popupHtml);
+              }
+            } else {
+              const marker = L.marker([m.latitude, m.longitude], { icon: icon })
+                .bindPopup(popupHtml)
+                .addTo(state.mapDashboard);
+              state.markersDashboard[m.motoboy_id] = marker;
+            }
           }
-          return;
         }
 
-        const iconHtml = `<div class="marker-motoboy ${isEmRota ? 'active' : 'idle'}">${bikeMarkerSvg}</div>`;
-        const customIcon = L.divIcon({
-          className: 'custom-icon',
-          html: iconHtml,
-          iconSize: [40, 40],
-          iconAnchor: [20, 20]
-        });
+        // Gerenciar Marcador no MAPA FULLSCREEN (Aba Mapa & Rotas)
+        if (state.mapFullscreen) {
+          if (!temGpsValido || !passaFiltro) {
+            if (state.markersFullscreen[m.motoboy_id]) {
+              state.mapFullscreen.removeLayer(state.markersFullscreen[m.motoboy_id]);
+              delete state.markersFullscreen[m.motoboy_id];
+            }
+          } else {
+            const icon = criarIconeMotoboy(m);
+            const popupHtml = criarPopupMotoboyHtml(m);
 
-        const popupHtml = `
-          <div style="padding: 8px 10px; min-width: 180px;">
-            <div style="font-weight: 800; font-size: 13px; color: var(--brand-gold-light); display: flex; align-items: center; gap: 6px;">
-              ${bikeMarkerSvg}
-              <span>${escapeHtml(m.nome)}</span>
-            </div>
-            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">${escapeHtml(m.telefone)} • ${Math.round(m.speed || 0)} km/h</div>
-            <div style="font-size: 11px; margin-top: 6px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.1);">
-              ${isEmRota ? `<strong>Em rota:</strong> #${(m.pedidos_numeros || []).join(', #')}` : '<em>Disponível no balcão</em>'}
-            </div>
-          </div>
-        `;
+            if (state.markersFullscreen[m.motoboy_id]) {
+              state.markersFullscreen[m.motoboy_id].setLatLng([m.latitude, m.longitude]);
+              state.markersFullscreen[m.motoboy_id].setIcon(icon);
+              if (state.markersFullscreen[m.motoboy_id].getPopup()) {
+                state.markersFullscreen[m.motoboy_id].getPopup().setContent(popupHtml);
+              }
+            } else {
+              const marker = L.marker([m.latitude, m.longitude], { icon: icon })
+                .bindPopup(popupHtml)
+                .addTo(state.mapFullscreen);
+              state.markersFullscreen[m.motoboy_id] = marker;
+            }
+          }
+        }
 
-        if (state.markersDashboard[m.motoboy_id]) {
-          state.markersDashboard[m.motoboy_id].setLatLng([m.latitude, m.longitude]);
-          state.markersDashboard[m.motoboy_id].getPopup().setContent(popupHtml);
-        } else {
-          const marker = L.marker([m.latitude, m.longitude], { icon: customIcon })
-            .bindPopup(popupHtml)
-            .addTo(state.mapDashboard);
-
-          state.markersDashboard[m.motoboy_id] = marker;
+        if (temGpsValido && passaFiltro) {
+          motoboysParaLista.push(m);
         }
       });
+
+      // Atualizar contadores na barra superior do mapa
+      const lblOnline = document.getElementById('lblMapaTotalOnline');
+      const lblRota = document.getElementById('lblMapaEmRota');
+      const badgeQtd = document.getElementById('badgeQtdMotoboysLista');
+
+      if (lblOnline) lblOnline.textContent = `${totalComGpsAtivo} Com GPS Ativo`;
+      if (lblRota) lblRota.textContent = `${totalEmRota} Em Rota`;
+      if (badgeQtd) badgeQtd.textContent = motoboysParaLista.length;
+
+      // Atualizar lista na sidebar do mapa
+      const containerLista = document.getElementById('listaMotoboysMapa');
+      if (containerLista) {
+        if (motoboysParaLista.length === 0) {
+          containerLista.innerHTML = `
+            <div style="text-align: center; color: var(--text-muted); font-size: 12px; padding: 24px 10px;">
+              <div style="font-size: 24px; margin-bottom: 6px;">📡</div>
+              <strong>Nenhum motoboy com sinal GPS ativo</strong><br>
+              <span style="font-size: 11px;">Os motoboys aparecerão aqui assim que abrirem o app mobile.</span>
+            </div>
+          `;
+        } else {
+          // Ordenar: primeiro quem está em rota, depois por velocidade
+          motoboysParaLista.sort((a, b) => {
+            if (a.status_motoboy === 'em_rota' && b.status_motoboy !== 'em_rota') return -1;
+            if (a.status_motoboy !== 'em_rota' && b.status_motoboy === 'em_rota') return 1;
+            return (b.speed || 0) - (a.speed || 0);
+          });
+
+          containerLista.innerHTML = motoboysParaLista.map(m => {
+            const isEmRota = m.status_motoboy === 'em_rota';
+            const isSpeed = m.grupo === 'SPEED';
+            const badgeGrupo = isSpeed ? 'badge-grupo-speed' : 'badge-grupo-veloz';
+            const speedKmH = Math.round(m.speed || 0);
+            const tempoStr = formatarTempoAtras(m.segundos_atras);
+
+            return `
+              <div class="motoboy-map-card" onclick="focarMotoboy(${m.motoboy_id})">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <strong style="font-size: 13px; color: #ffffff;">${escapeHtml(m.nome)}</strong>
+                  <span class="badge-grupo-pedido ${badgeGrupo}" style="font-size: 10px; padding: 2px 6px;">${m.grupo || 'VELOZ'}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted);">
+                  <span>⚡ <strong>${speedKmH} km/h</strong></span>
+                  <span style="color: ${m.online !== false ? '#34d399' : '#94a3b8'};">📡 ${tempoStr}</span>
+                </div>
+                ${isEmRota ? `
+                  <div style="font-size: 11px; color: #38bdf8; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                    <span>📦 Pedido #${(m.pedidos_numeros || []).join(', #')}</span>
+                  </div>
+                ` : `
+                  <div style="font-size: 11px; color: #fbbf24; font-weight: 600;">
+                    <span>● Disponível / Balcão</span>
+                  </div>
+                `}
+              </div>
+            `;
+          }).join('');
+        }
+      }
+    }
+
+    // Ação: Focar num motoboy específico ao clicar no card da sidebar
+    function focarMotoboy(id) {
+      const m = (state.motoboysMapa || []).find(x => x.motoboy_id === id);
+      if (!m || m.latitude === null || m.longitude === null) {
+        showToast('Entregador sem sinal GPS registrado no momento.', 'warning');
+        return;
+      }
+      if (state.mapFullscreen) {
+        state.mapFullscreen.flyTo([m.latitude, m.longitude], 17, { animate: true, duration: 1.2 });
+        if (state.markersFullscreen[id]) {
+          setTimeout(() => {
+            state.markersFullscreen[id].openPopup();
+          }, 600);
+        }
+      }
+    }
+
+    // Ação: Enquadrar todos os motoboys e a loja matriz no mapa
+    function focarTodosMotoboys() {
+      const coords = [state.restauranteCoords];
+      (state.motoboysMapa || []).forEach(m => {
+        if (m.latitude !== null && m.longitude !== null) {
+          coords.push([m.latitude, m.longitude]);
+        }
+      });
+      if (state.mapFullscreen && coords.length > 0) {
+        state.mapFullscreen.fitBounds(coords, { padding: [50, 50], maxZoom: 16 });
+      }
+    }
+
+    // Ação: Centralizar na Loja Matriz
+    function centralizarRestaurante() {
+      if (state.mapFullscreen) {
+        state.mapFullscreen.flyTo(state.restauranteCoords, 15, { animate: true, duration: 1 });
+      }
     }
 
     // FILTRAR E RENDERIZAR KANBAN DE PEDIDOS
