@@ -393,6 +393,7 @@ async function listarMotoboysAdmin(req, res) {
 async function obterFechamentoEntregas(req, res) {
   try {
     const db = getDb();
+    await expirarPedidosPendentesDiasAnteriores(db);
     const { periodo = 'hoje', motoboy_id, grupo = 'todos', data_inicio, data_fim } = req.query || {};
 
     let dataFiltro = '';
@@ -981,15 +982,17 @@ async function atribuirPedidoMotoboy(req, res) {
 
     const grupoFinal = motoboy.grupo || 'VELOZ';
 
-    // 3. Atualizar o pedido para o entregador designado (considerar finalizado para não acumular)
-    const statusFinal = (novoStatus === 'em_rota' || novoStatus === 'entregue') ? 'entregue' : novoStatus;
+    // 3. Atualizar o pedido para o entregador designado
+    const statusFinal = (novoStatus && typeof novoStatus === 'string') ? novoStatus : 'em_rota';
     let updateSql = `UPDATE pedidos 
                      SET motoboy_id = ?, 
                          grupo = ?, 
                          status = ?`;
     const params = [motoboyIdNum, grupoFinal, statusFinal];
 
-    if (statusFinal === 'entregue') {
+    if (statusFinal === 'em_rota') {
+      updateSql += `, data_inicio = COALESCE(data_inicio, DATETIME('now', '-3 hours')), data_fim = NULL`;
+    } else if (statusFinal === 'entregue') {
       updateSql += `, data_inicio = COALESCE(data_inicio, DATETIME('now', '-3 hours')), data_fim = DATETIME('now', '-3 hours')`;
     }
 

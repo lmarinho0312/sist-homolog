@@ -831,6 +831,18 @@
 
     </div>
 
+  <!-- MODAL DE CONFIRMAÇÃO DE FINALIZAÇÃO -->
+  <div class="modal-confirm-overlay" id="modalFinalizar" style="display: none;">
+    <div class="modal-confirm-box">
+      <div style="display: flex; justify-content: center; margin-bottom: 14px;"><div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3); display: flex; align-items: center; justify-content: center; color: #22c55e;"><i data-lucide="flag" style="width: 26px; height: 26px;"></i></div></div>
+      <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 8px;">Finalizar Entrega?</h3>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;" id="modalFinalizarTexto">Confirmar conclusão do pedido #--?</p>
+      
+      <div style="display: flex; gap: 10px;">
+        <button class="btn btn-secondary" style="flex: 1;" onclick="fecharModalFinalizar()">Cancelar</button>
+        <button class="btn btn-danger" style="flex: 1;" id="btnConfirmarFinalizacao" onclick="confirmarFinalizarPedido()">SIM, ENTREGUE</button>
+      </div>
+    </div>
   </div>
 
   <!-- TOAST CONTAINER -->
@@ -1374,6 +1386,11 @@
 
           <!-- BOTÃO OFICIAL CONFIRMAR CÓDIGO (IFOOD / 99FOOD) -->
           ${btnConfirmarCodigoHtml}
+
+          <!-- BOTÃO FINALIZAR ENTREGA -->
+          <button class="btn-finalizar-master" style="margin-top: 14px;" onclick="solicitarFinalizarEntrega(${p.id}, '${p.numero_pedido}')">
+            <span>✓ FINALIZAR ENTREGA</span>
+          </button>
         </div>
       `;
     }
@@ -1608,14 +1625,69 @@
 
         const data = await res.json();
         if (res.ok && data.success) {
-          showToast(`Pedido #${numero} retirado e finalizado com sucesso!`, 'success');
+          showToast(`Pedido #${numero} retirado com sucesso! Boa rota!`, 'success');
           limparBuscaBalcao();
+          trocarAbaApp('inicio');
           carregarDados();
         } else {
           showToast(data.message || 'Erro ao retirar pedido.', 'error');
         }
       } catch (err) {
         showToast('Falha na comunicação com o servidor.', 'error');
+      }
+    }
+
+    // AÇÃO: FINALIZAR ENTREGA
+    function solicitarFinalizarEntrega(pedidoId, numero) {
+      state.pedidoParaFinalizar = { id: pedidoId, numero: numero };
+      const elTexto = document.getElementById('modalFinalizarTexto');
+      if (elTexto) elTexto.textContent = `Confirmar conclusão da entrega do pedido #${numero}?`;
+      const modal = document.getElementById('modalFinalizar');
+      if (modal) modal.style.display = 'flex';
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function fecharModalFinalizar() {
+      const modal = document.getElementById('modalFinalizar');
+      if (modal) modal.style.display = 'none';
+      state.pedidoParaFinalizar = null;
+    }
+
+    async function confirmarFinalizarPedido() {
+      if (!state.pedidoParaFinalizar) return;
+
+      const p = state.pedidoParaFinalizar;
+      const btn = document.getElementById('btnConfirmarFinalizacao');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Gravando...';
+      }
+
+      try {
+        const res = await fetch('/api/pedidos/finalizar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pedido_id: p.id,
+            motoboy_id: state.motoboy.id
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(`Pedido #${p.numero} entregue com sucesso!`, 'success');
+          fecharModalFinalizar();
+          carregarDados();
+        } else {
+          showToast(data.message || 'Erro ao finalizar.', 'error');
+        }
+      } catch (err) {
+        showToast('Erro de conexão ao finalizar.', 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'SIM, ENTREGUE';
+        }
       }
     }
 
