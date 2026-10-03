@@ -1,0 +1,46 @@
+name: Build APK Ao Ponto Entregador
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'android/**'
+      - 'public/motoboy.html'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Compilar APK Android
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Configurar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Inicializar Gradle Wrapper
+        run: |
+          cd android
+          gradle wrapper --gradle-version 8.2
+          chmod +x gradlew
+
+      - name: Compilar APK (Debug)
+        run: |
+          cd android
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Fazer Upload do APK Compilado
+        uses: actions/upload-artifact@v4
+        with:
+          name: AoPonto-Entregador-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30

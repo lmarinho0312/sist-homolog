@@ -1,0 +1,14 @@
+{
+  "appId": "br.com.aoponto.motoboy",
+  "appName": "Ao Ponto Entregador",
+  "webDir": "public",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://sist-homolog.vercel.app/motoboy",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#0a0b0d"
+  }
+}

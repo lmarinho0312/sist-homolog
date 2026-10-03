@@ -654,10 +654,24 @@ async function assumirPedido(req, res) {
     const motoboyIdNum = Number(motoboy_id);
     const db = getDb();
 
-    // 1. Obter motoboy e seu grupo oficial
-    const motoboy = await db.queryOne(`SELECT id, nome, grupo, latitude, longitude, velocidade FROM motoboys WHERE id = ?`, [motoboyIdNum]);
+    // 1. Obter motoboy e seu grupo oficial com status e localização
+    const motoboy = await db.queryOne(`SELECT id, nome, grupo, status, latitude, longitude, velocidade, ultima_atualizacao FROM motoboys WHERE id = ?`, [motoboyIdNum]);
     if (!motoboy) {
       return res.json(404, { success: false, message: 'Motoboy não encontrado ou não cadastrado.' });
+    }
+
+    const statusLimpo = String(motoboy.status || 'aprovado').toLowerCase();
+    if (statusLimpo === 'bloqueado' || statusLimpo === 'recusado' || statusLimpo === 'pendente') {
+      return res.json(403, { success: false, message: 'Seu cadastro está pendente de liberação ou bloqueado pela administração.' });
+    }
+
+    // Trava de Segurança em Produção: O motoboy precisa estar com o GPS transmitindo para retirar pedidos
+    if (motoboy.latitude === null || motoboy.longitude === null) {
+      return res.json(400, { 
+        success: false, 
+        gps_obrigatorio: true, 
+        message: 'GPS inativo. É obrigatório conceder permissão e calibrar o GPS com alta precisão para retirar entregas.' 
+      });
     }
 
     const grupoMotoboy = (motoboy.grupo && String(motoboy.grupo).toUpperCase() === 'VELOZ') ? 'VELOZ' : 'SPEED';
