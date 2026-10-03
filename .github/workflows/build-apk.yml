@@ -24,18 +24,28 @@ jobs:
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-      - name: Configurar Gradle
+      - name: Configurar Gradle 8.5
         uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.5'
 
       - name: Compilar APK Debug com Gradle
         run: |
           cd android
-          gradle assembleDebug --no-daemon --stacktrace
+          gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log || {
+            echo "::error::FALHA NA COMPILACAO GRADLE"
+            tail -n 40 build.log | while IFS= read -r line; do
+              echo "::error file=build.gradle::$line"
+            done
+            exit 1
+          }
 
-      - name: Fazer Upload do APK Compilado
+      - name: Fazer Upload do Log ou APK Compilado
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: AoPonto-Entregador-APK
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: |
+            android/build.log
+            android/app/build/outputs/apk/debug/*.apk
           retention-days: 30
