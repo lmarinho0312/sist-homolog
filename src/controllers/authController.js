@@ -12,12 +12,13 @@ async function login(req, res) {
       return res.json(400, { success: false, message: 'Por favor, informe o telefone e a senha.' });
     }
 
-    const cleanTelefone = String(telefone).trim().replace(/\D/g, '');
+    const trimmedInput = String(telefone).trim();
+    const cleanTelefone = trimmedInput.replace(/\D/g, '');
     const db = getDb();
 
     const motoboy = await db.queryOne(
-      `SELECT id, nome, telefone, senha, traccar_device_id, grupo, status, chave_pix FROM motoboys WHERE telefone = ? OR telefone = ?`,
-      [cleanTelefone, String(telefone).trim()]
+      `SELECT id, nome, telefone, senha, traccar_device_id, grupo, status, chave_pix FROM motoboys WHERE telefone = ? OR telefone = ? OR LOWER(nome) = LOWER(?)`,
+      [cleanTelefone, trimmedInput, trimmedInput]
     );
 
     if (!motoboy) {

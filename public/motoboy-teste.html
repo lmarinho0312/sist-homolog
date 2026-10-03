@@ -589,7 +589,14 @@
 
           <div class="form-group">
             <label class="form-label" for="inpTel">Usuário de Teste</label>
-            <input type="text" id="inpTel" class="form-input" placeholder="Lucas" value="Lucas" required>
+            <input type="text" id="inpTel" class="form-input" placeholder="mickey, pantufa ou Lucas" value="mickey" required>
+          </div>
+
+          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px; display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: wrap;">
+            <span>Atalhos:</span>
+            <button type="button" onclick="document.getElementById('inpTel').value='mickey'" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); color: #60a5fa; font-size: 10px; font-weight: 700; border-radius: 4px; padding: 2px 6px; cursor: pointer;">Mickey (VELOZ)</button>
+            <button type="button" onclick="document.getElementById('inpTel').value='pantufa'" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); color: #60a5fa; font-size: 10px; font-weight: 700; border-radius: 4px; padding: 2px 6px; cursor: pointer;">Pantufa (VELOZ)</button>
+            <button type="button" onclick="document.getElementById('inpTel').value='Lucas'" style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; font-size: 10px; font-weight: 700; border-radius: 4px; padding: 2px 6px; cursor: pointer;">Lucas (SPEED)</button>
           </div>
 
           <div class="form-group">
