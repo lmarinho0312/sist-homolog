@@ -21,6 +21,16 @@ public class MainActivity extends AppCompatActivity {
 
     public class AndroidBridge {
         @JavascriptInterface
+        public boolean temPermissoesLocalizacao() {
+            return ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        }
+
+        @JavascriptInterface
+        public void solicitarPermissoes() {
+            runOnUiThread(() -> verificarESolicitarPermissoes());
+        }
+
+        @JavascriptInterface
         public void iniciarRastreamentoNativo(String motoboyId) {
             Intent serviceIntent = new Intent(MainActivity.this, LocationService.class);
             serviceIntent.putExtra("motoboy_id", motoboyId);
@@ -80,6 +90,19 @@ public class MainActivity extends AppCompatActivity {
                 };
             }
             ActivityCompat.requestPermissions(this, permissions, PERMISSION_REQUEST_CODE);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            boolean concedida = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            if (webView != null) {
+                webView.post(() -> {
+                    webView.evaluateJavascript("if (window.aoAtualizarPermissaoNativa) { window.aoAtualizarPermissaoNativa(" + concedida + "); }", null);
+                });
+            }
         }
     }
 

@@ -869,13 +869,75 @@
       if (window.lucide) lucide.createIcons();
     });
 
+    // Validação Discreta de Permissão de Localização no Login
+    async function verificarPermissaoLocalizacaoAntesLogin() {
+      if (window.AndroidBridge && typeof window.AndroidBridge.temPermissoesLocalizacao === 'function') {
+        const temPermissao = window.AndroidBridge.temPermissoesLocalizacao();
+        if (!temPermissao) {
+          if (typeof window.AndroidBridge.solicitarPermissoes === 'function') {
+            window.AndroidBridge.solicitarPermissoes();
+          }
+          return false;
+        }
+        return true;
+      }
+
+      if (!navigator.geolocation) {
+        return false;
+      }
+
+      return new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          () => resolve(true),
+          (err) => {
+            if (err && err.code === err.PERMISSION_DENIED) {
+              resolve(false);
+            } else {
+              resolve(true);
+            }
+          },
+          { timeout: 6000, enableHighAccuracy: true, maximumAge: 60000 }
+        );
+      });
+    }
+
+    window.aoAtualizarPermissaoNativa = function(concedida) {
+      const notice = document.getElementById('msgAvisoAuthLogin');
+      if (concedida) {
+        if (notice) notice.style.display = 'none';
+        const sessaoStr = localStorage.getItem('motoboySession');
+        if (sessaoStr && !state.motoboy) {
+          try {
+            state.motoboy = JSON.parse(sessaoStr);
+            iniciarApp();
+          } catch(e) {}
+        }
+      }
+    };
+
     // Sessão do Entregador
-    function verificarSessao() {
+    async function verificarSessao() {
       const sessaoStr = localStorage.getItem('motoboySession');
       if (sessaoStr) {
         try {
           state.motoboy = JSON.parse(sessaoStr);
-          iniciarApp();
+          const permissaoOk = await verificarPermissaoLocalizacaoAntesLogin();
+          if (permissaoOk) {
+            iniciarApp();
+          } else {
+            exibirTelaAuth();
+            const notice = document.getElementById('msgAvisoAuthLogin');
+            if (notice) {
+              notice.innerHTML = `<div style="display: flex; align-items: flex-start; gap: 8px;">
+                <span style="font-size: 16px;">📍</span>
+                <div>
+                  <strong style="color: #fbbf24;">Permissão de Localização Necessária</strong><br>
+                  <span style="color: var(--text-muted); font-size: 12px;">Para acessar o painel de entregas, autorize a localização (GPS) nas configurações do seu celular.</span>
+                </div>
+              </div>`;
+              notice.style.display = 'block';
+            }
+          }
         } catch (e) {
           localStorage.removeItem('motoboySession');
           exibirTelaAuth();
@@ -1803,8 +1865,31 @@
       const telefone = document.getElementById('inpTel').value;
       const senha = document.getElementById('inpSenha').value;
       const btn = document.getElementById('btnLoginSubmit');
+      const notice = document.getElementById('msgAvisoAuthLogin');
 
       btn.disabled = true;
+      btn.textContent = 'Verificando GPS...';
+
+      // Validação discreta: apenas quem aceitar a localização pode fazer login
+      const permissaoConcedida = await verificarPermissaoLocalizacaoAntesLogin();
+      if (!permissaoConcedida) {
+        btn.disabled = false;
+        btn.textContent = 'ENTRAR NO SISTEMA';
+        if (notice) {
+          notice.innerHTML = `<div style="display: flex; align-items: flex-start; gap: 8px;">
+            <span style="font-size: 16px;">📍</span>
+            <div>
+              <strong style="color: #fbbf24;">Permissão de Localização Obrigatória</strong><br>
+              <span style="color: var(--text-muted); font-size: 12px;">Para entrar no aplicativo, é necessário autorizar a permissão de localização (GPS).</span>
+            </div>
+          </div>`;
+          notice.style.display = 'block';
+        }
+        showToast('Autorize o GPS para entrar no sistema.', 'warning');
+        return;
+      }
+
+      if (notice) notice.style.display = 'none';
       btn.textContent = 'Entrando...';
 
       try {
@@ -1821,7 +1906,6 @@
           showToast(`Bem-vindo, ${state.motoboy.nome}!`, 'success');
           iniciarApp();
         } else {
-          const notice = document.getElementById('msgAvisoAuthLogin');
           if (data.pendente || res.status === 403) {
             if (notice) {
               notice.innerHTML = `⏳ <strong>Aguardando Aprovação</strong><br>${data.message || 'Seu cadastro está pendente de aprovação pela administração.'}`;
