@@ -584,6 +584,7 @@ async function obterFechamentoEntregas(req, res) {
         entregadores_ativos: resumoPorMotoboy.length
       },
       por_motoboy: resumoPorMotoboy,
+      motoboys: resumoPorMotoboy,
       entregas_detalhadas: entregasDetalhadas
     });
   } catch (error) {

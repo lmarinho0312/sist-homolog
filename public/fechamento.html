@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Ao Ponto — Fechamento Mobile</title>
+  <title>Ao Ponto — Fechamento de Taxas</title>
   
   <!-- PWA & Mobile Meta Tags -->
   <meta name="theme-color" content="#0a0b0d">
@@ -49,7 +49,7 @@
       color: var(--text-main);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       min-height: 100vh;
-      padding: 0 0 calc(env(safe-area-inset-bottom, 16px) + 24px) 0;
+      padding: 0 0 calc(env(safe-area-inset-bottom, 16px) + 32px) 0;
       overflow-x: hidden;
     }
 
@@ -58,7 +58,7 @@
       position: sticky;
       top: 0;
       z-index: 100;
-      background: rgba(10, 11, 13, 0.88);
+      background: rgba(10, 11, 13, 0.92);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
       border-bottom: 1px solid var(--border-subtle);
@@ -75,7 +75,7 @@
     }
 
     .brand-logo {
-      height: 34px;
+      height: 32px;
       width: auto;
       object-fit: contain;
       border-radius: 6px;
@@ -95,12 +95,18 @@
       font-weight: 500;
     }
 
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
     .btn-icon-header {
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       color: var(--text-main);
-      width: 38px;
-      height: 38px;
+      width: 36px;
+      height: 36px;
       border-radius: 10px;
       display: flex;
       align-items: center;
@@ -117,13 +123,13 @@
     /* CONTAINER PRINCIPAL */
     .main-container {
       padding: 16px;
-      max-width: 600px;
+      max-width: 680px;
       margin: 0 auto;
     }
 
     /* CARROSSEL DE FILTROS DE PERÍODO */
     .filter-scroll-container {
-      margin: -4px -16px 14px -16px;
+      margin: -4px -16px 12px -16px;
       padding: 4px 16px;
       overflow-x: auto;
       display: flex;
@@ -158,17 +164,24 @@
       box-shadow: 0 2px 10px rgba(245, 158, 11, 0.25);
     }
 
-    /* CHIPS DE GRUPO */
-    .group-pills {
+    /* BARRA DE FILTROS SECUNDÁRIOS: GRUPO & MOTOBOY */
+    .secondary-filters {
       display: flex;
       gap: 8px;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
+      align-items: center;
+    }
+
+    .group-pills {
+      display: flex;
+      gap: 4px;
+      flex: 1;
     }
 
     .group-pill {
       flex: 1;
-      padding: 8px 10px;
-      font-size: 12px;
+      padding: 8px 6px;
+      font-size: 11px;
       font-weight: 700;
       border-radius: var(--radius-sm);
       background: var(--bg-card);
@@ -177,6 +190,7 @@
       cursor: pointer;
       text-align: center;
       transition: all 0.2s;
+      white-space: nowrap;
     }
 
     .group-pill.active {
@@ -185,16 +199,33 @@
       color: var(--brand-gold);
     }
 
+    .select-motoboy {
+      flex: 1.2;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 600;
+      outline: none;
+    }
+
+    .select-motoboy:focus {
+      border-color: var(--brand-gold);
+    }
+
     /* BOX DATA PERSONALIZADA */
     .custom-date-box {
       display: none;
-      background: var(--bg-card);
-      border: 1px solid var(--border-subtle);
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid rgba(245, 158, 11, 0.3);
       border-radius: var(--radius-md);
-      padding: 12px;
-      margin-bottom: 16px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
       gap: 8px;
       align-items: center;
+      flex-wrap: wrap;
     }
 
     .custom-date-box.active {
@@ -203,12 +234,24 @@
 
     .custom-date-input {
       flex: 1;
+      min-width: 120px;
       background: var(--bg-input);
       border: 1px solid var(--border-subtle);
       color: var(--text-main);
-      padding: 8px 10px;
+      padding: 7px 10px;
       border-radius: var(--radius-sm);
       font-size: 12px;
+    }
+
+    .btn-consultar-custom {
+      background: var(--brand-gold);
+      color: #000;
+      border: none;
+      padding: 7px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
     }
 
     /* KPIS EM DESTAQUE */
@@ -223,7 +266,7 @@
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 14px;
+      padding: 12px 14px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -236,7 +279,7 @@
     }
 
     .kpi-label {
-      font-size: 11px;
+      font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: var(--text-muted);
@@ -252,30 +295,52 @@
     }
 
     .kpi-value {
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 800;
       color: var(--text-main);
     }
 
-    /* LISTA DE MOTOBOYS */
-    .section-title {
-      font-size: 13px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-      margin-bottom: 12px;
+    /* ABAS DE VISUALIZAÇÃO: POR ENTREGADOR / DETALHAMENTO GERAL */
+    .tabs-view {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 16px;
+      gap: 16px;
     }
 
+    .tab-view-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 800;
+      padding: 8px 4px 10px 4px;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .tab-view-btn.active {
+      color: var(--brand-gold);
+    }
+
+    .tab-view-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--brand-gold);
+      border-radius: 2px;
+    }
+
+    /* LISTA DE MOTOBOYS */
     .motoboy-card {
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
-      padding: 16px;
-      margin-bottom: 14px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
     }
 
@@ -288,7 +353,7 @@
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
 
     .motoboy-info {
@@ -296,7 +361,7 @@
     }
 
     .motoboy-nome {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 800;
       color: var(--text-main);
       margin-bottom: 4px;
@@ -339,14 +404,14 @@
     }
 
     .motoboy-valor-label {
-      font-size: 10px;
+      font-size: 9px;
       text-transform: uppercase;
       font-weight: 700;
       color: var(--text-muted);
     }
 
     .motoboy-valor {
-      font-size: 20px;
+      font-size: 19px;
       font-weight: 900;
       color: #34d399;
     }
@@ -356,8 +421,8 @@
       background: var(--bg-input);
       border: 1px dashed var(--border-subtle);
       border-radius: var(--radius-sm);
-      padding: 10px 12px;
-      margin-bottom: 12px;
+      padding: 8px 12px;
+      margin-bottom: 10px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -378,7 +443,7 @@
     }
 
     .pix-key {
-      font-size: 12px;
+      font-size: 11px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       color: var(--text-main);
       white-space: nowrap;
@@ -391,7 +456,7 @@
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       color: var(--text-main);
-      padding: 6px 12px;
+      padding: 5px 10px;
       border-radius: var(--radius-sm);
       font-size: 11px;
       font-weight: 700;
@@ -418,14 +483,14 @@
     .card-actions {
       display: flex;
       gap: 8px;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
 
     .btn-action {
       flex: 1;
-      padding: 11px 12px;
+      padding: 9px 12px;
       border-radius: var(--radius-sm);
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 800;
       display: inline-flex;
       align-items: center;
@@ -476,9 +541,9 @@
 
     .entregas-lista {
       display: none;
-      margin-top: 10px;
+      margin-top: 8px;
       border-top: 1px solid var(--border-subtle);
-      padding-top: 10px;
+      padding-top: 8px;
     }
 
     .entregas-lista.open {
@@ -498,6 +563,98 @@
       border-bottom: none;
     }
 
+    /* TABELA ANALÍTICA GERAL */
+    .tabela-detalhada-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 12px;
+      overflow-x: auto;
+    }
+
+    .table-entregas {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .table-entregas th {
+      padding: 8px 10px;
+      text-align: left;
+      color: var(--text-muted);
+      font-weight: 700;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .table-entregas td {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    /* MODAL DE TAXAS POR BAIRRO */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.82);
+      backdrop-filter: blur(6px);
+      z-index: 10000;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .modal-sheet {
+      background: #14161b;
+      border-top: 1px solid var(--border-subtle);
+      border-radius: 20px 20px 0 0;
+      width: 100%;
+      max-width: 600px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 16px max(env(safe-area-inset-bottom, 16px), 16px) 16px;
+      animation: slideUp 0.25s ease-out;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .btn-close-modal {
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 14px;
+    }
+
     /* TOAST */
     .toast {
       position: fixed;
@@ -511,7 +668,7 @@
       border-radius: 30px;
       font-size: 13px;
       font-weight: 700;
-      z-index: 1000;
+      z-index: 20000;
       opacity: 0;
       transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
@@ -523,7 +680,6 @@
       opacity: 1;
     }
 
-    /* SKELETON & EMPTY */
     .empty-state {
       text-align: center;
       padding: 40px 16px;
@@ -545,11 +701,28 @@
         <div class="brand-subtitle" id="headerSubtitle">Carregando...</div>
       </div>
     </div>
-    <button class="btn-icon-header" onclick="carregarFechamento(true)" title="Atualizar dados" id="btnRefresh">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
-      </svg>
-    </button>
+    <div class="header-actions">
+      <!-- Botão Tabela de Taxas -->
+      <button class="btn-icon-header" onclick="abrirModalTaxas()" title="Tabela de Taxas por Bairro">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/>
+        </svg>
+      </button>
+
+      <!-- Botão Imprimir / Exportar Relatório -->
+      <button class="btn-icon-header" onclick="imprimirRelatorio()" title="Imprimir / Salvar Relatório PDF">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+        </svg>
+      </button>
+
+      <!-- Botão Atualizar -->
+      <button class="btn-icon-header" onclick="carregarFechamento(true)" title="Atualizar dados" id="btnRefresh">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+        </svg>
+      </button>
+    </div>
   </header>
 
   <main class="main-container">
@@ -569,42 +742,126 @@
       <input type="date" id="dataInicio" class="custom-date-input" onchange="carregarFechamento()">
       <span style="color: var(--text-muted); font-size: 12px;">até</span>
       <input type="date" id="dataFim" class="custom-date-input" onchange="carregarFechamento()">
+      <button class="btn-consultar-custom" onclick="carregarFechamento()">Consultar</button>
     </div>
 
-    <!-- FILTRO DE GRUPO -->
-    <div class="group-pills">
-      <button class="group-pill active" data-grupo="todos" onclick="selecionarGrupo('todos', this)">Todos</button>
-      <button class="group-pill" data-grupo="VELOZ" onclick="selecionarGrupo('VELOZ', this)">VELOZ</button>
-      <button class="group-pill" data-grupo="SPEED" onclick="selecionarGrupo('SPEED', this)">SPEED</button>
+    <!-- FILTROS SECUNDÁRIOS: GRUPO & MOTOBOY -->
+    <div class="secondary-filters">
+      <div class="group-pills">
+        <button class="group-pill active" data-grupo="todos" onclick="selecionarGrupo('todos', this)">Todos</button>
+        <button class="group-pill" data-grupo="VELOZ" onclick="selecionarGrupo('VELOZ', this)">VELOZ</button>
+        <button class="group-pill" data-grupo="SPEED" onclick="selecionarGrupo('SPEED', this)">SPEED</button>
+      </div>
+      <select id="selectFiltroMotoboy" class="select-motoboy" onchange="carregarFechamento()">
+        <option value="todos">Todos os Entregadores</option>
+      </select>
     </div>
 
-    <!-- KPIS CONSOLIDADOS -->
+    <!-- 4 KPIS CONSOLIDADOS (IGUAL AO PAINEL) -->
     <div class="kpi-grid">
       <div class="kpi-card highlight">
-        <div class="kpi-label">Total em Taxas a Repassar</div>
+        <div class="kpi-label">Total a Pagar / Repassar</div>
         <div class="kpi-value-gold" id="kpiTotalTaxas">R$ 0,00</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Entregas</div>
+        <div class="kpi-label">Entregas no Período</div>
         <div class="kpi-value" id="kpiTotalEntregas">0</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Entregadores</div>
+        <div class="kpi-label">Entregadores Ativos</div>
         <div class="kpi-value" id="kpiEntregadoresAtivos">0</div>
+      </div>
+      <div class="kpi-card" style="grid-column: span 2;">
+        <div class="kpi-label">Taxa Média por Entrega</div>
+        <div class="kpi-value" id="kpiMediaTaxa" style="color: var(--brand-gold);">R$ 0,00</div>
       </div>
     </div>
 
-    <!-- SEÇÃO DE MOTOBOYS -->
-    <div class="section-title">
-      <span>Repasse por Entregador</span>
-      <span id="labelContadorMotoboys" style="font-size: 11px; font-weight: 600;"></span>
+    <!-- ABAS DE VISUALIZAÇÃO: POR ENTREGADOR / DETALHAMENTO DE ENTREGAS -->
+    <div class="tabs-view">
+      <button class="tab-view-btn active" id="tabViewMotoboys" onclick="alternarVisaoFechamento('motoboys')">
+        Resumo por Entregador
+      </button>
+      <button class="tab-view-btn" id="tabViewEntregas" onclick="alternarVisaoFechamento('entregas')">
+        Detalhamento de Entregas
+      </button>
     </div>
 
-    <div id="listaMotoboysContainer">
-      <!-- Inserido dinamicamente via JS -->
+    <!-- CONTEÚDO 1: CARDS DOS MOTOBOYS -->
+    <div id="visaoMotoboys">
+      <div id="listaMotoboysContainer">
+        <!-- Inserido dinamicamente via JS -->
+      </div>
+    </div>
+
+    <!-- CONTEÚDO 2: DETALHAMENTO DE TODAS AS ENTREGAS -->
+    <div id="visaoEntregas" style="display: none;">
+      <div class="tabela-detalhada-card">
+        <table class="table-entregas">
+          <thead>
+            <tr>
+              <th>#Pedido</th>
+              <th>Grupo</th>
+              <th>Bairro</th>
+              <th>Entregador</th>
+              <th>Horário</th>
+              <th style="text-align: right; color: #34d399;">Taxa</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyEntregasGeral">
+            <!-- Inserido via JS -->
+          </tbody>
+        </table>
+      </div>
     </div>
 
   </main>
+
+  <!-- MODAL BOTTOM-SHEET: TABELA DE TAXAS POR BAIRRO -->
+  <div class="modal-overlay" id="modalTaxas">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title">Tabela de Taxas por Bairro</div>
+          <div style="font-size: 11px; color: var(--text-muted);">Teresópolis — Repasse oficial Ao Ponto</div>
+        </div>
+        <button class="btn-close-modal" onclick="fecharModalTaxas()">✕</button>
+      </div>
+
+      <!-- Abas SPEED / VELOZ -->
+      <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+        <button class="group-pill active" id="btnAbaTaxaSpeed" onclick="alternarAbaTaxas('SPEED')">Tabela SPEED</button>
+        <button class="group-pill" id="btnAbaTaxaVeloz" onclick="alternarAbaTaxas('VELOZ')">Tabela VELOZ</button>
+      </div>
+
+      <!-- Busca de Bairro -->
+      <div style="margin-bottom: 10px;">
+        <input type="text" id="inpBuscaBairro" class="custom-date-input" placeholder="Buscar bairro..." oninput="filtrarTaxasBairro()" style="width: 100%;">
+      </div>
+
+      <!-- Formulário Rápido de Adicionar/Atualizar Taxa -->
+      <div style="background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 8px 10px; margin-bottom: 10px; display: flex; gap: 6px; align-items: center;">
+        <input type="text" id="inpNovoBairro" class="custom-date-input" placeholder="Bairro (ex: Meudon)" style="flex: 2; padding: 6px 8px; font-size: 11px;">
+        <input type="number" id="inpNovaTaxa" class="custom-date-input" placeholder="10.00" step="0.5" min="0" style="flex: 1; padding: 6px 8px; font-size: 11px;">
+        <button class="btn-consultar-custom" onclick="salvarNovaTaxa()" style="padding: 6px 10px; font-size: 11px; white-space: nowrap;">Salvar</button>
+      </div>
+
+      <!-- Lista de Bairros Rolável -->
+      <div style="flex: 1; overflow-y: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);">
+        <table class="table-entregas" style="width: 100%;">
+          <thead style="position: sticky; top: 0; background: #14161b;">
+            <tr>
+              <th>Bairro</th>
+              <th style="text-align: right;">Taxa (R$)</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyTaxasBairros">
+            <!-- Inserido dinamicamente -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
   <div class="toast" id="toastMsg"></div>
 
@@ -612,8 +869,11 @@
     const state = {
       periodo: 'hoje',
       grupo: 'todos',
+      motoboyId: 'todos',
+      visaoAtiva: 'motoboys',
       dados: null,
-      loading: false
+      taxasCache: { SPEED: [], VELOZ: [] },
+      abaTaxaAtiva: 'SPEED'
     };
 
     const SVG_ICONS = {
@@ -635,6 +895,14 @@
       const agora = new Date();
       const options = { timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' };
       document.getElementById('headerSubtitle').textContent = agora.toLocaleDateString('pt-BR', options);
+    }
+
+    function alternarVisaoFechamento(visao) {
+      state.visaoAtiva = visao;
+      document.getElementById('tabViewMotoboys').classList.toggle('active', visao === 'motoboys');
+      document.getElementById('tabViewEntregas').classList.toggle('active', visao === 'entregas');
+      document.getElementById('visaoMotoboys').style.display = visao === 'motoboys' ? 'block' : 'none';
+      document.getElementById('visaoEntregas').style.display = visao === 'entregas' ? 'block' : 'none';
     }
 
     function selecionarPeriodo(periodo, btn) {
@@ -673,7 +941,10 @@
 
       atualizarDataHoraHeader();
 
-      let url = `/api/admin/fechamento?periodo=${state.periodo}&grupo=${state.grupo}&_t=${Date.now()}`;
+      const motoboyFiltro = document.getElementById('selectFiltroMotoboy')?.value || 'todos';
+      state.motoboyId = motoboyFiltro;
+
+      let url = `/api/admin/fechamento?periodo=${state.periodo}&grupo=${state.grupo}&motoboy_id=${motoboyFiltro}&_t=${Date.now()}`;
       if (state.periodo === 'personalizado') {
         const dtIni = document.getElementById('dataInicio').value;
         const dtFim = document.getElementById('dataFim').value;
@@ -686,6 +957,7 @@
         const data = await res.json();
         if (res.ok && data.success) {
           state.dados = data;
+          atualizarSelectMotoboys(data.por_motoboy || data.motoboys || []);
           renderizar(data);
         } else {
           showToast(data.message || 'Erro ao carregar dados.');
@@ -693,6 +965,21 @@
       } catch (err) {
         showToast('Erro de conexão ao buscar fechamento.');
       }
+    }
+
+    function atualizarSelectMotoboys(motoboys) {
+      const select = document.getElementById('selectFiltroMotoboy');
+      if (!select) return;
+
+      const valorAtual = select.value;
+      let optionsHtml = '<option value="todos">Todos os Entregadores</option>';
+
+      motoboys.forEach(m => {
+        optionsHtml += `<option value="${m.motoboy_id}">${m.nome} (${m.grupo || 'VELOZ'})</option>`;
+      });
+
+      select.innerHTML = optionsHtml;
+      select.value = valorAtual || 'todos';
     }
 
     function copiarPix(chave, btnElement) {
@@ -722,6 +1009,11 @@
 
       if (!confirm(confirmMsg)) return;
 
+      let dataReferencia = undefined;
+      if (state.periodo === 'personalizado') {
+        dataReferencia = document.getElementById('dataInicio')?.value;
+      }
+
       try {
         const res = await fetch('/api/admin/confirmar-pagamento', {
           method: 'POST',
@@ -729,6 +1021,7 @@
           body: JSON.stringify({
             motoboy_id: motoboyId,
             periodo: state.periodo,
+            data_referencia: dataReferencia,
             valor: valor,
             acao: acao
           })
@@ -758,118 +1051,378 @@
       document.getElementById('kpiTotalTaxas').textContent = `R$ ${Number(kpis.total_taxas || 0).toFixed(2).replace('.', ',')}`;
       document.getElementById('kpiTotalEntregas').textContent = kpis.total_entregas || 0;
       document.getElementById('kpiEntregadoresAtivos').textContent = kpis.entregadores_ativos || 0;
+      document.getElementById('kpiMediaTaxa').textContent = `R$ ${Number(kpis.media_taxa || 0).toFixed(2).replace('.', ',')}`;
 
-      const container = document.getElementById('listaMotoboysContainer');
-      const motoboys = data.motoboys || [];
-
-      document.getElementById('labelContadorMotoboys').textContent = `${motoboys.length} entregador(es)`;
+      // 1. Renderizar Cards dos Motoboys
+      const containerMotoboys = document.getElementById('listaMotoboysContainer');
+      const motoboys = data.por_motoboy || data.motoboys || [];
 
       if (motoboys.length === 0) {
-        container.innerHTML = `
+        containerMotoboys.innerHTML = `
           <div class="empty-state">
             <div style="font-size: 14px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">Nenhuma entrega encontrada</div>
-            <div style="font-size: 12px;">Não há entregas registradas para o período e grupo selecionados.</div>
+            <div style="font-size: 12px;">Não há entregas para os filtros selecionados.</div>
           </div>
         `;
+      } else {
+        motoboys.sort((a, b) => (b.total_taxas || 0) - (a.total_taxas || 0));
+
+        containerMotoboys.innerHTML = motoboys.map(m => {
+          const isPago = Boolean(m.pagamento_confirmado);
+          const grupoClass = (m.grupo || 'VELOZ').toUpperCase() === 'SPEED' ? 'badge-speed' : 'badge-veloz';
+          const valorFmt = Number(m.total_taxas || 0).toFixed(2).replace('.', ',');
+          const telLimpo = (m.telefone || '').replace(/\D/g, '');
+
+          const msgWhats = encodeURIComponent(
+            `Olá, ${m.nome}! Segue seu fechamento de repasse Ao Ponto Carnes:\n\n` +
+            `Período: ${data.periodo === 'hoje' ? 'Hoje' : data.periodo}\n` +
+            `Equipe: ${m.grupo || 'VELOZ'}\n` +
+            `Entregas realizadas: ${m.total_entregas}\n` +
+            `Total a receber: R$ ${valorFmt}\n\n` +
+            `Chave Pix cadastrada: ${m.chave_pix || 'Não informada'}\n\n` +
+            `Obrigado pelo empenho de hoje!`
+          );
+
+          return `
+            <div class="motoboy-card ${isPago ? 'pago' : ''}">
+              <div class="motoboy-header">
+                <div class="motoboy-info">
+                  <div class="motoboy-nome">${m.nome}</div>
+                  <div class="motoboy-badges">
+                    <span class="badge-grupo ${grupoClass}">${m.grupo || 'VELOZ'}</span>
+                    <span class="badge-entregas">${m.total_entregas} entrega(s)</span>
+                  </div>
+                </div>
+                <div class="motoboy-valor-box">
+                  <div class="motoboy-valor-label">Repasse</div>
+                  <div class="motoboy-valor">R$ ${valorFmt}</div>
+                </div>
+              </div>
+
+              <!-- CHAVE PIX -->
+              <div class="pix-box">
+                <div class="pix-info">
+                  <span class="pix-label">Chave Pix</span>
+                  <div class="pix-key">${m.chave_pix || 'Chave não cadastrada'}</div>
+                </div>
+                ${m.chave_pix ? `
+                  <button type="button" class="btn-pix-copy" onclick="copiarPix('${m.chave_pix}', this)">
+                    ${SVG_ICONS.copy}
+                    <span>Copiar</span>
+                  </button>
+                ` : ''}
+              </div>
+
+              <!-- BOTÕES DE AÇÃO -->
+              <div class="card-actions">
+                ${telLimpo ? `
+                  <a href="https://wa.me/55${telLimpo}?text=${msgWhats}" target="_blank" class="btn-action btn-whatsapp">
+                    ${SVG_ICONS.whatsapp}
+                    <span>WhatsApp</span>
+                  </a>
+                ` : ''}
+
+                ${isPago ? `
+                  <button type="button" class="btn-action btn-pagamento-pago" onclick="alternarPagamento(${m.motoboy_id}, '${m.nome}', ${m.total_taxas}, 'estornar')" title="Clique para desmarcar">
+                    ${SVG_ICONS.check}
+                    <span>Pago</span>
+                  </button>
+                ` : `
+                  <button type="button" class="btn-action btn-pagamento-confirmar" onclick="alternarPagamento(${m.motoboy_id}, '${m.nome}', ${m.total_taxas}, 'confirmar')">
+                    ${SVG_ICONS.pay}
+                    <span>Pagar</span>
+                  </button>
+                `}
+              </div>
+
+              <!-- DETALHE DAS ENTREGAS DO MOTOBOY -->
+              ${(m.entregas && m.entregas.length > 0) ? `
+                <button type="button" class="entregas-toggle" onclick="toggleEntregas(${m.motoboy_id})">
+                  <span>Ver ${m.entregas.length} pedido(s)</span>
+                  ${SVG_ICONS.chevronDown}
+                </button>
+                <div class="entregas-lista" id="entregas-${m.motoboy_id}">
+                  ${m.entregas.map(e => `
+                    <div class="item-entrega">
+                      <div>
+                        <strong style="color: var(--text-main);">#${e.numero_pedido}</strong> 
+                        <span style="color: var(--text-muted); margin-left: 4px;">${e.bairro || 'Centro'}</span>
+                      </div>
+                      <div style="font-weight: 700; color: #34d399;">R$ ${Number(e.taxa_repasse || 0).toFixed(2).replace('.', ',')}</div>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('');
+      }
+
+      // 2. Renderizar Tabela Detalhada de Todas as Entregas
+      const tbodyEntregas = document.getElementById('tbodyEntregasGeral');
+      const entregasGeral = data.entregas_detalhadas || [];
+
+      if (entregasGeral.length === 0) {
+        tbodyEntregas.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">Nenhuma entrega detalhada no período.</td></tr>`;
+      } else {
+        tbodyEntregas.innerHTML = entregasGeral.map(e => {
+          const dtStr = e.data_fim || e.data_inicio || '';
+          let horaFmt = '--:--';
+          if (dtStr) {
+            const d = new Date(dtStr.includes('T') ? dtStr : dtStr.replace(' ', 'T') + 'Z');
+            horaFmt = d.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+          }
+          const grupoBadge = (e.grupo || 'VELOZ') === 'SPEED' ? 'badge-speed' : 'badge-veloz';
+
+          return `
+            <tr>
+              <td style="font-weight: 800; color: var(--text-main);">#${e.numero_pedido}</td>
+              <td><span class="badge-grupo ${grupoBadge}">${e.grupo || 'VELOZ'}</span></td>
+              <td>${e.bairro || 'Centro'}</td>
+              <td>${e.motoboy?.nome || 'Entregador'}</td>
+              <td style="color: var(--text-muted);">${horaFmt}</td>
+              <td style="text-align: right; font-weight: 800; color: #34d399;">R$ ${Number(e.taxa_repasse || 0).toFixed(2).replace('.', ',')}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+
+    // ── GESTÃO E CONSULTA DA TABELA DE TAXAS POR BAIRRO ────────────────────────
+    async function abrirModalTaxas() {
+      document.getElementById('modalTaxas').style.display = 'flex';
+      await carregarTaxasBairros();
+    }
+
+    function fecharModalTaxas() {
+      document.getElementById('modalTaxas').style.display = 'none';
+    }
+
+    function alternarAbaTaxas(grupo) {
+      state.abaTaxaAtiva = grupo;
+      document.getElementById('btnAbaTaxaSpeed').classList.toggle('active', grupo === 'SPEED');
+      document.getElementById('btnAbaTaxaVeloz').classList.toggle('active', grupo === 'VELOZ');
+      renderizarTabelaTaxasModal();
+    }
+
+    async function carregarTaxasBairros() {
+      try {
+        const res = await fetch('/api/admin/taxas');
+        const data = await res.json();
+        if (res.ok && data.success) {
+          state.taxasCache.SPEED = data.speed || [];
+          state.taxasCache.VELOZ = data.veloz || [];
+          renderizarTabelaTaxasModal();
+        }
+      } catch (err) {
+        showToast('Erro ao carregar taxas de bairros.');
+      }
+    }
+
+    function filtrarTaxasBairro() {
+      renderizarTabelaTaxasModal();
+    }
+
+    function renderizarTabelaTaxasModal() {
+      const tbody = document.getElementById('tbodyTaxasBairros');
+      const termo = (document.getElementById('inpBuscaBairro')?.value || '').toLowerCase().trim();
+      const lista = state.taxasCache[state.abaTaxaAtiva] || [];
+
+      const filtrados = termo 
+        ? lista.filter(item => item.bairro.toLowerCase().includes(termo))
+        : lista;
+
+      if (filtrados.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="2" style="text-align: center; color: var(--text-muted); padding: 16px;">Nenhum bairro encontrado.</td></tr>`;
         return;
       }
 
-      // Ordenar: primeiro quem tem mais a receber
-      motoboys.sort((a, b) => (b.total_taxas || 0) - (a.total_taxas || 0));
-
-      container.innerHTML = motoboys.map(m => {
-        const isPago = Boolean(m.pagamento_confirmado);
-        const grupoClass = (m.grupo || 'VELOZ').toUpperCase() === 'SPEED' ? 'badge-speed' : 'badge-veloz';
-        const valorFmt = Number(m.total_taxas || 0).toFixed(2).replace('.', ',');
-        const telLimpo = (m.telefone || '').replace(/\D/g, '');
-
-        // Mensagem WhatsApp estruturada e profissional
-        const msgWhats = encodeURIComponent(
-          `Olá, ${m.nome}! Segue seu fechamento de repasse Ao Ponto Carnes:\n\n` +
-          `Período: ${data.periodo === 'hoje' ? 'Hoje' : data.periodo}\n` +
-          `Equipe: ${m.grupo || 'VELOZ'}\n` +
-          `Entregas realizadas: ${m.total_entregas}\n` +
-          `Total a receber: R$ ${valorFmt}\n\n` +
-          `Chave Pix cadastrada: ${m.chave_pix || 'Não informada'}\n\n` +
-          `Obrigado pelo empenho de hoje!`
-        );
-
-        return `
-          <div class="motoboy-card ${isPago ? 'pago' : ''}">
-            <div class="motoboy-header">
-              <div class="motoboy-info">
-                <div class="motoboy-nome">${m.nome}</div>
-                <div class="motoboy-badges">
-                  <span class="badge-grupo ${grupoClass}">${m.grupo || 'VELOZ'}</span>
-                  <span class="badge-entregas">${m.total_entregas} entrega(s)</span>
-                </div>
-              </div>
-              <div class="motoboy-valor-box">
-                <div class="motoboy-valor-label">Repasse</div>
-                <div class="motoboy-valor">R$ ${valorFmt}</div>
-              </div>
-            </div>
-
-            <!-- CHAVE PIX -->
-            <div class="pix-box">
-              <div class="pix-info">
-                <span class="pix-label">Chave Pix</span>
-                <div class="pix-key">${m.chave_pix || 'Chave não cadastrada'}</div>
-              </div>
-              ${m.chave_pix ? `
-                <button type="button" class="btn-pix-copy" onclick="copiarPix('${m.chave_pix}', this)">
-                  ${SVG_ICONS.copy}
-                  <span>Copiar</span>
-                </button>
-              ` : ''}
-            </div>
-
-            <!-- BOTÕES DE AÇÃO -->
-            <div class="card-actions">
-              ${telLimpo ? `
-                <a href="https://wa.me/55${telLimpo}?text=${msgWhats}" target="_blank" class="btn-action btn-whatsapp">
-                  ${SVG_ICONS.whatsapp}
-                  <span>WhatsApp</span>
-                </a>
-              ` : ''}
-
-              ${isPago ? `
-                <button type="button" class="btn-action btn-pagamento-pago" onclick="alternarPagamento(${m.motoboy_id}, '${m.nome}', ${m.total_taxas}, 'estornar')" title="Clique para desmarcar">
-                  ${SVG_ICONS.check}
-                  <span>Pago</span>
-                </button>
-              ` : `
-                <button type="button" class="btn-action btn-pagamento-confirmar" onclick="alternarPagamento(${m.motoboy_id}, '${m.nome}', ${m.total_taxas}, 'confirmar')">
-                  ${SVG_ICONS.pay}
-                  <span>Pagar</span>
-                </button>
-              `}
-            </div>
-
-            <!-- DETALHE DAS ENTREGAS -->
-            ${(m.entregas && m.entregas.length > 0) ? `
-              <button type="button" class="entregas-toggle" onclick="toggleEntregas(${m.motoboy_id})">
-                <span>Ver ${m.entregas.length} pedido(s)</span>
-                ${SVG_ICONS.chevronDown}
-              </button>
-              <div class="entregas-lista" id="entregas-${m.motoboy_id}">
-                ${m.entregas.map(e => `
-                  <div class="item-entrega">
-                    <div>
-                      <strong style="color: var(--text-main);">#${e.numero_pedido}</strong> 
-                      <span style="color: var(--text-muted); margin-left: 4px;">${e.bairro || 'Centro'}</span>
-                    </div>
-                    <div style="font-weight: 700; color: #34d399;">R$ ${Number(e.taxa_repasse || 0).toFixed(2).replace('.', ',')}</div>
-                  </div>
-                `).join('')}
-              </div>
-            ` : ''}
-          </div>
-        `;
-      }).join('');
+      tbody.innerHTML = filtrados.map(item => `
+        <tr>
+          <td style="font-weight: 600;">${item.bairro}</td>
+          <td style="text-align: right; font-weight: 800; color: var(--brand-gold);">R$ ${Number(item.taxa || 0).toFixed(2).replace('.', ',')}</td>
+        </tr>
+      `).join('');
     }
 
-    // Inicialização automática
+    async function salvarNovaTaxa() {
+      const bairro = document.getElementById('inpNovoBairro').value.trim();
+      const taxa = parseFloat(document.getElementById('inpNovaTaxa').value);
+
+      if (!bairro || isNaN(taxa) || taxa < 0) {
+        showToast('Informe o nome do bairro e a taxa válida.');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/admin/taxas/atualizar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            grupo: state.abaTaxaAtiva,
+            bairro: bairro,
+            taxa: taxa
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(`Taxa de ${bairro} atualizada com sucesso!`);
+          document.getElementById('inpNovoBairro').value = '';
+          document.getElementById('inpNovaTaxa').value = '';
+          await carregarTaxasBairros();
+        } else {
+          showToast(data.message || 'Erro ao salvar taxa.');
+        }
+      } catch (e) {
+        showToast('Erro de conexão ao salvar taxa.');
+      }
+    }
+
+    // ── IMPRESSÃO / SALVAR RELATÓRIO PDF ──────────────────────────────────────
+    function imprimirRelatorio() {
+      const data = state.dados;
+      if (!data || !data.entregas_detalhadas || data.entregas_detalhadas.length === 0) {
+        showToast('Nenhuma entrega para imprimir no período selecionado.');
+        return;
+      }
+
+      let labelPeriodo = 'Hoje';
+      if (state.periodo === 'ontem') labelPeriodo = 'Ontem';
+      else if (state.periodo === 'semana') labelPeriodo = 'Esta Semana';
+      else if (state.periodo === 'mes') labelPeriodo = 'Este Mês';
+      else if (state.periodo === 'todos') labelPeriodo = 'Histórico Completo';
+      else if (state.periodo === 'personalizado') {
+        const dtIni = document.getElementById('dataInicio')?.value || '';
+        const dtFim = document.getElementById('dataFim')?.value || '';
+        labelPeriodo = `${dtIni} a ${dtFim || dtIni}`;
+      }
+
+      const agora = new Date();
+      const emissaoStr = agora.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) + ' às ' + agora.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+      const motoboys = data.por_motoboy || data.motoboys || [];
+      const kpis = data.kpis || {};
+
+      const relatorioHtml = `
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+          <meta charset="UTF-8">
+          <title>Relatório de Fechamento — Ao Ponto Carnes</title>
+          <style>
+            @page { size: A4 portrait; margin: 12mm 15mm; }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #111827; background: #fff; padding: 10px; font-size: 13px; line-height: 1.4; }
+            .header-doc { border-bottom: 2px solid #111827; padding-bottom: 10px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: flex-start; }
+            .title-doc { font-size: 18px; font-weight: 900; text-transform: uppercase; color: #000; }
+            .subtitle-doc { font-size: 12px; font-weight: 600; color: #4b5563; }
+            .meta-doc { font-size: 11px; color: #6b7280; text-align: right; }
+            .kpi-row { display: flex; gap: 12px; margin-bottom: 14px; }
+            .kpi-box { flex: 1; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 12px; background: #f9fafb; }
+            .kpi-box-label { font-size: 10px; text-transform: uppercase; font-weight: 700; color: #6b7280; margin-bottom: 2px; }
+            .kpi-box-val { font-size: 16px; font-weight: 900; color: #111827; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 16px; }
+            th { background: #f3f4f6; text-align: left; padding: 6px 8px; border-bottom: 1px solid #d1d5db; font-weight: 800; }
+            td { padding: 6px 8px; border-bottom: 1px solid #e5e7eb; }
+            .assinaturas { margin-top: 30px; display: flex; justify-content: space-between; gap: 40px; }
+            .linha-ass { flex: 1; border-top: 1px solid #9ca3af; text-align: center; padding-top: 6px; font-size: 11px; font-weight: 600; color: #4b5563; }
+          </style>
+        </head>
+        <body>
+          <div class="header-doc">
+            <div>
+              <div class="title-doc">Ao Ponto Carnes & Burger</div>
+              <div class="subtitle-doc">Fechamento de Taxas & Auditoria de Entregas</div>
+              <div style="font-size: 11px; margin-top: 2px;">Período: <strong>${labelPeriodo}</strong></div>
+            </div>
+            <div class="meta-doc">
+              <div>Emissão: ${emissaoStr}</div>
+              <div>Teresópolis - RJ</div>
+            </div>
+          </div>
+
+          <div class="kpi-row">
+            <div class="kpi-box">
+              <div class="kpi-box-label">Total a Pagar</div>
+              <div class="kpi-box-val" style="color: #059669;">R$ ${Number(kpis.total_taxas || 0).toFixed(2).replace('.', ',')}</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-box-label">Entregas Realizadas</div>
+              <div class="kpi-box-val">${kpis.total_entregas || 0}</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-box-label">Entregadores Ativos</div>
+              <div class="kpi-box-val">${kpis.entregadores_ativos || 0}</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-box-label">Taxa Média</div>
+              <div class="kpi-box-val">R$ ${Number(kpis.media_taxa || 0).toFixed(2).replace('.', ',')}</div>
+            </div>
+          </div>
+
+          <div style="font-size: 13px; font-weight: 800; margin-bottom: 6px; text-transform: uppercase;">Resumo por Entregador</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Entregador</th>
+                <th>Equipe</th>
+                <th>Chave Pix</th>
+                <th style="text-align: center;">Entregas</th>
+                <th style="text-align: right;">Total Repasse</th>
+                <th style="text-align: center;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${motoboys.map(m => `
+                <tr>
+                  <td style="font-weight: 700;">${m.nome}</td>
+                  <td>${m.grupo || 'VELOZ'}</td>
+                  <td style="font-family: monospace;">${m.chave_pix || 'Não informada'}</td>
+                  <td style="text-align: center; font-weight: 700;">${m.total_entregas}</td>
+                  <td style="text-align: right; font-weight: 800; color: #059669;">R$ ${Number(m.total_taxas || 0).toFixed(2).replace('.', ',')}</td>
+                  <td style="text-align: center; font-weight: 700;">${m.pagamento_confirmado ? 'PAGO' : 'PENDENTE'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="assinaturas">
+            <div class="linha-ass">Responsável pelo Caixa / Fechamento</div>
+            <div class="linha-ass">Conferência / Gestão Operacional</div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      let printFrame = document.getElementById('iframeImpressaoFechamento');
+      if (!printFrame) {
+        printFrame = document.createElement('iframe');
+        printFrame.id = 'iframeImpressaoFechamento';
+        printFrame.style.position = 'fixed';
+        printFrame.style.right = '0';
+        printFrame.style.bottom = '0';
+        printFrame.style.width = '0';
+        printFrame.style.height = '0';
+        printFrame.style.border = 'none';
+        document.body.appendChild(printFrame);
+      }
+
+      printFrame.contentDocument.open();
+      printFrame.contentDocument.write(relatorioHtml);
+      printFrame.contentDocument.close();
+
+      setTimeout(() => {
+        try {
+          printFrame.contentWindow.focus();
+          printFrame.contentWindow.print();
+        } catch (e) {
+          window.print();
+        }
+      }, 500);
+    }
+
+    // Inicialização
     atualizarDataHoraHeader();
     carregarFechamento();
 
