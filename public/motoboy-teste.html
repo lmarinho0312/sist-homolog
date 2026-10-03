@@ -1608,9 +1608,8 @@
 
         const data = await res.json();
         if (res.ok && data.success) {
-          showToast(`Pedido #${numero} retirado com sucesso!`, 'success');
+          showToast(`Pedido #${numero} retirado e finalizado com sucesso!`, 'success');
           limparBuscaBalcao();
-          trocarAbaApp('inicio');
           carregarDados();
         } else {
           showToast(data.message || 'Erro ao retirar pedido.', 'error');

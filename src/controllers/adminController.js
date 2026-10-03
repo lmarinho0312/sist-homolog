@@ -981,15 +981,16 @@ async function atribuirPedidoMotoboy(req, res) {
 
     const grupoFinal = motoboy.grupo || 'VELOZ';
 
-    // 3. Atualizar o pedido para o entregador designado
+    // 3. Atualizar o pedido para o entregador designado (considerar finalizado para não acumular)
+    const statusFinal = (novoStatus === 'em_rota' || novoStatus === 'entregue') ? 'entregue' : novoStatus;
     let updateSql = `UPDATE pedidos 
                      SET motoboy_id = ?, 
                          grupo = ?, 
                          status = ?`;
-    const params = [motoboyIdNum, grupoFinal, novoStatus];
+    const params = [motoboyIdNum, grupoFinal, statusFinal];
 
-    if (novoStatus === 'em_rota') {
-      updateSql += `, data_inicio = COALESCE(data_inicio, DATETIME('now', '-3 hours'))`;
+    if (statusFinal === 'entregue') {
+      updateSql += `, data_inicio = COALESCE(data_inicio, DATETIME('now', '-3 hours')), data_fim = DATETIME('now', '-3 hours')`;
     }
 
     updateSql += ` WHERE id = ?`;
@@ -997,8 +998,8 @@ async function atribuirPedidoMotoboy(req, res) {
 
     await db.execute(updateSql, params);
 
-    // 4. Se o motoboy tiver GPS conhecido e for rota ativa, registrar ponto de início
-    if (novoStatus === 'em_rota' && motoboy.latitude !== null && motoboy.longitude !== null) {
+    // 4. Se o motoboy tiver GPS conhecido, registrar ponto de início
+    if (motoboy.latitude !== null && motoboy.longitude !== null) {
       await db.execute(
         `INSERT INTO pedido_rotas (pedido_id, motoboy_id, latitude, longitude, velocidade, criado_em) 
          VALUES (?, ?, ?, ?, ?, DATETIME('now', '-3 hours'))`,
