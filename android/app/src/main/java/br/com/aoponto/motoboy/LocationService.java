@@ -43,7 +43,11 @@ public class LocationService extends Service implements LocationListener {
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .build();
 
-        startForeground(NOTIFICATION_ID, notification);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
+        } else {
+            startForeground(NOTIFICATION_ID, notification);
+        }
         iniciarGpsNativo();
     }
 
