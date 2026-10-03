@@ -468,22 +468,34 @@ async function expirarPedidosPendentesDiasAnteriores(db, forcar = false) {
     return 0; // Já executou hoje! Zero leituras/escritas gastas.
   }
   try {
-    const result = await db.execute(`
+    // 1. Concluir automaticamente pedidos retirados por motoboys de dias anteriores
+    const resConcluidos = await db.execute(`
+      UPDATE pedidos 
+      SET status = 'entregue',
+          data_fim = COALESCE(data_fim, DATETIME('now', '-3 hours'))
+      WHERE status = 'em_rota'
+        AND motoboy_id IS NOT NULL
+        AND criado_em < ?
+    `, [hojeStr + ' 00:00:00']);
+
+    // 2. Expirar apenas pedidos que não foram retirados por ninguém (abandonados no balcão)
+    const resExpirados = await db.execute(`
       UPDATE pedidos 
       SET status = 'expirado',
           data_fim = COALESCE(data_fim, DATETIME('now', '-3 hours'))
-      WHERE (status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo', 'em_rota') OR status IS NULL)
+      WHERE (status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo') OR status IS NULL)
         AND criado_em < ?
     `, [hojeStr + ' 00:00:00']);
 
     ultimaDataExpiracao = hojeStr;
-    if (result && result.changes > 0) {
-      console.log(`🧹 [VIRADA DE DATA] ${result.changes} pedido(s) pendente(s) de data anterior foram ignorados/expirados.`);
+    const totalAlterados = (resConcluidos?.changes || 0) + (resExpirados?.changes || 0);
+    if (totalAlterados > 0) {
+      console.log(`🧹 [VIRADA DE DATA] ${resConcluidos?.changes || 0} pedido(s) em rota concluído(s) como entregue(s) e ${resExpirados?.changes || 0} pedido(s) sem retirada expirado(s).`);
       memoryCache.clear();
     }
-    return result?.changes || 0;
+    return totalAlterados;
   } catch (err) {
-    console.error('⚠️ Erro ao expirar pedidos de dias anteriores:', err.message);
+    console.error('⚠️ Erro ao processar virada de data de pedidos:', err.message);
     return 0;
   }
 }
@@ -1197,19 +1209,28 @@ async function obterRendimentosMotoboy(req, res) {
 
     const totalEntregas = entregasProcessadas.length;
 
-    // Verificar se a administração já confirmou o pagamento para este período ou hoje
+    // Verificar se a administração já confirmou o pagamento para este período ou data
     let statusPagamento = { confirmado: false, status: 'pendente' };
+    const hojeDataIso = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    const ontemDataIso = new Date(Date.now() - 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+
+    let sqlPagMot = `SELECT id, periodo, valor, status, confirmado_em FROM pagamentos_motoboys WHERE motoboy_id = ? AND status = 'confirmado'`;
+    const paramsPagMot = [motoboyIdNum];
+
+    if (periodo === 'hoje') {
+      sqlPagMot += ` AND (data_referencia = ? OR (periodo = 'hoje' AND DATE(confirmado_em) = ?))`;
+      paramsPagMot.push(hojeDataIso, hojeDataIso);
+    } else if (periodo === 'ontem') {
+      sqlPagMot += ` AND (data_referencia = ? OR (periodo = 'ontem' AND DATE(confirmado_em) = ?))`;
+      paramsPagMot.push(ontemDataIso, ontemDataIso);
+    } else if (periodo && periodo !== 'todos') {
+      sqlPagMot += ` AND periodo = ?`;
+      paramsPagMot.push(periodo);
+    }
+    sqlPagMot += ` ORDER BY id DESC LIMIT 1`;
+
     try {
-      const pag = await db.queryOne(`
-        SELECT id, periodo, valor, status, confirmado_em 
-        FROM pagamentos_motoboys 
-        WHERE motoboy_id = ? 
-          AND (
-            DATE(confirmado_em) = DATE(DATETIME('now', '-3 hours'))
-            OR periodo = ?
-          )
-        ORDER BY id DESC LIMIT 1
-      `, [motoboyIdNum, periodo]);
+      const pag = await db.queryOne(sqlPagMot, paramsPagMot);
 
       if (pag) {
         statusPagamento = {

@@ -477,15 +477,30 @@ async function obterFechamentoEntregas(req, res) {
       ORDER BY p.data_fim DESC
     `, params);
 
-    // Buscar pagamentos já confirmados pela administração para os motoboys
+    // Buscar pagamentos já confirmados pela administração para os motoboys neste período específico
     let pagamentosConfirmados = [];
+    const hojeDataIso = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    const ontemDataIso = new Date(Date.now() - 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    
+    let sqlPag = `SELECT motoboy_id, periodo, data_referencia, status, confirmado_em, valor FROM pagamentos_motoboys WHERE status = 'confirmado'`;
+    const paramsPag = [];
+
+    if (periodo === 'hoje') {
+      sqlPag += ` AND (data_referencia = ? OR (periodo = 'hoje' AND DATE(confirmado_em) = ?))`;
+      paramsPag.push(hojeDataIso, hojeDataIso);
+    } else if (periodo === 'ontem') {
+      sqlPag += ` AND (data_referencia = ? OR (periodo = 'ontem' AND DATE(confirmado_em) = ?))`;
+      paramsPag.push(ontemDataIso, ontemDataIso);
+    } else if (periodo === 'personalizado' && req.query.data_inicio) {
+      sqlPag += ` AND data_referencia >= ? AND data_referencia <= ?`;
+      paramsPag.push(req.query.data_inicio, req.query.data_fim || req.query.data_inicio);
+    } else if (periodo && periodo !== 'todos') {
+      sqlPag += ` AND periodo = ?`;
+      paramsPag.push(periodo);
+    }
+
     try {
-      pagamentosConfirmados = await db.query(`
-        SELECT motoboy_id, periodo, data_referencia, status, confirmado_em, valor
-        FROM pagamentos_motoboys
-        WHERE DATE(confirmado_em) = DATE(DATETIME('now', '-3 hours'))
-           OR periodo = ?
-      `, [periodo]);
+      pagamentosConfirmados = await db.query(sqlPag, paramsPag);
     } catch (e) {
       console.warn('⚠️ Consulta a pagamentos_motoboys ignorada:', e.message);
     }
@@ -1052,23 +1067,62 @@ async function descartarPedido(req, res) {
  */
 async function confirmarPagamentoMotoboy(req, res) {
   try {
-    const { motoboy_id, periodo = 'hoje', valor = 0 } = req.body || {};
+    const { motoboy_id, periodo = 'hoje', valor = 0, data_referencia, acao } = req.body || {};
     if (!motoboy_id) {
       return res.json(400, { success: false, message: 'motoboy_id é obrigatório.' });
     }
     const db = getDb();
-    const dataRef = new Date().toISOString().substring(0, 10);
 
-    // Registra o pagamento na tabela de auditoria
+    // Determina a data de referência exata (horário de Brasília)
+    let dataRef = data_referencia;
+    if (!dataRef || dataRef === 'hoje') {
+      dataRef = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    } else if (dataRef === 'ontem' || periodo === 'ontem') {
+      dataRef = new Date(Date.now() - 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    }
+
+    const motoboyIdNum = Number(motoboy_id);
+    const motoboy = await db.queryOne('SELECT id, nome FROM motoboys WHERE id = ?', [motoboyIdNum]);
+    if (!motoboy) {
+      return res.json(404, { success: false, message: 'Entregador não encontrado ou não cadastrado.' });
+    }
+
+    // Suporte a estorno / reversão de pagamento
+    if (acao === 'estornar' || acao === 'remover') {
+      await db.execute(`
+        DELETE FROM pagamentos_motoboys 
+        WHERE motoboy_id = ? AND (data_referencia = ? OR (periodo = ? AND DATE(confirmado_em) = ?))
+      `, [motoboyIdNum, dataRef, String(periodo), dataRef]);
+
+      memoryCache.clear();
+
+      return res.json(200, {
+        success: true,
+        message: 'Confirmação de pagamento desfeita com sucesso.',
+        motoboy_id: motoboyIdNum,
+        status: 'pendente'
+      });
+    }
+
+    // Confirmação com limpeza prévia para idempotência absoluta (evita registros duplicados)
+    await db.execute(`
+      DELETE FROM pagamentos_motoboys 
+      WHERE motoboy_id = ? AND (data_referencia = ? OR (periodo = ? AND DATE(confirmado_em) = ?))
+    `, [motoboyIdNum, dataRef, String(periodo), dataRef]);
+
     await db.execute(`
       INSERT INTO pagamentos_motoboys (motoboy_id, periodo, data_referencia, valor, status, confirmado_em)
       VALUES (?, ?, ?, ?, 'confirmado', DATETIME('now', '-3 hours'))
-    `, [Number(motoboy_id), String(periodo), dataRef, Number(valor || 0)]);
+    `, [motoboyIdNum, String(periodo), dataRef, Number(valor || 0)]);
+
+    memoryCache.clear();
 
     return res.json(200, {
       success: true,
       message: 'Pagamento confirmado com sucesso!',
-      motoboy_id: Number(motoboy_id),
+      motoboy_id: motoboyIdNum,
+      data_referencia: dataRef,
+      valor: Number(valor || 0),
       status: 'confirmado',
       confirmado_em: new Date().toISOString()
     });

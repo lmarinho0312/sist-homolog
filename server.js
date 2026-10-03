@@ -193,10 +193,23 @@ async function requestHandler(req, res) {
     }
   }
 
-  // Arquivos estáticos
+  // Arquivos estáticos e Rotas Amigáveis de Web App
   const publicDir = path.join(__dirname, 'public');
-  let targetFile = pathname === '/' ? 'admin.html' : pathname;
+
+  const friendlyRoutes = {
+    '/': 'admin.html',
+    '/admin': 'admin.html',
+    '/motoboy': 'motoboy.html',
+    '/fechamento': 'fechamento.html'
+  };
+
+  let targetFile = friendlyRoutes[pathname] || pathname;
   let filePath = path.join(publicDir, targetFile);
+
+  // Se não tiver extensão e existir arquivo .html correspondente
+  if (!path.extname(filePath) && fs.existsSync(filePath + '.html')) {
+    filePath += '.html';
+  }
 
   if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
     const ext = path.extname(filePath).toLowerCase();
@@ -205,12 +218,21 @@ async function requestHandler(req, res) {
       '.js': 'text/javascript; charset=utf-8',
       '.css': 'text/css; charset=utf-8',
       '.json': 'application/json; charset=utf-8',
+      '.webmanifest': 'application/manifest+json; charset=utf-8',
       '.png': 'image/png',
       '.jpg': 'image/jpeg',
       '.svg': 'image/svg+xml'
     };
     const contentType = mimeTypes[ext] || 'application/octet-stream';
-    if (!res.headersSent) res.writeHead(200, { 'Content-Type': contentType });
+
+    if (!res.headersSent) {
+      const headers = { 'Content-Type': contentType };
+      if (targetFile === 'sw.js') {
+        headers['Service-Worker-Allowed'] = '/';
+        headers['Cache-Control'] = 'no-cache';
+      }
+      res.writeHead(200, headers);
+    }
     return fs.createReadStream(filePath).pipe(res);
   }
 

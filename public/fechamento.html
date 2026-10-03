@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Ao Ponto — Fechamento Mobile</title>
+  
+  <!-- PWA & Mobile Meta Tags -->
+  <meta name="theme-color" content="#0a0b0d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Fechamento">
+  <link rel="manifest" href="/manifest-fechamento.json">
+  <link rel="apple-touch-icon" href="/assets/logo-dark-theme.png">
+  <link rel="icon" type="image/png" href="/assets/logo-dark-theme.png">
+
+  <!-- Design System Base -->
+  <link rel="stylesheet" href="/css/design-system.css">
+
+  <style>
+    :root {
+      --bg-main: #0a0b0d;
+      --bg-card: #14161b;
+      --bg-card-hover: #1a1d24;
+      --bg-input: #1f232b;
+      --border-subtle: #272b35;
+      --border-focus: #f59e0b;
+      --text-main: #f4f4f5;
+      --text-muted: #9ca3af;
+      --brand-gold: #f59e0b;
+      --brand-gold-dark: #d97706;
+      --brand-green: #10b981;
+      --brand-blue: #3b82f6;
+      --brand-red: #ef4444;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      padding: 0 0 calc(env(safe-area-inset-bottom, 16px) + 24px) 0;
+      overflow-x: hidden;
+    }
+
+    /* HEADER */
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(10, 11, 13, 0.88);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: max(env(safe-area-inset-top, 12px), 12px) 16px 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      height: 34px;
+      width: auto;
+      object-fit: contain;
+      border-radius: 6px;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      color: var(--text-main);
+      line-height: 1.2;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .btn-icon-header {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-icon-header:active {
+      transform: scale(0.92);
+      border-color: var(--brand-gold);
+    }
+
+    /* CONTAINER PRINCIPAL */
+    .main-container {
+      padding: 16px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* CARROSSEL DE FILTROS DE PERÍODO */
+    .filter-scroll-container {
+      margin: -4px -16px 14px -16px;
+      padding: 4px 16px;
+      overflow-x: auto;
+      display: flex;
+      gap: 8px;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .filter-scroll-container::-webkit-scrollbar {
+      display: none;
+    }
+
+    .filter-chip {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      padding: 7px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .filter-chip.active {
+      background: var(--brand-gold);
+      border-color: var(--brand-gold);
+      color: #000;
+      font-weight: 800;
+      box-shadow: 0 2px 10px rgba(245, 158, 11, 0.25);
+    }
+
+    /* CHIPS DE GRUPO */
+    .group-pills {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .group-pill {
+      flex: 1;
+      padding: 8px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .group-pill.active {
+      background: rgba(245, 158, 11, 0.12);
+      border-color: var(--brand-gold);
+      color: var(--brand-gold);
+    }
+
+    /* BOX DATA PERSONALIZADA */
+    .custom-date-box {
+      display: none;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      margin-bottom: 16px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .custom-date-box.active {
+      display: flex;
+    }
+
+    .custom-date-input {
+      flex: 1;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+    }
+
+    /* KPIS EM DESTAQUE */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .kpi-card.highlight {
+      grid-column: span 2;
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(20, 22, 27, 0.95));
+      border: 1.5px solid rgba(245, 158, 11, 0.35);
+    }
+
+    .kpi-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .kpi-value-gold {
+      font-size: 26px;
+      font-weight: 900;
+      color: var(--brand-gold);
+      letter-spacing: -0.02em;
+    }
+
+    .kpi-value {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    /* LISTA DE MOTOBOYS */
+    .section-title {
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .motoboy-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    }
+
+    .motoboy-card.pago {
+      border-color: rgba(16, 185, 129, 0.3);
+      background: linear-gradient(180deg, rgba(16, 185, 129, 0.05), rgba(20, 22, 27, 0.98));
+    }
+
+    .motoboy-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .motoboy-info {
+      flex: 1;
+    }
+
+    .motoboy-nome {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 4px;
+    }
+
+    .motoboy-badges {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge-grupo {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .badge-veloz {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .badge-speed {
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .badge-entregas {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .motoboy-valor-box {
+      text-align: right;
+    }
+
+    .motoboy-valor-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .motoboy-valor {
+      font-size: 20px;
+      font-weight: 900;
+      color: #34d399;
+    }
+
+    /* ÁREA PIX */
+    .pix-box {
+      background: var(--bg-input);
+      border: 1px dashed var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .pix-info {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .pix-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--text-muted);
+      display: block;
+    }
+
+    .pix-key {
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-weight: 600;
+    }
+
+    .btn-pix-copy {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .btn-pix-copy:active {
+      transform: scale(0.94);
+      border-color: var(--brand-gold);
+    }
+
+    .btn-pix-copy.copied {
+      background: rgba(16, 185, 129, 0.2);
+      border-color: var(--brand-green);
+      color: #34d399;
+    }
+
+    /* AÇÕES DO CARD */
+    .card-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .btn-action {
+      flex: 1;
+      padding: 11px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+    }
+
+    .btn-action:active {
+      transform: scale(0.97);
+    }
+
+    .btn-whatsapp {
+      background: rgba(37, 211, 102, 0.15);
+      border: 1px solid rgba(37, 211, 102, 0.35);
+      color: #4ade80;
+    }
+
+    .btn-pagamento-confirmar {
+      background: var(--brand-gold);
+      color: #000;
+    }
+
+    .btn-pagamento-pago {
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #34d399;
+    }
+
+    /* ACORDEOM ENTREGAS */
+    .entregas-toggle {
+      width: 100%;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 6px 0 0 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      cursor: pointer;
+    }
+
+    .entregas-lista {
+      display: none;
+      margin-top: 10px;
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 10px;
+    }
+
+    .entregas-lista.open {
+      display: block;
+    }
+
+    .item-entrega {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      font-size: 12px;
+    }
+
+    .item-entrega:last-child {
+      border-bottom: none;
+    }
+
+    /* TOAST */
+    .toast {
+      position: fixed;
+      bottom: calc(env(safe-area-inset-bottom, 16px) + 16px);
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #18181b;
+      border: 1px solid var(--border-subtle);
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 30px;
+      font-size: 13px;
+      font-weight: 700;
+      z-index: 1000;
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      pointer-events: none;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* SKELETON & EMPTY */
+    .empty-state {
+      text-align: center;
+      padding: 40px 16px;
+      background: var(--bg-card);
+      border: 1px dashed var(--border-subtle);
+      border-radius: var(--radius-lg);
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER NATIVO MOBILE -->
+  <header class="app-header">
+    <div class="brand-area">
+      <img src="/assets/logo-dark-theme.png" alt="Ao Ponto" class="brand-logo" onerror="this.src='/assets/logo.png'">
+      <div>
+        <div class="brand-title">Fechamento</div>
+        <div class="brand-subtitle" id="headerSubtitle">Carregando...</div>
+      </div>
+    </div>
+    <button class="btn-icon-header" onclick="carregarFechamento(true)" title="Atualizar dados" id="btnRefresh">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+      </svg>
+    </button>
+  </header>
+
+  <main class="main-container">
+
+    <!-- SELETOR DE PERÍODO HORIZONTAL -->
+    <div class="filter-scroll-container">
+      <button class="filter-chip active" data-periodo="hoje" onclick="selecionarPeriodo('hoje', this)">Hoje</button>
+      <button class="filter-chip" data-periodo="ontem" onclick="selecionarPeriodo('ontem', this)">Ontem</button>
+      <button class="filter-chip" data-periodo="semana" onclick="selecionarPeriodo('semana', this)">Esta Semana</button>
+      <button class="filter-chip" data-periodo="mes" onclick="selecionarPeriodo('mes', this)">Este Mês</button>
+      <button class="filter-chip" data-periodo="personalizado" onclick="selecionarPeriodo('personalizado', this)">Personalizado</button>
+      <button class="filter-chip" data-periodo="todos" onclick="selecionarPeriodo('todos', this)">Todos</button>
+    </div>
+
+    <!-- SELETOR DE DATA PERSONALIZADA -->
+    <div class="custom-date-box" id="boxDataPersonalizada">
+      <input type="date" id="dataInicio" class="custom-date-input" onchange="carregarFechamento()">
+      <span style="color: var(--text-muted); font-size: 12px;">até</span>
+      <input type="date" id="dataFim" class="custom-date-input" onchange="carregarFechamento()">
+    </div>
+
+    <!-- FILTRO DE GRUPO -->
+    <div class="group-pills">
+      <button class="group-pill active" data-grupo="todos" onclick="selecionarGrupo('todos', this)">Todos</button>
+      <button class="group-pill" data-grupo="VELOZ" onclick="selecionarGrupo('VELOZ', this)">VELOZ</button>
+      <button class="group-pill" data-grupo="SPEED" onclick="selecionarGrupo('SPEED', this)">SPEED</button>
+    </div>
+
+    <!-- KPIS CONSOLIDADOS -->
+    <div class="kpi-grid">
+      <div class="kpi-card highlight">
+        <div class="kpi-label">Total em Taxas a Repassar</div>
+        <div class="kpi-value-gold" id="kpiTotalTaxas">R$ 0,00</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Entregas</div>
+        <div class="kpi-value" id="kpiTotalEntregas">0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Entregadores</div>
+        <div class="kpi-value" id="kpiEntregadoresAtivos">0</div>
+      </div>
+    </div>
+
+    <!-- SEÇÃO DE MOTOBOYS -->
+    <div class="section-title">
+      <span>Repasse por Entregador</span>
+      <span id="labelContadorMotoboys" style="font-size: 11px; font-weight: 600;"></span>
+    </div>
+
+    <div id="listaMotoboysContainer">
+      <!-- Inserido dinamicamente via JS -->
+    </div>
+
+  </main>
+
+  <div class="toast" id="toastMsg"></div>
+
+  <script>
+    const state = {
+      periodo: 'hoje',
+      grupo: 'todos',
+      dados: null,
+      loading: false
+    };
+
+    const SVG_ICONS = {
+      copy: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`,
+      check: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
+      whatsapp: `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2m.01 1.67c2.2 0 4.26.86 5.82 2.41 1.56 1.56 2.41 3.63 2.41 5.83s-.85 4.27-2.41 5.83c-1.56 1.56-3.62 2.41-5.82 2.41-1.5 0-2.97-.39-4.27-1.12l-.3-.17-3.17.83.85-3.09-.2-.31a8.187 8.187 0 0 1-1.28-4.38c0-2.2.86-4.27 2.42-5.83 1.56-1.55 3.63-2.41 5.83-2.41m-2.58 4.29c-.19 0-.5.07-.76.36-.26.29-1 1-1 2.42 0 1.43 1.04 2.81 1.18 3 .15.19 2.05 3.13 4.97 4.39.69.3 1.23.48 1.66.61.7.22 1.33.19 1.83.12.56-.08 1.73-.71 1.98-1.39.24-.69.24-1.28.17-1.4-.07-.12-.26-.19-.55-.33s-1.73-.85-2-.95c-.27-.1-.47-.15-.67.15s-.77.95-.94 1.15c-.17.19-.35.21-.64.07-.29-.14-1.23-.45-2.35-1.45-.87-.78-1.46-1.74-1.63-2.03-.17-.29-.02-.45.13-.59.13-.13.29-.34.43-.51.15-.17.19-.29.29-.48.1-.19.05-.36-.02-.5-.08-.15-.67-1.61-.92-2.21-.24-.58-.49-.5-.67-.51-.17-.01-.37-.01-.56-.01"/></svg>`,
+      chevronDown: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`,
+      pay: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`
+    };
+
+    function showToast(msg) {
+      const el = document.getElementById('toastMsg');
+      el.textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 2600);
+    }
+
+    function atualizarDataHoraHeader() {
+      const agora = new Date();
+      const options = { timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' };
+      document.getElementById('headerSubtitle').textContent = agora.toLocaleDateString('pt-BR', options);
+    }
+
+    function selecionarPeriodo(periodo, btn) {
+      state.periodo = periodo;
+      document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const boxCustom = document.getElementById('boxDataPersonalizada');
+      if (periodo === 'personalizado') {
+        boxCustom.classList.add('active');
+        if (!document.getElementById('dataInicio').value) {
+          const hojeIso = new Date().toISOString().substring(0, 10);
+          document.getElementById('dataInicio').value = hojeIso;
+          document.getElementById('dataFim').value = hojeIso;
+        }
+      } else {
+        boxCustom.classList.remove('active');
+      }
+
+      carregarFechamento();
+    }
+
+    function selecionarGrupo(grupo, btn) {
+      state.grupo = grupo;
+      document.querySelectorAll('.group-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      carregarFechamento();
+    }
+
+    async function carregarFechamento(animarIcone = false) {
+      if (animarIcone) {
+        const btn = document.getElementById('btnRefresh');
+        btn.style.transform = 'rotate(360deg)';
+        setTimeout(() => { btn.style.transform = 'none'; }, 400);
+      }
+
+      atualizarDataHoraHeader();
+
+      let url = `/api/admin/fechamento?periodo=${state.periodo}&grupo=${state.grupo}&_t=${Date.now()}`;
+      if (state.periodo === 'personalizado') {
+        const dtIni = document.getElementById('dataInicio').value;
+        const dtFim = document.getElementById('dataFim').value;
+        if (dtIni) url += `&data_inicio=${dtIni}`;
+        if (dtFim) url += `&data_fim=${dtFim || dtIni}`;
+      }
+
+      try {
+        const res = await fetch(url, { cache: 'no-store' });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          state.dados = data;
+          renderizar(data);
+        } else {
+          showToast(data.message || 'Erro ao carregar dados.');
+        }
+      } catch (err) {
+        showToast('Erro de conexão ao buscar fechamento.');
+      }
+    }
+
+    function copiarPix(chave, btnElement) {
+      if (!chave) {
+        showToast('Nenhuma chave Pix cadastrada.');
+        return;
+      }
+      navigator.clipboard.writeText(chave).then(() => {
+        btnElement.classList.add('copied');
+        btnElement.innerHTML = `${SVG_ICONS.check} <span>Copiado!</span>`;
+        showToast('Chave Pix copiada com sucesso!');
+        setTimeout(() => {
+          btnElement.classList.remove('copied');
+          btnElement.innerHTML = `${SVG_ICONS.copy} <span>Copiar</span>`;
+        }, 2000);
+      }).catch(() => {
+        showToast('Não foi possível copiar automaticamente.');
+      });
+    }
+
+    async function alternarPagamento(motoboyId, nome, valor, acaoAtual) {
+      const acao = acaoAtual === 'estornar' ? 'estornar' : 'confirmar';
+      const valorFmt = Number(valor || 0).toFixed(2).replace('.', ',');
+      const confirmMsg = acao === 'estornar'
+        ? `Desfazer a confirmação de pagamento de ${nome}?`
+        : `Confirmar pagamento de R$ ${valorFmt} para ${nome}?`;
+
+      if (!confirm(confirmMsg)) return;
+
+      try {
+        const res = await fetch('/api/admin/confirmar-pagamento', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            motoboy_id: motoboyId,
+            periodo: state.periodo,
+            valor: valor,
+            acao: acao
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(acao === 'estornar' ? `Pagamento de ${nome} desmarcado.` : `Pagamento de ${nome} confirmado!`);
+          carregarFechamento();
+        } else {
+          showToast(data.message || 'Erro ao atualizar pagamento.');
+        }
+      } catch (err) {
+        showToast('Erro de conexão ao confirmar pagamento.');
+      }
+    }
+
+    function toggleEntregas(id) {
+      const lista = document.getElementById(`entregas-${id}`);
+      if (lista) {
+        lista.classList.toggle('open');
+      }
+    }
+
+    function renderizar(data) {
+      const kpis = data.kpis || {};
+      document.getElementById('kpiTotalTaxas').textContent = `R$ ${Number(kpis.total_taxas || 0).toFixed(2).replace('.', ',')}`;
+      document.getElementById('kpiTotalEntregas').textContent = kpis.total_entregas || 0;
+      document.getElementById('kpiEntregadoresAtivos').textContent = kpis.entregadores_ativos || 0;
+
+      const container = document.getElementById('listaMotoboysContainer');
+      const motoboys = data.motoboys || [];
+
+      document.getElementById('labelContadorMotoboys').textContent = `${motoboys.length} entregador(es)`;
+
+      if (motoboys.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div style="font-size: 14px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">Nenhuma entrega encontrada</div>
+            <div style="font-size: 12px;">Não há entregas registradas para o período e grupo selecionados.</div>
+          </div>
+        `;
+        return;
+      }
+
+      // Ordenar: primeiro quem tem mais a receber
+      motoboys.sort((a, b) => (b.total_taxas || 0) - (a.total_taxas || 0));
+
+      container.innerHTML = motoboys.map(m => {
+        const isPago = Boolean(m.pagamento_confirmado);
+        const grupoClass = (m.grupo || 'VELOZ').toUpperCase() === 'SPEED' ? 'badge-speed' : 'badge-veloz';
+        const valorFmt = Number(m.total_taxas || 0).toFixed(2).replace('.', ',');
+        const telLimpo = (m.telefone || '').replace(/\D/g, '');
+
+        // Mensagem WhatsApp estruturada e profissional
+        const msgWhats = encodeURIComponent(
+          `Olá, ${m.nome}! Segue seu fechamento de repasse Ao Ponto Carnes:\n\n` +
+          `Período: ${data.periodo === 'hoje' ? 'Hoje' : data.periodo}\n` +
+          `Equipe: ${m.grupo || 'VELOZ'}\n` +
+          `Entregas realizadas: ${m.total_entregas}\n` +
+          `Total a receber: R$ ${valorFmt}\n\n` +
+          `Chave Pix cadastrada: ${m.chave_pix || 'Não informada'}\n\n` +
+          `Obrigado pelo empenho de hoje!`
+        );
+
+        return `
+          <div class="motoboy-card ${isPago ? 'pago' : ''}">
+            <div class="motoboy-header">
+              <div class="motoboy-info">
+                <div class="motoboy-nome">${m.nome}</div>
+                <div class="motoboy-badges">
+                  <span class="badge-grupo ${grupoClass}">${m.grupo || 'VELOZ'}</span>
+                  <span class="badge-entregas">${m.total_entregas} entrega(s)</span>
+                </div>
+              </div>
+              <div class="motoboy-valor-box">
+                <div class="motoboy-valor-label">Repasse</div>
+                <div class="motoboy-valor">R$ ${valorFmt}</div>
+              </div>
+            </div>
+
+            <!-- CHAVE PIX -->
+            <div class="pix-box">
+              <div class="pix-info">
+                <span class="pix-label">Chave Pix</span>
+                <div class="pix-key">${m.chave_pix || 'Chave não cadastrada'}</div>
+              </div>
+              ${m.chave_pix ? `
+                <button type="button" class="btn-pix-copy" onclick="copiarPix('${m.chave_pix}', this)">
+                  ${SVG_ICONS.copy}
+                  <span>Copiar</span>
+                </button>
+              ` : ''}
+            </div>
+
+            <!-- BOTÕES DE AÇÃO -->
+            <div class="card-actions">
+              ${telLimpo ? `
+                <a href="https://wa.me/55${telLimpo}?text=${msgWhats}" target="_blank" class="btn-action btn-whatsapp">
+                  ${SVG_ICONS.whatsapp}
+                  <span>WhatsApp</span>
+                </a>
+              ` : ''}
+
+              ${isPago ? `
+                <button type="button" class="btn-action btn-pagamento-pago" onclick="alternarPagamento(${m.motoboy_id}, '${m.nome}', ${m.total_taxas}, 'estornar')" title="Clique para desmarcar">
+                  ${SVG_ICONS.check}
+                  <span>Pago</span>
+                </button>
+              ` : `
+                <button type="button" class="btn-action btn-pagamento-confirmar" onclick="alternarPagamento(${m.motoboy_id}, '${m.nome}', ${m.total_taxas}, 'confirmar')">
+                  ${SVG_ICONS.pay}
+                  <span>Pagar</span>
+                </button>
+              `}
+            </div>
+
+            <!-- DETALHE DAS ENTREGAS -->
+            ${(m.entregas && m.entregas.length > 0) ? `
+              <button type="button" class="entregas-toggle" onclick="toggleEntregas(${m.motoboy_id})">
+                <span>Ver ${m.entregas.length} pedido(s)</span>
+                ${SVG_ICONS.chevronDown}
+              </button>
+              <div class="entregas-lista" id="entregas-${m.motoboy_id}">
+                ${m.entregas.map(e => `
+                  <div class="item-entrega">
+                    <div>
+                      <strong style="color: var(--text-main);">#${e.numero_pedido}</strong> 
+                      <span style="color: var(--text-muted); margin-left: 4px;">${e.bairro || 'Centro'}</span>
+                    </div>
+                    <div style="font-weight: 700; color: #34d399;">R$ ${Number(e.taxa_repasse || 0).toFixed(2).replace('.', ',')}</div>
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Inicialização automática
+    atualizarDataHoraHeader();
+    carregarFechamento();
+
+    // Auto-refresh suave a cada 15 segundos se aba estiver visível
+    setInterval(() => {
+      if (!document.hidden) carregarFechamento(false);
+    }, 15000);
+
+    // Registrar Service Worker para PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>

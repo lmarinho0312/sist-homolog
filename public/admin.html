@@ -993,6 +993,10 @@
               <i data-lucide="coins"></i>
               <span>Ver Taxas</span>
             </button>
+            <a href="/fechamento" target="_blank" class="btn btn-secondary btn-sm" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; border-color: rgba(245, 158, 11, 0.4); color: var(--brand-gold-light);" title="Abrir Fechamento Otimizado para Celular">
+              <i data-lucide="smartphone"></i>
+              <span>Versão Mobile</span>
+            </a>
             <button class="btn btn-secondary btn-sm" onclick="carregarFechamento()">
               <i data-lucide="refresh-cw"></i>
               <span>Atualizar</span>
@@ -3194,12 +3198,12 @@
                     </a>
 
                     ${m.pagamento_confirmado ? `
-                      <button type="button" class="btn btn-success btn-sm" style="flex: 1.3; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: default; background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4);" disabled>
+                      <button type="button" class="btn btn-success btn-sm" style="flex: 1.3; display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); cursor: pointer;" onclick="confirmarPagamentoAdmin(${m.motoboy_id}, '${escapeHtml(m.nome)}', ${m.total_taxas}, 'estornar')" title="Clique se desejar desfazer ou marcar como pendente">
                         ${SVG_ICONS.check}
                         <span>Pago</span>
                       </button>
                     ` : `
-                      <button type="button" class="btn btn-gold btn-sm" style="flex: 1.3; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-weight: 800;" onclick="confirmarPagamentoAdmin(${m.motoboy_id}, '${escapeHtml(m.nome)}', ${m.total_taxas})">
+                      <button type="button" class="btn btn-gold btn-sm" style="flex: 1.3; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-weight: 800;" onclick="confirmarPagamentoAdmin(${m.motoboy_id}, '${escapeHtml(m.nome)}', ${m.total_taxas}, 'confirmar')">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                         <span>Confirmar Pagamento</span>
                       </button>
@@ -3271,9 +3275,13 @@
       }
     }
 
-    async function confirmarPagamentoAdmin(motoboyId, motoboyNome, valor) {
+    async function confirmarPagamentoAdmin(motoboyId, motoboyNome, valor, acao = 'confirmar') {
       const valorFmt = Number(valor || 0).toFixed(2).replace('.', ',');
-      if (!confirm(`Deseja confirmar o pagamento de R$ ${valorFmt} para ${motoboyNome}?`)) {
+      const textoPrompt = acao === 'estornar'
+        ? `Deseja desfazer a confirmação de pagamento de ${motoboyNome}?`
+        : `Deseja confirmar o pagamento de R$ ${valorFmt} para ${motoboyNome}?`;
+
+      if (!confirm(textoPrompt)) {
         return;
       }
       try {
@@ -3283,18 +3291,19 @@
           body: JSON.stringify({
             motoboy_id: motoboyId,
             periodo: periodoFechamentoAtivo,
-            valor: valor
+            valor: valor,
+            acao: acao
           })
         });
         const data = await res.json();
         if (res.ok && data.success) {
-          showToast(`Pagamento de ${motoboyNome} confirmado com sucesso!`, 'success');
+          showToast(acao === 'estornar' ? `Pagamento de ${motoboyNome} desfeito com sucesso!` : `Pagamento de ${motoboyNome} confirmado com sucesso!`, 'success');
           carregarFechamento();
         } else {
-          showToast(data.message || 'Erro ao confirmar pagamento.', 'error');
+          showToast(data.message || 'Erro ao processar pagamento.', 'error');
         }
       } catch (err) {
-        showToast('Erro de conexão ao confirmar pagamento.', 'error');
+        showToast('Erro de conexão ao processar pagamento.', 'error');
       }
     }
 

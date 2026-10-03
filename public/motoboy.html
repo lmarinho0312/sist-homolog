@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#0a0c10">
+  <meta name="theme-color" content="#0a0b0d">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Entregador">
   <title>Ao Ponto Carnes — App do Entregador</title>
-  <link rel="icon" type="image/png" href="/assets/logo-transparent.png">
+  <link rel="manifest" href="/manifest-motoboy.json">
+  <link rel="apple-touch-icon" href="/assets/logo-dark-theme.png">
+  <link rel="icon" type="image/png" href="/assets/logo-dark-theme.png">
 
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -817,28 +820,6 @@
 
   </div>
 
-  <!-- MODAL DE CONFIRMAÇÃO DE FINALIZAÇÃO -->
-  <div class="modal-confirm-overlay" id="modalFinalizar">
-    <div class="modal-confirm-box">
-      <div style="display: flex; justify-content: center; margin-bottom: 14px;"><div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3); display: flex; align-items: center; justify-content: center; color: #22c55e;"><i data-lucide="flag" style="width: 26px; height: 26px;"></i></div></div>
-      <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 8px;">Finalizar Entrega?</h3>
-      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;" id="modalFinalizarTexto">Confirmar conclusão do pedido #--?</p>
-      
-      <div style="margin-bottom: 14px; padding: 8px 10px; background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.3); border-radius: 8px; font-size: 11px; font-weight: 700; color: #fbbf24; display: flex; align-items: center; justify-content: center; gap: 6px;">
-        <i data-lucide="shield-alert" style="width: 14px; height: 14px;"></i>
-        <span>Lembre-se de confirmar o código e a entrega</span>
-      </div>
-
-      <!-- BOTÃO DIRETO DE CONFIRMAÇÃO DE CÓDIGO NO MODAL (SE FOR MARKETPLACE) -->
-      <div id="modalConfirmarCodigoContainer" style="margin-bottom: 14px; display: none;"></div>
-
-      <div style="display: flex; gap: 10px;">
-        <button class="btn btn-secondary" style="flex: 1;" onclick="fecharModalFinalizar()">Cancelar</button>
-        <button class="btn btn-danger" style="flex: 1;" id="btnConfirmarFinalizacao" onclick="confirmarFinalizarPedido()">SIM, ENTREGUE</button>
-      </div>
-    </div>
-  </div>
-
   <!-- TOAST CONTAINER -->
   <div class="toast-container" id="toastContainer"></div>
 
@@ -1307,11 +1288,6 @@
 
           <!-- BOTÃO OFICIAL CONFIRMAR CÓDIGO (IFOOD / 99FOOD) -->
           ${btnConfirmarCodigoHtml}
-
-          <!-- BOTÃO FINALIZAR ENTREGA -->
-          <button class="btn-finalizar-master" style="margin-top: 8px;" onclick="solicitarFinalizarEntrega(${p.id}, '${p.numero_pedido}', '${p.origem || ''}')">
-            <span>✓ FINALIZAR ENTREGA #${p.numero_pedido}</span>
-          </button>
         </div>
       `;
     }
@@ -1555,81 +1531,6 @@
         }
       } catch (err) {
         showToast('Falha na comunicação com o servidor.', 'error');
-      }
-    }
-
-    // AÇÃO: FINALIZAR ENTREGA
-    function solicitarFinalizarEntrega(pedidoId, numero, origem) {
-      state.pedidoParaFinalizar = { id: pedidoId, numero: numero, origem: origem };
-      document.getElementById('modalFinalizarTexto').textContent = `Confirmar conclusão da entrega do pedido #${numero}?`;
-
-      const containerCodigo = document.getElementById('modalConfirmarCodigoContainer');
-      if (containerCodigo) {
-        const infoCodigo = obterInfoConfirmacaoCodigo(origem);
-        if (infoCodigo) {
-          containerCodigo.style.display = 'block';
-          containerCodigo.innerHTML = `
-            <a href="${infoCodigo.url}" target="_blank" rel="noopener noreferrer" style="width: 100%; padding: 10px 12px; border-radius: var(--radius-md); background: ${infoCodigo.btnBg}; border: 1.5px solid ${infoCodigo.btnBorder}; color: ${infoCodigo.btnColor}; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: space-between; text-decoration: none; box-sizing: border-box;">
-              <span style="display: inline-flex; align-items: center; gap: 6px;">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                <span>Confirmar Código</span>
-              </span>
-              <span style="display: inline-flex; align-items: center; gap: 4px; background: ${infoCodigo.badgeBg}; color: ${infoCodigo.badgeColor}; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">
-                <span>${infoCodigo.nome}</span>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-              </span>
-            </a>
-          `;
-        } else {
-          containerCodigo.style.display = 'none';
-          containerCodigo.innerHTML = '';
-        }
-      }
-
-      document.getElementById('modalFinalizar').style.display = 'flex';
-    }
-
-    function fecharModalFinalizar() {
-      document.getElementById('modalFinalizar').style.display = 'none';
-      const containerCodigo = document.getElementById('modalConfirmarCodigoContainer');
-      if (containerCodigo) {
-        containerCodigo.style.display = 'none';
-        containerCodigo.innerHTML = '';
-      }
-      state.pedidoParaFinalizar = null;
-    }
-
-    async function confirmarFinalizarPedido() {
-      if (!state.pedidoParaFinalizar) return;
-
-      const p = state.pedidoParaFinalizar;
-      const btn = document.getElementById('btnConfirmarFinalizacao');
-      btn.disabled = true;
-      btn.textContent = 'Gravando...';
-
-      try {
-        const res = await fetch('/api/pedidos/finalizar', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            pedido_id: p.id,
-            motoboy_id: state.motoboy.id
-          })
-        });
-
-        const data = await res.json();
-        if (res.ok && data.success) {
-          showToast(`Pedido #${p.numero} entregue com sucesso!`, 'success');
-          fecharModalFinalizar();
-          carregarDados();
-        } else {
-          showToast(data.message || 'Erro ao finalizar.', 'error');
-        }
-      } catch (err) {
-        showToast('Erro de conexão ao finalizar.', 'error');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'SIM, ENTREGUE';
       }
     }
 
@@ -2064,6 +1965,13 @@
         toast.style.opacity = '0';
         setTimeout(() => toast.remove(), 300);
       }, 3500);
+    }
+
+    // Registrar Service Worker para PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      });
     }
   </script>
 </body>
