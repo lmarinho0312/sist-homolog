@@ -34,8 +34,8 @@ jobs:
           cd android
           set -o pipefail
           gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log || {
-            echo "::error::FALHA_GRADLE_DETECTADA"
-            tail -n 60 build.log | while IFS= read -r line; do
+            echo "::error::--- RESUMO DO ERRO GRADLE ---"
+            grep -A 25 "What went wrong:" build.log | while IFS= read -r line; do
               echo "::error::$line"
             done
             exit 1
