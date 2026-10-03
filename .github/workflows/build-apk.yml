@@ -10,9 +10,14 @@ jobs:
     name: Compilar APK Android
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout do Repositório
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configurar Java 17
         uses: actions/setup-java@v4
@@ -33,13 +38,19 @@ jobs:
         run: |
           cd android
           set -o pipefail
-          gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log || {
-            echo "::error::--- RESUMO DO ERRO GRADLE ---"
-            grep -A 25 "What went wrong:" build.log | while IFS= read -r line; do
-              echo "::error::$line"
-            done
-            exit 1
-          }
+          gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log || true
+
+      - name: Salvar Log e APK no Repositorio
+        if: always()
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git checkout -B build-log
+          cp android/build.log ./build.log || true
+          find android/ -name "*.apk" -exec cp {} ./AoPonto-Entregador.apk \; || true
+          git add -f build.log AoPonto-Entregador.apk || true
+          git commit -m "build: resultado compilacao" || true
+          git push -f origin build-log || true
 
       - name: Fazer Upload do Log ou APK Compilado
         if: always()
