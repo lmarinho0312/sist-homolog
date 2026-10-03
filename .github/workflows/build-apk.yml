@@ -46,10 +46,16 @@ jobs:
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
           git checkout -B build-log
-          cp android/build.log ./build.log || true
-          find android/ -name "*.apk" -exec cp {} ./AoPonto-Entregador.apk \; || true
-          git add -f build.log AoPonto-Entregador.apk || true
-          git commit -m "build: resultado compilacao" || true
+          if [ -f android/build.log ]; then
+            cp android/build.log ./build.txt
+            git add -f build.txt
+          fi
+          APK_FILE=$(find android/ -name "*.apk" 2>/dev/null | head -n 1)
+          if [ -n "$APK_FILE" ]; then
+            cp "$APK_FILE" ./AoPonto-Entregador.apk
+            git add -f AoPonto-Entregador.apk
+          fi
+          git commit -m "build: resultado compilacao [skip ci]" || true
           git push -f origin build-log || true
 
       - name: Fazer Upload do Log ou APK Compilado
