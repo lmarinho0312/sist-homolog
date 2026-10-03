@@ -200,7 +200,8 @@ async function requestHandler(req, res) {
     '/': 'admin.html',
     '/admin': 'admin.html',
     '/motoboy': 'motoboy.html',
-    '/fechamento': 'fechamento.html'
+    '/fechamento': 'fechamento.html',
+    '/motoboy-teste': 'motoboy-teste.html'
   };
 
   let targetFile = friendlyRoutes[pathname] || pathname;

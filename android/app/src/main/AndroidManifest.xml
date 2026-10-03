@@ -24,6 +24,11 @@
 
         </activity>
 
+        <service
+            android:name=".LocationService"
+            android:foregroundServiceType="location"
+            android:exported="false" />
+
     </application>
 
     <!-- Permissões de Rede e Conexão Segura HTTPS -->

@@ -1,0 +1,1993 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0b0d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Entregador">
+  <title>Ao Ponto Carnes — App do Entregador</title>
+  <link rel="manifest" href="/manifest-motoboy.json">
+  <link rel="apple-touch-icon" href="/assets/logo-dark-theme.png">
+  <link rel="icon" type="image/png" href="/assets/logo-dark-theme.png">
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS (para aba do mapa) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+  <!-- Design System CSS -->
+  <link rel="stylesheet" href="/css/design-system.css">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Estilos Específicos Mobile First (Thumb Zone & Alta Legibilidade em Trânsito) */
+    body {
+      background-color: var(--bg-app);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-bottom: 74px; /* Espaço para a barra inferior */
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .mobile-app-wrapper {
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* BARRA SUPERIOR MOBILE */
+    .mobile-header {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: rgba(10, 12, 16, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .mobile-brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .mobile-logo {
+      height: 38px;
+      width: auto;
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));
+    }
+
+    .motoboy-profile-badge {
+      text-align: right;
+    }
+
+    .motoboy-name-text {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+
+    .gps-pulse-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--status-rota-text);
+      background: var(--status-rota-bg);
+      border: 1px solid var(--status-rota-border);
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      margin-top: 2px;
+    }
+
+    .gps-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+      animation: pulseDot 1.5s infinite;
+    }
+
+    /* CARD DOMINANTE DA ENTREGA ATIVA (O MAIS IMPORTANTE DA TELA) */
+    .hero-active-card {
+      background: var(--bg-surface-elevated);
+      border: 2px solid var(--border-gold);
+      border-radius: var(--radius-xl);
+      padding: 20px;
+      margin: 16px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(245, 158, 11, 0.15);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-active-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #ea580c, #f59e0b, #10b981);
+    }
+
+    .hero-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .hero-order-id {
+      font-size: 26px;
+      font-weight: 900;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+
+    .hero-client-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hero-address-block {
+      background: var(--bg-surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 14px;
+    }
+
+    .hero-address-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--brand-gold-light);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hero-address-main {
+      font-size: 18px;
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.35;
+    }
+
+    .hero-address-bairro {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .hero-meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 4px;
+    }
+
+    .hero-eta-badge {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--brand-gold-light);
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid var(--border-gold);
+      padding: 4px 10px;
+      border-radius: var(--radius-md);
+    }
+
+    .hero-taxa-badge {
+      font-size: 15px;
+      font-weight: 800;
+      color: #34d399;
+    }
+
+    /* BOTÃO PRIORITÁRIO "VER ROTA" */
+    .btn-ver-rota-master {
+      background: linear-gradient(135deg, #fbbf24, #f59e0b 60%, #d97706);
+      color: #0c0e12;
+      font-size: 16px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      padding: 16px 20px;
+      border-radius: var(--radius-lg);
+      border: none;
+      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.45);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 54px;
+      transition: transform 0.1s ease, filter 0.2s ease;
+      user-select: none;
+    }
+
+    .btn-ver-rota-master:active {
+      transform: scale(0.97);
+      filter: brightness(0.9);
+    }
+
+    /* BOTÃO "FINALIZAR ENTREGA" */
+    .btn-finalizar-master {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: #ffffff;
+      font-size: 15px;
+      font-weight: 800;
+      padding: 14px 20px;
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: var(--shadow-glow-red);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      min-height: 50px;
+      transition: transform 0.1s ease;
+    }
+
+    .btn-finalizar-master:active {
+      transform: scale(0.97);
+    }
+
+    /* BLOCO DE CONTATO / CENTRAL / LOCALIZADOR NO CARD ATIVO */
+    .hero-contact-block {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: var(--radius-lg);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .localizador-box {
+      background: rgba(245, 158, 11, 0.08);
+      border: 1.5px dashed var(--brand-gold);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      text-align: center;
+    }
+
+    .localizador-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .localizador-label {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--brand-gold-light);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .btn-copiar-pin {
+      background: rgba(245, 158, 11, 0.2);
+      border: 1px solid var(--border-gold);
+      color: var(--brand-gold-light);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all var(--transition-fast);
+    }
+
+    .btn-copiar-pin:active {
+      transform: scale(0.95);
+      background: var(--brand-gold);
+      color: #000;
+    }
+
+    .localizador-codigo {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      color: #ffffff;
+      font-family: 'Courier New', Courier, monospace;
+      padding: 4px 0;
+      user-select: all;
+    }
+
+    .localizador-aviso {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      line-height: 1.3;
+    }
+
+    /* BOTÃO "LIGAR PARA CENTRAL / CLIENTE" */
+    .btn-ligar-master {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: #ffffff;
+      font-size: 15px;
+      font-weight: 900;
+      padding: 14px 18px;
+      border-radius: var(--radius-lg);
+      border: none;
+      box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      min-height: 52px;
+      text-decoration: none;
+      transition: transform 0.1s ease, filter 0.2s ease;
+      user-select: none;
+    }
+
+    .btn-ligar-master:active {
+      transform: scale(0.97);
+      filter: brightness(0.9);
+    }
+
+    .btn-ligar-icon {
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .btn-ligar-text-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      text-align: left;
+      line-height: 1.2;
+    }
+
+    .btn-ligar-titulo {
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+    }
+
+    .btn-ligar-sub {
+      font-size: 11px;
+      font-weight: 600;
+      opacity: 0.88;
+    }
+
+    /* BADGES BALCÃO (LOCALIZADOR & TELEFONE) */
+    .badge-balcao-loc {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--brand-gold-light);
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      font-family: 'Courier New', Courier, monospace;
+    }
+
+    .badge-balcao-tel {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #34d399;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+    }
+
+    .badge-balcao-tel:active {
+      background: rgba(16, 185, 129, 0.3);
+    }
+
+    /* SEÇÃO PRÓXIMAS ENTREGAS */
+    .section-proximas {
+      padding: 0 16px 20px;
+    }
+
+    .section-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .section-title-text {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .queue-card {
+      background: var(--bg-surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      transition: all var(--transition-fast);
+    }
+
+    .queue-card:active {
+      background: var(--bg-surface-hover);
+    }
+
+    .queue-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .queue-num-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .queue-address {
+      font-size: 13px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* BARRA DE NAVEGAÇÃO INFERIOR FIXA (ERGONOMIA COM UMA MÃO) */
+    .bottom-nav-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      max-width: 480px;
+      margin: 0 auto;
+      height: 64px;
+      background: rgba(14, 17, 23, 0.96);
+      backdrop-filter: blur(14px);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      z-index: 2000;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    .bottom-nav-btn {
+      flex: 1;
+      height: 100%;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      user-select: none;
+      transition: color var(--transition-fast);
+    }
+
+    .bottom-nav-btn.active {
+      color: var(--brand-gold-light);
+    }
+
+    .bottom-nav-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+    }
+    .bottom-nav-icon svg,
+    .bottom-nav-icon i {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* MODAL DE CONFIRMAÇÃO */
+    .modal-confirm-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(6px);
+      z-index: 9000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-confirm-box {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-xl);
+      padding: 24px;
+      width: 100%;
+      max-width: 380px;
+      text-align: center;
+      box-shadow: var(--shadow-lg);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="mobile-app-wrapper">
+
+    <!-- ======================================================================
+         TELA DE AUTENTICAÇÃO (LOGIN / CADASTRO)
+         ====================================================================== -->
+    <div id="authScreen" style="padding: 24px 20px; display: flex; flex-direction: column; justify-content: center; min-height: 90vh;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <img src="/assets/logo-dark-theme.png" alt="Ao Ponto Carnes" style="max-width: 180px; height: auto; margin-bottom: 12px;" onerror="this.src='/assets/logo.png'">
+        <h2 style="font-size: 20px; font-weight: 800; color: var(--text-primary);">Portal do Entregador</h2>
+        <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Acesso operacional para motoboys da casa</p>
+      </div>
+
+      <div class="card card-elevated" style="padding: 24px;">
+        <!-- Tabs de login / cadastro -->
+        <div style="display: flex; background: var(--bg-surface); border-radius: var(--radius-md); padding: 4px; margin-bottom: 20px; border: 1px solid var(--border-subtle);">
+          <button id="btnTabLogin" class="btn btn-sm active" style="flex: 1; background: var(--brand-gold); color: #000;" onclick="trocarAbaAuth('login')">Entrar</button>
+          <button id="btnTabRegister" class="btn btn-sm btn-secondary" style="flex: 1;" onclick="trocarAbaAuth('register')">Cadastrar</button>
+        </div>
+
+        <!-- FORM LOGIN -->
+        <form id="formLogin" onsubmit="realizarLogin(event)">
+          <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; color: #fbbf24; padding: 10px 14px; border-radius: 8px; font-size: 12px; font-weight: 800; margin-bottom: 14px; text-align: center;">
+            AMBIENTE ISOLADO DE TESTES (HOMOLOGAÇÃO)
+          </div>
+
+          <div id="msgAvisoAuthLogin" style="display: none; padding: 10px 14px; border-radius: var(--radius-md); background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; font-size: 12px; margin-bottom: 14px; line-height: 1.4;"></div>
+
+          <div class="form-group">
+            <label class="form-label" for="inpTel">Usuário de Teste</label>
+            <input type="text" id="inpTel" class="form-input" placeholder="Lucas" value="Lucas" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inpSenha">Senha de Acesso</label>
+            <input type="password" id="inpSenha" class="form-input" placeholder="Senha" value="elis2806" required>
+          </div>
+
+          <button type="submit" class="btn btn-gold" id="btnLoginSubmit" style="width: 100%; padding: 14px; font-size: 14px; margin-top: 8px;">
+            <span>ENTRAR NO SISTEMA (TESTE)</span>
+          </button>
+        </form>
+
+        <!-- FORM CADASTRO -->
+        <form id="formRegister" onsubmit="realizarCadastro(event)" style="display: none;">
+          <div style="font-size: 12px; color: var(--brand-gold-light); background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.3); padding: 8px 12px; border-radius: var(--radius-sm); margin-bottom: 14px; line-height: 1.4;">
+            ℹ️ Cadastre seu número e senha. Após concluir, seu cadastro ficará <strong>pendente de aprovação</strong> pela administração antes do primeiro acesso.
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inpRegNome">Nome Completo</label>
+            <input type="text" id="inpRegNome" class="form-input" placeholder="Ex: Guilherme Siqueira" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inpRegTel">Telefone (com DDD)</label>
+            <input type="tel" id="inpRegTel" class="form-input" placeholder="Ex: 21990378175" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inpRegSenha">Senha</label>
+            <input type="password" id="inpRegSenha" class="form-input" placeholder="Crie uma senha" required>
+          </div>
+
+          <button type="submit" class="btn btn-gold" id="btnRegisterSubmit" style="width: 100%; padding: 14px; font-size: 14px; margin-top: 8px;">
+            <span>CRIAR CADASTRO</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ======================================================================
+         APP PRINCIPAL (QUANDO AUTENTICADO)
+         ====================================================================== -->
+    <div id="mainAppScreen" style="display: none; flex-direction: column; flex: 1;">
+
+      <!-- HEADER MOBILE -->
+      <header class="mobile-header">
+        <div class="mobile-brand-wrap">
+          <img src="/assets/logo-dark-theme.png" alt="Ao Ponto" class="mobile-logo" onerror="this.src='/assets/logo.png'">
+        </div>
+
+        <div class="motoboy-profile-badge">
+          <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+            <div class="motoboy-name-text" id="headerMotoboyNome">Motoboy</div>
+            <span id="headerGrupoBadge" style="font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4);">VELOZ</span>
+          </div>
+          <div class="gps-pulse-pill" id="headerGpsStatus">
+            <span class="gps-dot"></span>
+            <span id="gpsText">GPS Ativo</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- ====================================================================
+           ABA 1: INÍCIO / ENTREGA ATIVA
+           ==================================================================== -->
+      <main id="tabContentInicio" style="flex: 1; display: flex; flex-direction: column;">
+        
+        <!-- CARD DOMINANTE DA ENTREGA ATIVA (EXEMPLO #8830) -->
+        <div id="containerEntregaAtiva">
+          <!-- Renderizado via JavaScript -->
+          <div style="padding: 16px;">
+            <div class="skeleton" style="height: 280px; border-radius: var(--radius-xl);"></div>
+          </div>
+        </div>
+
+        <!-- PRÓXIMAS ENTREGAS NA FILA -->
+        <section class="section-proximas">
+          <div class="section-title-row">
+            <span class="section-title-text" style="display: inline-flex; align-items: center; gap: 6px;">
+              <i data-lucide="clipboard-list" style="width: 16px; height: 16px;"></i> <span>Próximos Pedidos</span>
+            </span>
+            <span class="status-badge badge-rota" id="badgeTotalFila">0</span>
+          </div>
+
+          <div id="containerProximasEntregas">
+            <!-- Renderizado via JavaScript -->
+          </div>
+        </section>
+
+      </main>
+
+      <!-- ====================================================================
+           ABA 2: BALCÃO / RETIRADAS
+           ==================================================================== -->
+      <section id="tabContentBalcao" style="display: none; padding: 16px; flex: 1; flex-direction: column;">
+        <div class="section-title-row">
+          <span class="section-title-text" style="display: inline-flex; align-items: center; gap: 6px;">
+            <i data-lucide="package" style="width: 16px; height: 16px;"></i> <span>Disponíveis no Balcão</span>
+          </span>
+          <span class="status-badge badge-retirada" id="badgeTotalBalcao">0</span>
+        </div>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Comandas prontas aguardando motoboy retirar.</p>
+
+        <!-- Campo de Pesquisa Rápida (Nº do Pedido, Cliente, Bairro) -->
+        <div class="search-box" style="margin-bottom: 14px; position: relative;">
+          <span class="search-icon"><i data-lucide="search" style="width: 16px; height: 16px;"></i></span>
+          <input type="search" id="inputBuscaBalcao" class="form-input" placeholder="Buscar pedido nº, cliente ou bairro..." oninput="filtrarBalcao()" onkeydown="if(event.key==='Enter'){this.blur();}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="padding-right: 36px;">
+          <button type="button" id="btnLimparBuscaBalcao" onclick="limparBuscaBalcao()" style="display: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); font-size: 16px; cursor: pointer; padding: 6px;" title="Limpar pesquisa">✕</button>
+        </div>
+
+        <div id="containerPedidosBalcao">
+          <!-- Renderizado via JavaScript -->
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           ABA 3: MAPA LOCAL DO MOTOBOY
+           ==================================================================== -->
+      <section id="tabContentMapa" style="display: none; flex: 1; flex-direction: column; min-height: 80vh;">
+        <div id="mapaMobile" class="map-container map-dark-tiles" style="width: 100%; height: 100%; flex: 1; min-height: 400px; background: #12141a;"></div>
+      </section>
+
+      <!-- ====================================================================
+           ABA 4: PERFIL & RENDIMENTOS
+           ==================================================================== -->
+      <section id="tabContentPerfil" style="display: none; padding: 20px; flex: 1; flex-direction: column; gap: 16px; overflow-y: auto;">
+        <div class="card card-elevated" style="text-align: center; padding: 24px;">
+          <div style="width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, var(--brand-gold-light), var(--brand-gold)); color: #000; font-size: 24px; font-weight: 800; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;" id="perfilAvatarInitial">M</div>
+          <h3 style="font-size: 18px; font-weight: 800;" id="perfilNome">Motoboy</h3>
+          <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;" id="perfilTelefone">--</p>
+          <div id="perfilGrupoBadge" style="margin-top: 6px; display: inline-block; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 12px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4);">Equipe VELOZ</div>
+        </div>
+
+        <!-- CARD CHAVE PIX PARA REPASSES -->
+        <div class="card card-elevated" style="padding: 18px 20px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+            <span style="font-size: 13px; font-weight: 800; color: var(--text-primary); display: inline-flex; align-items: center; gap: 6px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--brand-gold);"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+              <span>Chave Pix para Repasses</span>
+            </span>
+            <span id="perfilPixStatusBadge" style="font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 10px; background: rgba(107, 114, 128, 0.15); color: var(--text-muted); border: 1px solid rgba(107, 114, 128, 0.3);">Não cadastrada</span>
+          </div>
+
+          <!-- AVISO AMIGÁVEL DE RESPONSABILIDADE -->
+          <div style="background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.35); border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 12px; font-size: 11px; line-height: 1.45; color: #fbbf24;">
+            💡 <strong>Atenção amigo entregador:</strong> confira sua chave Pix com carinho antes de salvar. A inserção correta dos seus dados bancários é de sua responsabilidade para garantir que seus repasses caiam certinho na sua conta! 😊
+          </div>
+
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="inpPerfilChavePix" class="form-input" placeholder="Digite seu CPF, Celular, E-mail ou Aleatória" style="flex: 1; font-size: 13px; padding: 10px 12px;">
+            <button type="button" class="btn btn-gold btn-sm" onclick="salvarChavePixPerfil()" style="padding: 10px 14px; font-weight: 800; white-space: nowrap;">
+              <span>Salvar Pix</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Seletores de Período -->
+        <div style="display: flex; gap: 8px; justify-content: center;">
+          <button class="filter-pill active" id="pfPeriodoHoje" onclick="selecionarPeriodoRendimento('hoje', this)">Hoje</button>
+          <button class="filter-pill" id="pfPeriodoSemana" onclick="selecionarPeriodoRendimento('semana', this)">Esta Semana</button>
+          <button class="filter-pill" id="pfPeriodoMes" onclick="selecionarPeriodoRendimento('mes', this)">Este Mês</button>
+        </div>
+
+        <!-- KPIs de Rendimento e Status de Pagamento -->
+        <div class="card">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;" id="perfilPeriodoLabel">Desempenho de Hoje</span>
+            <span id="perfilStatusPagamentoPill" style="font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 10px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">⏳ Pendente</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div style="background: var(--bg-surface); padding: 14px; border-radius: var(--radius-md); text-align: center;">
+              <span style="font-size: 11px; color: var(--text-muted); display: block;">Entregas Concluídas</span>
+              <strong style="font-size: 28px; color: var(--text-primary);" id="perfilQtdEntregas">0</strong>
+            </div>
+            <div style="background: var(--bg-surface); padding: 14px; border-radius: var(--radius-md); text-align: center;">
+              <span style="font-size: 11px; color: var(--text-muted); display: block;">Total a Receber</span>
+              <strong style="font-size: 22px; color: #34d399;" id="perfilTotalTaxas">R$ 0,00</strong>
+            </div>
+          </div>
+
+          <!-- BANNER STATUS PAGAMENTO CONFIRMADO -->
+          <div id="perfilStatusPagamentoBanner" style="margin-top: 12px; padding: 10px 12px; border-radius: var(--radius-md); background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); display: flex; align-items: center; justify-content: space-between; font-size: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span id="perfilStatusPagamentoIcon">⏳</span>
+              <div>
+                <strong id="perfilStatusPagamentoTexto" style="color: var(--text-primary); font-size: 12px; display: block;">Aguardando Fechamento</strong>
+                <span id="perfilStatusPagamentoSub" style="color: var(--text-muted); font-size: 11px;">O acerto será efetuado pela administração</span>
+              </div>
+            </div>
+            <span id="perfilStatusPagamentoBadge" style="font-weight: 800; font-size: 11px; color: #fbbf24;">(Pendente)</span>
+          </div>
+
+          <div style="margin-top: 10px; text-align: center; font-size: 11px; color: var(--text-faint);">
+            Taxas Oficiais Ao Ponto por Bairro (Tabela Oficial)
+          </div>
+        </div>
+
+        <!-- Histórico de Entregas do Período -->
+        <div class="card">
+          <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 12px;">Histórico de Entregas</span>
+          <div id="perfilHistoricoEntregas">
+            <div style="text-align: center; color: var(--text-faint); padding: 20px; font-size: 13px;">Carregando...</div>
+          </div>
+        </div>
+
+        <button class="btn btn-danger" style="margin-top: 10px;" onclick="realizarLogout()">
+          <span>Sair do Sistema</span>
+        </button>
+      </section>
+
+      <!-- BARRA DE NAVEGAÇÃO INFERIOR FIXA (BOTTOM NAVIGATION) -->
+      <nav class="bottom-nav-bar">
+        <button class="bottom-nav-btn active" id="btnNavInicio" onclick="trocarAbaApp('inicio')">
+          <span class="bottom-nav-icon"><i data-lucide="home"></i></span>
+          <span>Início</span>
+        </button>
+        <button class="bottom-nav-btn" id="btnNavBalcao" onclick="trocarAbaApp('balcao')">
+          <span class="bottom-nav-icon"><i data-lucide="package"></i></span>
+          <span>Balcão</span>
+        </button>
+        <button class="bottom-nav-btn" id="btnNavMapa" onclick="trocarAbaApp('mapa')">
+          <span class="bottom-nav-icon"><i data-lucide="compass"></i></span>
+          <span>Mapa</span>
+        </button>
+        <button class="bottom-nav-btn" id="btnNavPerfil" onclick="trocarAbaApp('perfil')">
+          <span class="bottom-nav-icon"><i data-lucide="user"></i></span>
+          <span>Perfil</span>
+        </button>
+      </nav>
+
+    </div>
+
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- LÓGICA DO APP MOBILE MOTOBOY -->
+  <script>
+    // Helper SVG Icons Centralizado (Zero emojis nativos)
+    const SVG_ICONS = {
+      bike: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg>',
+      mapPin: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
+      phone: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+      clock: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+      check: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+      alert: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+      search: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+      utensils: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2v6a3 3 0 0 1-3 3 3 3 0 0 1-3-3V2"/><path d="M15 2v14a4 4 0 0 1-4 4H9"/><path d="M6 2v20"/><path d="M6 6h4"/></svg>',
+      package: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>',
+      user: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+      key: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>',
+      copy: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>'
+    };
+
+    const state = {
+      motoboy: null,
+      pedidosAtivos: [],
+      pedidosBalcao: [],
+      pedidoAtivoSelecionadoId: null,
+      pedidoParaFinalizar: null,
+      filtroBalcao: '',
+      abaAtual: 'inicio',
+      mapa: null,
+      marcadorMotoboy: null,
+      marcadorDestino: null,
+      wakeLock: null,
+      gpsWatcherId: null,
+      pollingTimer: null,
+      ultimaLat: null,
+      ultimaLng: null
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      verificarSessao();
+      if (window.lucide) lucide.createIcons();
+    });
+
+    // Sessão do Entregador
+    function verificarSessao() {
+      const sessaoStr = localStorage.getItem('motoboySession');
+      if (sessaoStr) {
+        try {
+          state.motoboy = JSON.parse(sessaoStr);
+          iniciarApp();
+        } catch (e) {
+          localStorage.removeItem('motoboySession');
+          exibirTelaAuth();
+        }
+      } else {
+        exibirTelaAuth();
+      }
+    }
+
+    function exibirTelaAuth() {
+      pararGps();
+      if (state.pollingTimer) clearInterval(state.pollingTimer);
+      document.getElementById('authScreen').style.display = 'flex';
+      document.getElementById('mainAppScreen').style.display = 'none';
+    }
+
+    function iniciarApp() {
+      document.getElementById('authScreen').style.display = 'none';
+      document.getElementById('mainAppScreen').style.display = 'flex';
+
+      document.getElementById('headerMotoboyNome').textContent = state.motoboy.nome;
+      document.getElementById('perfilNome').textContent = state.motoboy.nome;
+      document.getElementById('perfilTelefone').textContent = state.motoboy.telefone;
+      document.getElementById('perfilAvatarInitial').textContent = state.motoboy.nome.charAt(0).toUpperCase();
+
+      const grupo = (state.motoboy.grupo || 'VELOZ').toUpperCase();
+      const isSpeed = grupo === 'SPEED';
+      const badgeText = isSpeed ? 'SPEED' : 'VELOZ';
+      const badgeStyle = isSpeed 
+        ? 'background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4);'
+        : 'background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4);';
+
+      const elHBadge = document.getElementById('headerGrupoBadge');
+      if (elHBadge) {
+        elHBadge.textContent = badgeText;
+        elHBadge.style.cssText = `font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; ${badgeStyle}`;
+      }
+      const elPBadge = document.getElementById('perfilGrupoBadge');
+      if (elPBadge) {
+        elPBadge.textContent = `Equipe ${badgeText}`;
+        elPBadge.style.cssText = `margin-top: 6px; display: inline-block; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 12px; ${badgeStyle}`;
+      }
+
+      // Inicializar Chave Pix no Perfil
+      const inpPix = document.getElementById('inpPerfilChavePix');
+      if (inpPix && state.motoboy.chave_pix) {
+        inpPix.value = state.motoboy.chave_pix;
+      }
+      atualizarBadgePix();
+
+      solicitarWakeLock();
+      iniciarGps();
+
+      // Disparar serviço nativo Android de rastreamento contínuo em segundo plano
+      if (window.AndroidBridge && window.AndroidBridge.iniciarRastreamentoNativo) {
+        try {
+          window.AndroidBridge.iniciarRastreamentoNativo(String(state.motoboy.id));
+          console.log('Serviço nativo Android de rastreamento iniciado para o motoboy:', state.motoboy.id);
+        } catch (e) {
+          console.warn('Erro ao acionar AndroidBridge:', e);
+        }
+      }
+
+      carregarDados();
+
+      if (state.pollingTimer) clearInterval(state.pollingTimer);
+      state.pollingTimer = setInterval(() => {
+        if (state.motoboy) carregarDados();
+      }, 8000);
+    }
+
+    // Wake Lock API: Impede a tela do celular de apagar durante a rota
+    async function solicitarWakeLock() {
+      if ('wakeLock' in navigator) {
+        try {
+          state.wakeLock = await navigator.wakeLock.request('screen');
+          console.log('Wake Lock ativo: tela mantida acesa durante o percurso.');
+        } catch (err) {
+          console.warn('Wake Lock falhou:', err.message);
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && state.motoboy) {
+        solicitarWakeLock();
+        carregarDados();
+      }
+    });
+
+    // TRANSMISSÃO AUTOMÁTICA DE GPS (HTML5 Geolocation)
+    function iniciarGps() {
+      const statusText = document.getElementById('gpsText');
+      if (!('geolocation' in navigator)) {
+        if (statusText) statusText.textContent = 'GPS Indisponível';
+        return;
+      }
+
+      const enviarPonto = (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const spd = Math.round((pos.coords.speed || 0) * 3.6);
+        const acc = Math.round(pos.coords.accuracy || 0);
+
+        state.ultimaLat = lat;
+        state.ultimaLng = lng;
+
+        fetch('/api/motoboy/posicao', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            motoboy_id: state.motoboy.id,
+            latitude: lat,
+            longitude: lng,
+            speed: spd,
+            accuracy: acc
+          })
+        }).then(r => r.json()).then(data => {
+          if (data.success && statusText) {
+            const h = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+            statusText.textContent = `GPS ${h}`;
+          }
+        }).catch(() => {});
+
+        atualizarMarcadorMapaProprio(lat, lng);
+      };
+
+      navigator.geolocation.getCurrentPosition(enviarPonto, () => {}, { enableHighAccuracy: true });
+
+      state.gpsWatcherId = setInterval(() => {
+        navigator.geolocation.getCurrentPosition(enviarPonto, () => {}, {
+          enableHighAccuracy: true,
+          maximumAge: 5000,
+          timeout: 7000
+        });
+      }, 8000);
+    }
+
+    function pararGps() {
+      if (state.gpsWatcherId) {
+        clearInterval(state.gpsWatcherId);
+        state.gpsWatcherId = null;
+      }
+    }
+
+    // CARREGAR DADOS DO MOTOBOY E DO BALCÃO COM ANTI-CACHE ABSOLUTO
+    async function carregarDados() {
+      if (!state.motoboy) return;
+
+      try {
+        const t = Date.now();
+        const [ativosRes, balcaoRes] = await Promise.all([
+          fetch(`/api/pedidos/motoboy?motoboy_id=${state.motoboy.id}&_t=${t}`, { cache: 'no-store' }).then(r => r.json()).catch(() => null),
+          fetch(`/api/pedidos/disponiveis?motoboy_id=${state.motoboy.id}&_t=${t}`, { cache: 'no-store' }).then(r => r.json()).catch(() => null)
+        ]);
+
+        if (ativosRes && ativosRes.success) {
+          state.pedidosAtivos = ativosRes.pedidos || [];
+          if (!state.pedidosAtivos.some(p => p.id === state.pedidoAtivoSelecionadoId)) {
+            state.pedidoAtivoSelecionadoId = state.pedidosAtivos.length > 0 ? state.pedidosAtivos[0].id : null;
+          }
+          renderizarEntregaAtiva();
+          renderizarProximasEntregas();
+          atualizarMétricasPerfil();
+        }
+
+        if (balcaoRes && balcaoRes.success) {
+          state.pedidosBalcao = balcaoRes.pedidos || [];
+          renderizarBalcao();
+        }
+      } catch (err) {
+        console.error('Erro ao buscar dados:', err);
+      }
+    }
+
+    // Formatação e Utilitários de Contato e Central
+    function formatarTelefone(tel) {
+      if (!tel) return '';
+      const limpo = String(tel).replace(/\D/g, '');
+      if (limpo.startsWith('0800')) {
+        if (limpo.length >= 11) {
+          return `${limpo.slice(0, 4)} ${limpo.slice(4, 7)} ${limpo.slice(7)}`;
+        }
+        return limpo;
+      }
+      if (limpo.startsWith('0') && limpo.length === 11) {
+        return `(${limpo.slice(0, 3)}) ${limpo.slice(3, 7)}-${limpo.slice(7)}`;
+      }
+      if (limpo.length === 11) {
+        return `(${limpo.slice(0, 2)}) ${limpo.slice(2, 7)}-${limpo.slice(7)}`;
+      }
+      if (limpo.length === 10) {
+        return `(${limpo.slice(0, 2)}) ${limpo.slice(2, 6)}-${limpo.slice(6)}`;
+      }
+      return tel;
+    }
+
+    function copiarTexto(texto, msgSucesso = 'Copiado!') {
+      if (!texto) return;
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(texto).then(() => {
+          showToast(msgSucesso, 'success');
+        }).catch(() => fallbackCopiar(texto, msgSucesso));
+      } else {
+        fallbackCopiar(texto, msgSucesso);
+      }
+    }
+
+    function fallbackCopiar(texto, msgSucesso) {
+      const ta = document.createElement('textarea');
+      ta.value = texto;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast(msgSucesso, 'success');
+      } catch (err) {
+        showToast(`Código: ${texto}`, 'info');
+      }
+      document.body.removeChild(ta);
+    }
+
+    function renderizarBlocoContato(p) {
+      let loc = p.localizador ? String(p.localizador).trim() : '';
+      let telCentral = p.telefone_central || p.telefone_cliente || '';
+
+      // Se for 99Food e tiver texto_bruto em JSON, extrai caso ainda não tenha vindo normalizado
+      if (p.origem === '99FOOD' && p.texto_bruto) {
+        try {
+          const raw = JSON.parse(p.texto_bruto);
+          const addr = raw.data?.order_info?.receive_address || raw.data?.receive_address || {};
+          if (!loc && addr.locator) loc = String(addr.locator).trim();
+          if (addr.virtual_phone_number) telCentral = addr.virtual_phone_number;
+        } catch (e) {}
+      }
+
+      // Se for iFood e não tiver central explícita, usa telefone_cliente ou 0800 padrão
+      if (p.origem === 'IFOOD' && !telCentral) {
+        telCentral = '08007053040';
+      }
+
+      const telLimpo = String(telCentral || '').replace(/\D/g, '');
+      const telFormatado = formatarTelefone(telCentral);
+
+      const is99 = (p.origem || '').toUpperCase().includes('99');
+      const isIfood = (p.origem || '').toUpperCase().includes('IFOOD');
+
+      let tituloBotao = 'LIGAR PARA A CENTRAL';
+      let subBotao = telFormatado ? `Discagem: ${telFormatado}` : 'Clique para discar';
+      
+      if (is99) {
+        tituloBotao = 'LIGAR CENTRAL 99FOOD';
+      } else if (isIfood) {
+        tituloBotao = 'LIGAR CENTRAL IFOOD';
+      } else {
+        tituloBotao = 'LIGAR PARA O CLIENTE';
+      }
+
+      return `
+        <div class="hero-contact-block" style="display: flex; flex-direction: column; gap: 10px;">
+          <!-- BOX LOCALIZADOR / PIN -->
+          ${loc ? `
+            <div class="localizador-box">
+              <div class="localizador-header">
+                <span class="localizador-label" style="display: inline-flex; align-items: center; gap: 4px;">${SVG_ICONS.key} LOCALIZADOR / PIN</span>
+                <button type="button" class="btn-copiar-pin" onclick="copiarTexto('${loc}', 'PIN copiado!')" style="display: inline-flex; align-items: center; gap: 4px;">${SVG_ICONS.copy} Copiar</button>
+              </div>
+              <div class="localizador-codigo">${loc}</div>
+              <div class="localizador-aviso" style="display: flex; align-items: center; justify-content: center; gap: 6px;">${SVG_ICONS.alert} Digite este código no teclado do celular se a central solicitar.</div>
+            </div>
+          ` : ''}
+
+          <!-- BOTÃO LIGAR PARA A CENTRAL (99FOOD / IFOOD) -->
+          ${telLimpo ? `
+            <a href="tel:${telLimpo}" class="btn-ligar-master">
+              <span class="btn-ligar-icon">${SVG_ICONS.phone}</span>
+              <div class="btn-ligar-text-wrap">
+                <span class="btn-ligar-titulo">${tituloBotao}</span>
+                <span class="btn-ligar-sub">${subBotao}</span>
+              </div>
+            </a>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function selecionarEntregaAtiva(pedidoId) {
+      state.pedidoAtivoSelecionadoId = Number(pedidoId);
+      renderizarEntregaAtiva();
+      renderizarProximasEntregas();
+      const p = state.pedidosAtivos.find(x => x.id === Number(pedidoId));
+      if (p) {
+        showToast(`Foco de rota alterado para o pedido #${p.numero_pedido}`, 'info');
+      }
+    }
+
+    // RENDERIZAR CARD DOMINANTE DA ENTREGA ATIVA
+    function renderizarEntregaAtiva() {
+      const container = document.getElementById('containerEntregaAtiva');
+      if (!container) return;
+
+      if (state.pedidosAtivos.length === 0) {
+        container.innerHTML = `
+          <div style="padding: 24px 16px;">
+            <div class="card" style="text-align: center; padding: 36px 20px; border: 2px dashed var(--border-medium);">
+              <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.25); display: flex; align-items: center; justify-content: center; color: var(--brand-gold); margin: 0 auto 12px;">${SVG_ICONS.bike}</div>
+              <h3 style="font-size: 17px; font-weight: 800; color: var(--text-primary); margin-bottom: 6px;">Nenhuma entrega em rota</h3>
+              <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Você está pronto para retirar novas comandas no balcão.</p>
+              <button class="btn btn-gold" onclick="trocarAbaApp('balcao')">
+                <span style="display: flex; align-items: center; justify-content: center; gap: 8px;">${SVG_ICONS.package} Ver Pedidos no Balcão</span>
+              </button>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      // Pedido selecionado ou o primeiro por padrão
+      const p = state.pedidosAtivos.find(x => x.id === state.pedidoAtivoSelecionadoId) || state.pedidosAtivos[0];
+      const taxaRepasse = Number(p.taxa_repasse !== undefined && p.taxa_repasse !== null ? p.taxa_repasse : (p.taxa_entrega || 10.00));
+      const taxaStr = `R$ ${taxaRepasse.toFixed(2).replace('.', ',')}`;
+      const enderecoCompleto = `${p.endereco}${p.bairro ? ' — ' + p.bairro : ''}`;
+
+      // Configuração dinâmica de confirmação de código por marketplace
+      const infoCodigo = obterInfoConfirmacaoCodigo(p.origem);
+      let btnConfirmarCodigoHtml = '';
+      if (infoCodigo) {
+        btnConfirmarCodigoHtml = `
+          <!-- BOTÃO OFICIAL CONFIRMAR CÓDIGO (${infoCodigo.nome}) -->
+          <a href="${infoCodigo.url}" target="_blank" rel="noopener noreferrer" style="margin-top: 10px; width: 100%; padding: 12px 14px; border-radius: var(--radius-md); background: ${infoCodigo.btnBg}; border: 1.5px solid ${infoCodigo.btnBorder}; color: ${infoCodigo.btnColor}; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: space-between; text-decoration: none; box-sizing: border-box; transition: transform 0.15s ease;" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'">
+            <span style="display: inline-flex; align-items: center; gap: 8px;">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+              <span>Confirmar Código</span>
+            </span>
+            <span style="display: inline-flex; align-items: center; gap: 4px; background: ${infoCodigo.badgeBg}; color: ${infoCodigo.badgeColor}; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 6px;">
+              <span>${infoCodigo.nome}</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </span>
+          </a>
+        `;
+      }
+
+      // Se houver mais de uma entrega ativa, exibir seletor rápido no topo
+      let abasMultiplasHtml = '';
+      if (state.pedidosAtivos.length > 1) {
+        abasMultiplasHtml = `
+          <div style="margin-bottom: 12px; display: flex; gap: 8px; overflow-x: auto; padding: 2px; -webkit-overflow-scrolling: touch;">
+            ${state.pedidosAtivos.map((item, idx) => {
+              const isFoco = item.id === p.id;
+              return `
+                <button type="button" 
+                        onclick="selecionarEntregaAtiva(${item.id})"
+                        style="flex: 1; min-width: 130px; padding: 8px 10px; border-radius: var(--radius-md); border: 2px solid ${isFoco ? 'var(--brand-gold)' : 'var(--border-subtle)'}; background: ${isFoco ? 'rgba(245, 158, 11, 0.18)' : 'var(--bg-surface)'}; color: ${isFoco ? 'var(--brand-gold-light)' : 'var(--text-secondary)'}; cursor: pointer; text-align: center; transition: all var(--transition-fast);">
+                  <div style="font-size: 10px; font-weight: 800; color: ${isFoco ? 'var(--brand-gold)' : 'var(--text-muted)'}; text-transform: uppercase; letter-spacing: 0.05em;">
+                    ${isFoco ? '★ ROTA ATIVA' : `ENTREGA ${idx + 1}`}
+                  </div>
+                  <div style="font-size: 15px; font-weight: 900; color: ${isFoco ? '#ffffff' : 'var(--text-primary)'}; margin-top: 2px;">#${item.numero_pedido}</div>
+                </button>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+
+      container.innerHTML = `
+        ${abasMultiplasHtml}
+        <div class="hero-active-card">
+          <!-- Topo do Card -->
+          <div class="hero-card-header">
+            <div>
+              ${renderizarOrigemBadge(p.origem)}
+              <div class="hero-order-id" style="margin-top: 4px;">#${p.numero_pedido}</div>
+            </div>
+            <div style="text-align: right;">
+              <span class="status-badge badge-rota">EM ROTA</span>
+              <div class="hero-eta-badge" style="margin-top: 4px; display: inline-flex; align-items: center; gap: 4px;">${SVG_ICONS.clock} ${p.minutos_em_rota || 0} min</div>
+            </div>
+          </div>
+
+          <!-- Cliente -->
+          <div class="hero-client-name" style="display: flex; align-items: center; gap: 6px;">
+            ${SVG_ICONS.user}
+            <span>${p.cliente || 'Cliente'}</span>
+          </div>
+
+          <!-- Endereço em Destaque Absoluto -->
+          <div class="hero-address-block">
+            <div class="hero-address-label" style="display: flex; align-items: center; gap: 6px;">
+              ${SVG_ICONS.mapPin} <span>ENDEREÇO DE ENTREGA</span>
+            </div>
+            <div class="hero-address-main">${p.endereco || 'Endereço não informado'}</div>
+            <div class="hero-address-bairro">${p.bairro ? p.bairro + ' • Teresópolis' : 'Teresópolis/RJ'}</div>
+          </div>
+
+          <!-- Meta (Taxa) -->
+          <div class="hero-meta-row">
+            <span style="font-size: 13px; color: var(--text-muted);">Taxa oficial de repasse:</span>
+            <span class="hero-taxa-badge">${taxaStr}</span>
+          </div>
+
+          <!-- CONTATO / CENTRAL / LOCALIZADOR -->
+          ${renderizarBlocoContato(p)}
+
+          <!-- BOTÃO VER ROTA NO GPS PADRÃO / NATIVO -->
+          <button class="btn-ver-rota-master" style="margin-top: 12px;" onclick="abrirRotaNativa('${encodeURIComponent(enderecoCompleto)}')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+            </svg>
+            <span>VER ROTA NO MAPA</span>
+          </button>
+
+          <!-- LEMBRETE DISCRETO DE CONFIRMAÇÃO DE CÓDIGO -->
+          <div style="margin-top: 12px; padding: 7px 12px; background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.3); border-radius: 8px; font-size: 11px; font-weight: 700; color: #fbbf24; display: flex; align-items: center; justify-content: center; gap: 6px; text-align: center;">
+            ${SVG_ICONS.alert}
+            <span>Lembre-se de confirmar o código e a entrega</span>
+          </div>
+
+          <!-- BOTÃO OFICIAL CONFIRMAR CÓDIGO (IFOOD / 99FOOD) -->
+          ${btnConfirmarCodigoHtml}
+        </div>
+      `;
+    }
+
+    // DISPARO NATIVO DE ROTAS (GPS PADRÃO / GOOGLE MAPS / APPLE MAPS)
+    function abrirRotaNativa(enderecoEncoded) {
+      let enderecoLimpo = decodeURIComponent(enderecoEncoded).trim();
+      if (!/Teres[oó]polis/i.test(enderecoLimpo)) {
+        enderecoLimpo += ', Teresópolis - RJ';
+      }
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+      let urlRota = '';
+      if (isIOS) {
+        urlRota = `http://maps.apple.com/?daddr=${encodeURIComponent(enderecoLimpo)}&dirflg=d`;
+      } else {
+        urlRota = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(enderecoLimpo)}&travelmode=driving`;
+      }
+
+      window.open(urlRota, '_blank');
+    }
+
+    // RENDERIZAR PRÓXIMAS ENTREGAS
+    function renderizarProximasEntregas() {
+      const container = document.getElementById('containerProximasEntregas');
+      const badgeTotal = document.getElementById('badgeTotalFila');
+      if (!container) return;
+
+      const pAtivo = state.pedidosAtivos.find(x => x.id === state.pedidoAtivoSelecionadoId) || state.pedidosAtivos[0];
+      const fila = pAtivo 
+        ? state.pedidosAtivos.filter(x => x.id !== pAtivo.id)
+        : state.pedidosAtivos;
+
+      if (badgeTotal) badgeTotal.textContent = fila.length;
+
+      if (fila.length === 0) {
+        container.innerHTML = `
+          <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 14px; background: var(--bg-surface-card); border-radius: var(--radius-md);">
+            Sem outras entregas ativas na fila.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = fila.map(p => {
+        let loc = p.localizador ? String(p.localizador).trim() : '';
+        let telCentral = p.telefone_central || p.telefone_cliente || '';
+
+        if (p.origem === '99FOOD' && p.texto_bruto) {
+          try {
+            const raw = JSON.parse(p.texto_bruto);
+            const addr = raw.data?.order_info?.receive_address || raw.data?.receive_address || {};
+            if (!loc && addr.locator) loc = String(addr.locator).trim();
+            if (addr.virtual_phone_number) telCentral = addr.virtual_phone_number;
+          } catch (e) {}
+        }
+        if (p.origem === 'IFOOD' && !telCentral) telCentral = '08007053040';
+        const telLimpo = String(telCentral || '').replace(/\D/g, '');
+        const taxaRepasse = Number(p.taxa_repasse !== undefined && p.taxa_repasse !== null ? p.taxa_repasse : (p.taxa_entrega || 10.00));
+
+        return `
+        <div class="queue-card" onclick="selecionarEntregaAtiva(${p.id})" style="cursor: pointer;" title="Toque para alternar o foco para esta rota">
+          <div class="queue-info">
+            <div class="queue-num-row">
+              <strong style="font-size: 15px; color: var(--text-primary);">#${p.numero_pedido}</strong>
+              ${renderizarOrigemBadge(p.origem)}
+              <span style="display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--brand-gold); margin-left: auto;">${SVG_ICONS.clock} Na Fila</span>
+            </div>
+            <div class="queue-address" style="display: flex; align-items: center; gap: 4px;">${SVG_ICONS.mapPin} <span>${p.endereco}${p.bairro ? ' — ' + p.bairro : ''}</span></div>
+            ${(loc || telLimpo) ? `
+              <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; font-size: 11px;">
+                ${loc ? `<span class="badge-balcao-loc" style="display: inline-flex; align-items: center; gap: 4px;">${SVG_ICONS.key} PIN: <strong>${loc}</strong></span>` : ''}
+                ${telLimpo ? `<a href="tel:${telLimpo}" onclick="event.stopPropagation()" class="badge-balcao-tel" style="display: inline-flex; align-items: center; gap: 4px;">${SVG_ICONS.phone} Central</a>` : ''}
+              </div>
+            ` : ''}
+            <div style="margin-top: 8px;">
+              <button class="btn btn-secondary btn-sm" onclick="selecionarEntregaAtiva(${p.id}); event.stopPropagation();" style="border-color: rgba(245, 158, 11, 0.4); color: var(--brand-gold-light); font-weight: 700; font-size: 11px; padding: 4px 8px;">
+                Alternar para esta Rota ➔
+              </button>
+            </div>
+          </div>
+          <div style="text-align: right; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end;">
+            <span style="font-size: 13px; font-weight: 700; color: #34d399;">R$ ${taxaRepasse.toFixed(2).replace('.', ',')}</span>
+          </div>
+        </div>
+      `;
+      }).join('');
+    }
+
+    // ── Normalização e Busca Inteligente no Balcão ───────────────────────
+    function normalizarTexto(str) {
+      return String(str || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+        .replace(/^#+/, '')  // remove # do início
+        .toLowerCase()
+        .trim();
+    }
+
+    function pedidoCorrespondeBusca(p, termo) {
+      if (!termo) return true;
+      const t = normalizarTexto(termo);
+      return (
+        normalizarTexto(p.numero_pedido).includes(t) ||
+        normalizarTexto(p.cliente).includes(t) ||
+        normalizarTexto(p.endereco).includes(t) ||
+        normalizarTexto(p.bairro).includes(t) ||
+        normalizarTexto(p.localizador).includes(t) ||
+        normalizarTexto(p.telefone_cliente).includes(t) ||
+        normalizarTexto(p.texto_bruto).includes(t) ||
+        normalizarTexto(p.origem).includes(t)
+      );
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function filtrarBalcao() {
+      const input = document.getElementById('inputBuscaBalcao');
+      const btnLimpar = document.getElementById('btnLimparBuscaBalcao');
+      const val = input ? input.value : '';
+      state.filtroBalcao = val;
+      if (btnLimpar) {
+        btnLimpar.style.display = val.trim() ? 'block' : 'none';
+      }
+      renderizarBalcao();
+    }
+
+    function limparBuscaBalcao() {
+      const input = document.getElementById('inputBuscaBalcao');
+      const btnLimpar = document.getElementById('btnLimparBuscaBalcao');
+      if (input) {
+        input.value = '';
+      }
+      if (btnLimpar) btnLimpar.style.display = 'none';
+      state.filtroBalcao = '';
+      renderizarBalcao();
+    }
+
+    // RENDERIZAR PEDIDOS NO BALCÃO
+    function renderizarBalcao() {
+      const container = document.getElementById('containerPedidosBalcao');
+      const badge = document.getElementById('badgeTotalBalcao');
+      if (!container) return;
+
+      const totalGeral = state.pedidosBalcao.length;
+      const termo = (state.filtroBalcao || '').trim();
+      const pedidosFiltrados = termo
+        ? state.pedidosBalcao.filter(p => pedidoCorrespondeBusca(p, termo))
+        : state.pedidosBalcao;
+
+      if (badge) {
+        if (termo) {
+          badge.textContent = `${pedidosFiltrados.length} de ${totalGeral}`;
+        } else {
+          badge.textContent = totalGeral;
+        }
+      }
+
+      if (totalGeral === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon" style="display: flex; justify-content: center; color: var(--brand-gold);">${SVG_ICONS.utensils}</div>
+            <div class="empty-state-title">Balcão limpo!</div>
+            <div class="empty-state-desc">Não há novos pedidos aguardando saída.</div>
+          </div>
+        `;
+        return;
+      }
+
+      if (pedidosFiltrados.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state" style="padding: 24px 16px;">
+            <div class="empty-state-icon" style="display: flex; justify-content: center; color: var(--text-muted);">${SVG_ICONS.search}</div>
+            <div class="empty-state-title">Nenhum pedido encontrado</div>
+            <div class="empty-state-desc">Nenhuma comanda no balcão corresponde a "<strong>${escapeHtml(termo)}</strong>".</div>
+            <button class="btn btn-secondary btn-sm" onclick="limparBuscaBalcao()" style="margin-top: 12px;">Limpar pesquisa</button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = pedidosFiltrados.map(p => {
+        const taxaRepasse = Number(p.taxa_repasse !== undefined && p.taxa_repasse !== null ? p.taxa_repasse : (p.taxa_entrega || 10.00));
+        const taxaStr = `R$ ${taxaRepasse.toFixed(2).replace('.', ',')}`;
+        const tel = p.telefone_cliente ? String(p.telefone_cliente).trim() : '';
+        const telLimpo = tel.replace(/\D/g, '');
+        const telFormatado = formatarTelefone(tel);
+        const loc = p.localizador ? String(p.localizador).trim() : '';
+
+        return `
+          <div class="card" style="margin-bottom: 12px; border-left: 3px solid #3b82f6;">
+            <div class="order-card-row">
+              <strong class="order-number">#${p.numero_pedido}</strong>
+              ${renderizarOrigemBadge(p.origem)}
+            </div>
+            <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin: 4px 0;">${p.cliente || 'Cliente'}</div>
+            <div class="order-address" style="margin-bottom: 8px; display: flex; align-items: center; gap: 4px;">${SVG_ICONS.mapPin} <span>${p.endereco} ${p.bairro ? '— ' + p.bairro : ''}</span></div>
+            
+            ${loc ? `
+              <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; align-items: center;">
+                <span class="badge-balcao-loc" title="Código Localizador / PIN" style="display: inline-flex; align-items: center; gap: 4px;">${SVG_ICONS.key} PIN: <strong>${loc}</strong></span>
+              </div>
+            ` : ''}
+
+            <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px;">
+              <button class="btn btn-gold btn-sm" onclick="retirarPedidoBalcao(${p.id}, '${p.numero_pedido}')" style="width: 100%; padding: 10px 14px; font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <span>RETIRAR PEDIDO</span>
+                <span style="font-size: 14px;">➔</span>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // AÇÃO: RETIRAR PEDIDO NO BALCÃO
+    async function retirarPedidoBalcao(pedidoId, numero) {
+      try {
+        const res = await fetch('/api/pedidos/retirar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pedido_id: pedidoId,
+            motoboy_id: state.motoboy.id
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(`Pedido #${numero} retirado com sucesso!`, 'success');
+          limparBuscaBalcao();
+          trocarAbaApp('inicio');
+          carregarDados();
+        } else {
+          showToast(data.message || 'Erro ao retirar pedido.', 'error');
+        }
+      } catch (err) {
+        showToast('Falha na comunicação com o servidor.', 'error');
+      }
+    }
+
+    // MAPA MOBILE (LEAFLET)
+    function iniciarMapaMobile() {
+      const container = document.getElementById('mapaMobile');
+      if (!container || state.mapa) return;
+
+      const coords = state.ultimaLat ? [state.ultimaLat, state.ultimaLng] : [-22.4123, -42.9664];
+
+      state.mapa = L.map('mapaMobile', {
+        center: coords,
+        zoom: 15,
+        zoomControl: false
+      });
+
+      // OpenStreetMap Tiles com Dark Theme Filter (Zero Watermark / Zero API Key)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19
+      }).addTo(state.mapa);
+
+      atualizarMarcadorMapaProprio(coords[0], coords[1]);
+    }
+
+    function atualizarMarcadorMapaProprio(lat, lng) {
+      if (!state.mapa) return;
+
+      const iconHtml = `<div class="marker-motoboy active" style="border-color: #f59e0b; box-shadow: 0 0 16px rgba(245,158,11,0.7); display: flex; align-items: center; justify-content: center;">${SVG_ICONS.bike}</div>`;
+      const customIcon = L.divIcon({
+        className: 'custom-icon',
+        html: iconHtml,
+        iconSize: [38, 38],
+        iconAnchor: [19, 19]
+      });
+
+      if (state.marcadorMotoboy) {
+        state.marcadorMotoboy.setLatLng([lat, lng]);
+      } else {
+        state.marcadorMotoboy = L.marker([lat, lng], { icon: customIcon })
+          .bindPopup(`<strong>Você está aqui</strong>`)
+          .addTo(state.mapa);
+      }
+    }
+
+    // NAVEGAÇÃO ENTRE ABAS DO APP
+    function trocarAbaApp(aba) {
+      state.abaAtual = aba;
+
+      ['btnNavInicio', 'btnNavBalcao', 'btnNavMapa', 'btnNavPerfil'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.classList.remove('active');
+      });
+
+      ['tabContentInicio', 'tabContentBalcao', 'tabContentMapa', 'tabContentPerfil'].forEach(id => {
+        const tab = document.getElementById(id);
+        if (tab) tab.style.display = 'none';
+      });
+
+      if (aba === 'inicio') {
+        document.getElementById('btnNavInicio')?.classList.add('active');
+        const tab = document.getElementById('tabContentInicio');
+        if (tab) tab.style.display = 'flex';
+      } else if (aba === 'balcao') {
+        document.getElementById('btnNavBalcao')?.classList.add('active');
+        const tab = document.getElementById('tabContentBalcao');
+        if (tab) tab.style.display = 'flex';
+      } else if (aba === 'mapa') {
+        document.getElementById('btnNavMapa')?.classList.add('active');
+        const tab = document.getElementById('tabContentMapa');
+        if (tab) tab.style.display = 'flex';
+        if (!state.mapa) iniciarMapaMobile();
+        setTimeout(() => {
+          if (state.mapa) state.mapa.invalidateSize(true);
+        }, 150);
+      } else if (aba === 'perfil') {
+        document.getElementById('btnNavPerfil')?.classList.add('active');
+        const tab = document.getElementById('tabContentPerfil');
+        if (tab) tab.style.display = 'flex';
+        atualizarMétricasPerfil();
+      }
+
+      if (window.lucide) lucide.createIcons();
+    }
+
+    let periodoRendimentoAtivo = 'hoje';
+
+    function selecionarPeriodoRendimento(periodo, btn) {
+      periodoRendimentoAtivo = periodo;
+      document.querySelectorAll('#tabContentPerfil .filter-pill').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      const labels = { hoje: 'Desempenho de Hoje', semana: 'Desempenho desta Semana', mes: 'Desempenho deste Mês' };
+      const lbl = document.getElementById('perfilPeriodoLabel');
+      if (lbl) lbl.textContent = labels[periodo] || 'Desempenho';
+      atualizarMétricasPerfil();
+    }
+
+    async function atualizarMétricasPerfil() {
+      if (!state.motoboy || !state.motoboy.id) return;
+      const motoboy_id = state.motoboy.id;
+      try {
+        const t = Date.now();
+        const res = await fetch(`/api/motoboy/rendimentos?motoboy_id=${motoboy_id}&periodo=${periodoRendimentoAtivo}&_t=${t}`, { cache: 'no-store' });
+        const data = await res.json();
+        if (data && data.success) {
+          document.getElementById('perfilQtdEntregas').textContent = data.resumo.total_entregas;
+          document.getElementById('perfilTotalTaxas').textContent = 'R$ ' + data.resumo.total_a_receber.toFixed(2).replace('.', ',');
+
+          // Status de Pagamento (Confirmado / Pendente)
+          const pag = data.pagamento;
+          const elPill = document.getElementById('perfilStatusPagamentoPill');
+          const elBanner = document.getElementById('perfilStatusPagamentoBanner');
+          const elIcon = document.getElementById('perfilStatusPagamentoIcon');
+          const elTexto = document.getElementById('perfilStatusPagamentoTexto');
+          const elSub = document.getElementById('perfilStatusPagamentoSub');
+          const elBadge = document.getElementById('perfilStatusPagamentoBadge');
+
+          if (pag && pag.confirmado) {
+            let dataFmt = '';
+            if (pag.confirmado_em) {
+              const dt = new Date(pag.confirmado_em);
+              dataFmt = ' em ' + dt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) + ' às ' + dt.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+            }
+            if (elPill) {
+              elPill.textContent = '✓ Pago';
+              elPill.style.background = 'rgba(16, 185, 129, 0.2)';
+              elPill.style.color = '#34d399';
+              elPill.style.border = '1px solid rgba(16, 185, 129, 0.4)';
+            }
+            if (elBanner) {
+              elBanner.style.background = 'rgba(16, 185, 129, 0.1)';
+              elBanner.style.border = '1px solid rgba(16, 185, 129, 0.35)';
+            }
+            if (elIcon) elIcon.textContent = '✅';
+            if (elTexto) elTexto.textContent = 'Pagamento Confirmado';
+            if (elSub) elSub.textContent = `Acerto realizado pela administração${dataFmt}`;
+            if (elBadge) {
+              elBadge.textContent = '(Pagamento Confirmado)';
+              elBadge.style.color = '#34d399';
+            }
+          } else {
+            if (elPill) {
+              elPill.textContent = '⏳ Pendente';
+              elPill.style.background = 'rgba(245, 158, 11, 0.15)';
+              elPill.style.color = '#fbbf24';
+              elPill.style.border = '1px solid rgba(245, 158, 11, 0.3)';
+            }
+            if (elBanner) {
+              elBanner.style.background = 'rgba(59, 130, 246, 0.08)';
+              elBanner.style.border = '1px solid rgba(59, 130, 246, 0.25)';
+            }
+            if (elIcon) elIcon.textContent = '⏳';
+            if (elTexto) elTexto.textContent = 'Aguardando Fechamento';
+            if (elSub) elSub.textContent = 'O acerto será efetuado pela administração';
+            if (elBadge) {
+              elBadge.textContent = '(Pendente)';
+              elBadge.style.color = '#fbbf24';
+            }
+          }
+
+          // Histórico de entregas
+          const hist = document.getElementById('perfilHistoricoEntregas');
+          if (hist) {
+            if (!data.entregas || data.entregas.length === 0) {
+              hist.innerHTML = `<div style="text-align: center; color: var(--text-faint); padding: 20px; font-size: 13px;">Nenhuma entrega no período</div>`;
+            } else {
+              hist.innerHTML = data.entregas.map(e => `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border-subtle);">
+                  <div>
+                    <div style="font-weight: 700; font-size: 13px;">#${e.numero_pedido} — ${e.cliente || '—'}</div>
+                    <div style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px;">${SVG_ICONS.mapPin} <span>${e.bairro || e.endereco || '—'} • ${e.data_fim ? e.data_fim.substring(11, 16) : '--'}</span></div>
+                  </div>
+                  <span style="font-weight: 800; color: #34d399; font-size: 14px;">+R$ ${e.taxa_repasse.toFixed(2).replace('.', ',')}</span>
+                </div>
+              `).join('');
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao carregar rendimentos:', err);
+      }
+    }
+
+    function clicarConfirmarCodigoPlataforma(plataforma) {
+      const info = obterInfoConfirmacaoCodigo(plataforma);
+      if (info && info.url) {
+        window.open(info.url, '_blank');
+      }
+    }
+
+    function atualizarBadgePix() {
+      const elBadge = document.getElementById('perfilPixStatusBadge');
+      if (!elBadge) return;
+      if (state.motoboy && state.motoboy.chave_pix) {
+        elBadge.textContent = 'Cadastrada';
+        elBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+        elBadge.style.color = '#34d399';
+        elBadge.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+      } else {
+        elBadge.textContent = 'Não cadastrada';
+        elBadge.style.background = 'rgba(107, 114, 128, 0.15)';
+        elBadge.style.color = 'var(--text-muted)';
+        elBadge.style.border = '1px solid rgba(107, 114, 128, 0.3)';
+      }
+    }
+
+    async function salvarChavePixPerfil() {
+      const inp = document.getElementById('inpPerfilChavePix');
+      if (!inp) return;
+      const chavePix = inp.value.trim();
+      if (!state.motoboy || !state.motoboy.id) {
+        showToast('Erro: sessão de motoboy inválida.', 'error');
+        return;
+      }
+      try {
+        const res = await fetch('/api/motoboy/chave-pix', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            motoboy_id: state.motoboy.id,
+            chave_pix: chavePix
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          state.motoboy.chave_pix = chavePix;
+          localStorage.setItem('motoboySession', JSON.stringify(state.motoboy));
+          showToast('Chave Pix salva com sucesso!', 'success');
+          atualizarBadgePix();
+        } else {
+          showToast(data.message || 'Erro ao salvar chave Pix.', 'error');
+        }
+      } catch (err) {
+        showToast('Erro de conexão ao salvar chave Pix.', 'error');
+      }
+    }
+
+    // AUTENTICAÇÃO
+    function trocarAbaAuth(aba) {
+      const btnL = document.getElementById('btnTabLogin');
+      const btnR = document.getElementById('btnTabRegister');
+      const formL = document.getElementById('formLogin');
+      const formR = document.getElementById('formRegister');
+
+      if (aba === 'login') {
+        btnL.classList.add('active');
+        btnL.style.background = 'var(--brand-gold)';
+        btnL.style.color = '#000';
+        btnR.classList.remove('active');
+        btnR.style.background = 'transparent';
+        btnR.style.color = 'var(--text-muted)';
+        formL.style.display = 'block';
+        formR.style.display = 'none';
+      } else {
+        btnR.classList.add('active');
+        btnR.style.background = 'var(--brand-gold)';
+        btnR.style.color = '#000';
+        btnL.classList.remove('active');
+        btnL.style.background = 'transparent';
+        btnL.style.color = 'var(--text-muted)';
+        formR.style.display = 'block';
+        formL.style.display = 'none';
+      }
+    }
+
+    async function realizarLogin(e) {
+      e.preventDefault();
+      const telefone = document.getElementById('inpTel').value;
+      const senha = document.getElementById('inpSenha').value;
+      const btn = document.getElementById('btnLoginSubmit');
+
+      btn.disabled = true;
+      btn.textContent = 'Entrando...';
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telefone, senha })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          state.motoboy = data.motoboy;
+          localStorage.setItem('motoboySession', JSON.stringify(state.motoboy));
+          showToast(`Bem-vindo, ${state.motoboy.nome}!`, 'success');
+          iniciarApp();
+        } else {
+          const notice = document.getElementById('msgAvisoAuthLogin');
+          if (data.pendente || res.status === 403) {
+            if (notice) {
+              notice.innerHTML = `⏳ <strong>Aguardando Aprovação</strong><br>${data.message || 'Seu cadastro está pendente de aprovação pela administração.'}`;
+              notice.style.display = 'block';
+            }
+            showToast(data.message || 'Cadastro pendente de aprovação.', 'warning');
+          } else {
+            if (notice) notice.style.display = 'none';
+            showToast(data.message || 'Falha no login.', 'error');
+          }
+        }
+      } catch (err) {
+        showToast('Erro de conexão ao autenticar.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'ENTRAR NO SISTEMA';
+      }
+    }
+
+    async function realizarCadastro(e) {
+      e.preventDefault();
+      const nome = document.getElementById('inpRegNome').value;
+      const telefone = document.getElementById('inpRegTel').value;
+      const senha = document.getElementById('inpRegSenha').value;
+      const btn = document.getElementById('btnRegisterSubmit');
+
+      btn.disabled = true;
+      btn.textContent = 'Cadastrando...';
+
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome, telefone, senha })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast('Cadastro realizado! Aguarde a aprovação do administrador.', 'info');
+          document.getElementById('inpTel').value = telefone;
+          document.getElementById('inpSenha').value = senha;
+          trocarAbaAuth('login');
+          const notice = document.getElementById('msgAvisoAuthLogin');
+          if (notice) {
+            notice.innerHTML = `⏳ <strong>Cadastro enviado com sucesso!</strong><br>Aguarde a liberação do administrador no painel para conseguir acessar o sistema.`;
+            notice.style.display = 'block';
+          }
+        } else {
+          showToast(data.message || 'Erro ao cadastrar.', 'error');
+        }
+      } catch (err) {
+        showToast('Erro ao comunicar com o servidor.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'CRIAR CADASTRO';
+      }
+    }
+
+    function realizarLogout() {
+      localStorage.removeItem('motoboySession');
+      state.motoboy = null;
+      showToast('Sessão encerrada com sucesso.', 'success');
+      exibirTelaAuth();
+    }
+
+    function obterOrigemClasse(origem) {
+      const o = (origem || '').toLowerCase();
+      if (o.includes('ifood')) return 'origem-ifood';
+      if (o.includes('99')) return 'origem-99food';
+      if (o.includes('cardapio')) return 'origem-cardapio_web';
+      return 'origem-manual';
+    }
+
+    function obterOrigemNome(origem) {
+      const o = (origem || '').toUpperCase();
+      if (o.includes('IFOOD')) return 'iFood';
+      if (o.includes('99')) return '99 Food';
+      if (o.includes('CARDAPIO')) return 'Cardápio';
+      return 'Balcão';
+    }
+
+    function renderizarOrigemBadge(origem) {
+      const o = (origem || '').toUpperCase();
+      if (o.includes('IFOOD')) {
+        return `<span class="origem-badge-logo" title="iFood" style="display: inline-flex; align-items: center; justify-content: center; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; padding: 2px 6px; height: 28px; vertical-align: middle;">
+          <img src="/assets/iFood-New-Logo-Small.png" alt="iFood" style="height: 22px; width: 22px; object-fit: contain; display: block; border-radius: 4px; image-rendering: -webkit-optimize-contrast;">
+        </span>`;
+      }
+      if (o.includes('99')) {
+        return `<span class="origem-badge-logo" title="99 Food" style="display: inline-flex; align-items: center; justify-content: center; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 6px; padding: 2px 6px; height: 28px; vertical-align: middle;">
+          <img src="/assets/Logotipo_da_99.svg" alt="99 Food" style="height: 22px; width: 22px; object-fit: contain; display: block; border-radius: 4px; image-rendering: -webkit-optimize-contrast;">
+        </span>`;
+      }
+      if (o.includes('CARDAPIO')) {
+        return `<span class="origem-badge origem-cardapio_web" style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px; border-radius: 6px; font-size: 12px; font-weight: 800; background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.35); height: 28px; box-sizing: border-box; vertical-align: middle;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+          <span>Cardápio</span>
+        </span>`;
+      }
+      return `<span class="origem-badge origem-manual" style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px; border-radius: 6px; font-size: 12px; font-weight: 800; background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.35); height: 28px; box-sizing: border-box; vertical-align: middle;">
+        <span>Balcão</span>
+      </span>`;
+    }
+
+    function obterInfoConfirmacaoCodigo(origem) {
+      const o = (origem || '').toUpperCase();
+      if (o.includes('IFOOD')) {
+        return {
+          nome: 'iFood',
+          url: 'https://confirmacao-entrega-propria.ifood.com.br/',
+          badgeBg: 'rgba(239, 68, 68, 0.2)',
+          badgeColor: '#fca5a5',
+          btnBg: 'rgba(239, 68, 68, 0.12)',
+          btnBorder: 'rgba(239, 68, 68, 0.45)',
+          btnColor: '#ef4444'
+        };
+      }
+      if (o.includes('99')) {
+        return {
+          nome: '99Food',
+          url: 'https://food-b-h5.99app.com/pt-BR/v2/confirmation-entrega',
+          badgeBg: 'rgba(245, 158, 11, 0.2)',
+          badgeColor: '#fde68a',
+          btnBg: 'rgba(245, 158, 11, 0.12)',
+          btnBorder: 'rgba(245, 158, 11, 0.45)',
+          btnColor: '#f59e0b'
+        };
+      }
+      // Cardápio Web e balcão não possuem link externo de código
+      return null;
+    }
+
+    function showToast(mensagem, tipo = 'success') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${tipo}`;
+      toast.innerHTML = `<span style="display: flex; align-items: center;">${tipo === 'success' ? SVG_ICONS.check : SVG_ICONS.alert}</span><span>${mensagem}</span>`;
+
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // Registrar Service Worker para PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
