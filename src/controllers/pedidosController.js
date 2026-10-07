@@ -249,22 +249,22 @@ async function webhookSpool(req, res) {
 
     // Corte imediato: 99Food e iFood agora são 100% via API/Webhook oficial
     if (cleanOrigem === '99FOOD' || cleanOrigem.includes('99')) {
-      console.log(`ℹ️ [webhookSpool] Pedido 99Food #${cleanPedidoId} descartado do puller (integrado via API/Webhook oficial).`);
-      return res.json(200, {
-        success: true,
+      console.log(`ℹ️ [SPOOLER DESCARTADO] Pedido 99FOOD #${cleanPedidoId} descartado no webhook do spooler. Motivo: integração via API/Webhook oficial ativa.`);
+      return res.json(202, {
+        success: false,
         descartado: true,
-        motivo: '99food_integrado_via_api',
-        message: 'Pedidos 99Food são processados exclusivamente via API/Webhook oficial. Descartado do puller de impressão.'
+        motivo: 'origem_oficial_plataforma',
+        message: 'Pedidos 99Food são processados exclusivamente via API/Webhook oficial. Descartado da fila do spooler térmico.'
       });
     }
 
     if (cleanOrigem === 'IFOOD' || cleanOrigem.includes('IFOOD')) {
-      console.log(`ℹ️ [webhookSpool] Pedido iFood #${cleanPedidoId} descartado do puller (integrado via API/Webhook oficial).`);
-      return res.json(200, {
-        success: true,
+      console.log(`ℹ️ [SPOOLER DESCARTADO] Pedido IFOOD #${cleanPedidoId} descartado no webhook do spooler. Motivo: integração via API/Webhook oficial ativa.`);
+      return res.json(202, {
+        success: false,
         descartado: true,
-        motivo: 'ifood_integrado_via_api',
-        message: 'Pedidos iFood são processados exclusivamente via API/Webhook oficial. Descartado do puller de impressão.'
+        motivo: 'origem_oficial_plataforma',
+        message: 'Pedidos iFood são processados exclusivamente via API/Webhook oficial. Descartado da fila do spooler térmico.'
       });
     }
 
@@ -643,8 +643,8 @@ async function listarPedidosDisponiveis(req, res) {
           ...pBalcao,
           bairro: bairroNome,
           grupo: p.grupo || null,
-          taxa_repasse: repasse,
-          taxa_entrega: repasse,
+          taxa_repasse: null, // Taxa estritamente oculta no balcão até a retirada pelo motoboy
+          taxa_entrega: null,
           telefone_central: telCentral || null,
           localizador: locPin || p.localizador || null,
           minutos_aguardando: Math.max(0, Math.round(Number(p.minutos_aguardando || 0)))
@@ -693,27 +693,10 @@ async function assumirPedido(req, res) {
     }
 
     // 3. Calcular a taxa oficial de repasse com base no grupo do motoboy que assumiu
-    let taxaRepasseCalculada = null;
-    const cleanBairro = (pedidoAtual.bairro || '').trim();
-
-    if (cleanBairro) {
-      const tabelaTaxa = grupoMotoboy === 'SPEED' ? 'taxa_bairro_speed' : 'taxa_bairro';
-      try {
-        const taxaRow = await db.queryOne(
-          `SELECT taxa FROM ${tabelaTaxa} WHERE LOWER(TRIM(bairro)) = LOWER(?) LIMIT 1`,
-          [cleanBairro]
-        );
-        if (taxaRow && taxaRow.taxa !== undefined && taxaRow.taxa !== null) {
-          taxaRepasseCalculada = Number(taxaRow.taxa);
-        }
-      } catch (errDbTaxa) {
-        console.warn(`⚠️ Erro ao consultar ${tabelaTaxa}:`, errDbTaxa.message);
-      }
-    }
-
-    if (taxaRepasseCalculada === null) {
-      taxaRepasseCalculada = obterTaxaRepasse(pedidoAtual.bairro, pedidoAtual.endereco, pedidoAtual.texto_bruto, grupoMotoboy);
-    }
+    // Se a cozinha já havia fixado/alterado uma taxa customizada > 0, mantém o valor definido pela cozinha.
+    let taxaRepasseCalculada = (pedidoAtual.taxa_entrega !== null && pedidoAtual.taxa_entrega !== undefined && Number(pedidoAtual.taxa_entrega) > 0)
+      ? Number(pedidoAtual.taxa_entrega)
+      : obterTaxaRepasse(pedidoAtual.bairro, pedidoAtual.endereco, pedidoAtual.texto_bruto, grupoMotoboy);
 
     // 4. Atualização atômica para colocar em rota sob responsabilidade do motoboy
     const result = await db.execute(
@@ -932,7 +915,9 @@ async function listarPedidosMotoboy(req, res) {
     const resultado = {
       success: true,
       pedidos: pedidos.map(p => {
-        const repasse = obterTaxaRepasse(p.bairro, p.endereco, p.texto_bruto, grupoMotoboy);
+        const repassePadrao = obterTaxaRepasse(p.bairro, p.endereco, p.texto_bruto, grupoMotoboy);
+        const taxaSalva = (p.taxa_entrega !== null && p.taxa_entrega !== undefined && !isNaN(Number(p.taxa_entrega))) ? Number(p.taxa_entrega) : null;
+        const repasse = (taxaSalva !== null && taxaSalva > 0) ? taxaSalva : repassePadrao;
         const bairroNome = obterNomeBairroCanonica(p.bairro, p.endereco, p.texto_bruto) || p.bairro;
         let telCentral = p.telefone_cliente;
         let locPin = p.localizador;
@@ -953,7 +938,7 @@ async function listarPedidosMotoboy(req, res) {
           ...pAtivoSemTel,
           bairro: bairroNome,
           taxa_repasse: repasse,
-          taxa_entrega: repasse, // Sempre mostrar para o motoboy o repasse oficial Ao Ponto
+          taxa_entrega: repasse, // Reflete taxa oficial do grupo ou alterada pela cozinha
           telefone_central: telCentral || null,
           localizador: locPin || p.localizador || null,
           minutos_em_rota: Math.max(0, Math.round(Number(p.minutos_em_rota || 0)))
@@ -1205,6 +1190,7 @@ async function obterRendimentosMotoboy(req, res) {
         p.origem,
         p.data_inicio,
         p.data_fim,
+        p.taxa_entrega,
         p.texto_bruto
       FROM pedidos p
       WHERE p.motoboy_id = ?
@@ -1216,7 +1202,8 @@ async function obterRendimentosMotoboy(req, res) {
     let totalTaxas = 0;
 
     const entregasProcessadas = entregas.map(e => {
-      const taxaEfetiva = obterTaxaRepasse(e.bairro, e.endereco, e.texto_bruto, grupoMotoboy);
+      const taxaSalva = (e.taxa_entrega !== null && e.taxa_entrega !== undefined && !isNaN(Number(e.taxa_entrega))) ? Number(e.taxa_entrega) : null;
+      const taxaEfetiva = (taxaSalva !== null && taxaSalva > 0) ? taxaSalva : obterTaxaRepasse(e.bairro, e.endereco, e.texto_bruto, grupoMotoboy);
       const bairroNome = obterNomeBairroCanonica(e.bairro, e.endereco, e.texto_bruto) || e.bairro;
       totalTaxas += taxaEfetiva;
 

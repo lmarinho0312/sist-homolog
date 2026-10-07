@@ -6,11 +6,18 @@ const { getDb } = require('./src/database/db');
 const authController = require('./src/controllers/authController');
 const pedidosController = require('./src/controllers/pedidosController');
 const adminController = require('./src/controllers/adminController');
+const { sincronizarTaxasDb } = require('./src/utils/rateResolver');
+
+// Sincronizar cache de taxas das tabelas Turso no startup
+try {
+  sincronizarTaxasDb(getDb()).catch(() => {});
+} catch (_) {}
 
 // ── Roteador ──────────────────────────────────────────────────────────────────
-const routes = { GET: {}, POST: {}, PUT: {}, DELETE: {} };
+const routes = { GET: {}, POST: {}, PUT: {}, DELETE: {}, HEAD: {} };
 
 function registerRoute(method, urlPath, handlerFn) {
+  if (!routes[method]) routes[method] = {};
   routes[method][urlPath] = handlerFn;
 }
 
@@ -76,6 +83,8 @@ registerRoute('GET', '/api/admin/fechamento', adminController.obterFechamentoEnt
 registerRoute('POST', '/api/admin/pedidos/manual', adminController.criarPedidoManual);
 registerRoute('POST', '/api/admin/pedidos/limpar-pendentes-antigos', adminController.limparPedidosPendentesAntigos);
 registerRoute('POST', '/api/admin/pedidos/atribuir', adminController.atribuirPedidoMotoboy);
+registerRoute('POST', '/api/admin/pedidos/alterar-taxa', adminController.alterarTaxaPedido);
+registerRoute('POST', '/api/pedidos/alterar-taxa', adminController.alterarTaxaPedido);
 registerRoute('POST', '/api/admin/pedidos/descartar', adminController.descartarPedido);
 registerRoute('DELETE', '/api/pedidos/descartar', adminController.descartarPedido);
 
@@ -85,6 +94,7 @@ registerRoute('POST', '/api/admin/motoboys/atualizar', adminController.atualizar
 registerRoute('POST', '/api/admin/motoboys/cadastrar', adminController.cadastrarMotoboyAdmin);
 registerRoute('POST', '/api/admin/motoboys/aprovar', adminController.aprovarMotoboy);
 registerRoute('POST', '/api/admin/motoboys/recusar', adminController.recusarMotoboy);
+registerRoute('POST', '/api/admin/motoboys/excluir', adminController.excluirMotoboyAdmin);
 registerRoute('GET', '/api/admin/taxas', adminController.obterTaxasBairros);
 registerRoute('POST', '/api/admin/taxas/atualizar', adminController.atualizarTaxaBairro);
 registerRoute('POST', '/api/admin/confirmar-pagamento', adminController.confirmarPagamentoMotoboy);
@@ -96,8 +106,20 @@ registerRoute('GET', '/api/motoboy/rendimentos', pedidosController.obterRendimen
 
 // ── Homologação Oficial iFood API ─────────────────────────────────────────────
 const ifoodController = require('./src/controllers/ifoodController');
-registerRoute('GET', '/api/ifood/status', ifoodController.checkStatus);
-registerRoute('GET', '/api/ifood/webhook', (req, res) => res.json(200, { status: 'ok', message: 'iFood webhook endpoint ativo' }));
+registerRoute('GET', '/api/ifood/webhook', (req, res) => res.json(200, {
+  status: 'UP',
+  app: 'rastv2',
+  slug: 'rastv',
+  service: 'ifood-merchant-webhook',
+  timestamp: new Date().toISOString()
+}));
+registerRoute('HEAD', '/api/ifood/webhook', (req, res) => res.json(200, {
+  status: 'UP',
+  app: 'rastv2',
+  slug: 'rastv',
+  service: 'ifood-merchant-webhook',
+  timestamp: new Date().toISOString()
+}));
 registerRoute('POST', '/api/ifood/webhook', ifoodController.handleWebhook);
 registerRoute('GET', '/api/ifood/events', ifoodController.listRecentEvents);
 registerRoute('POST', '/api/ifood/orders/confirm', ifoodController.confirmOrderAction);

@@ -297,7 +297,8 @@ async function listarTodosPedidos(req, res) {
       pedidos: pedidos.map(p => {
         const grupoEfetivo = (p.grupo === 'SPEED' || p.motoboy_grupo === 'SPEED') ? 'SPEED' : (p.grupo === 'VELOZ' || p.motoboy_grupo === 'VELOZ' ? 'VELOZ' : 'VELOZ');
         const repasse = obterTaxaRepasse(p.bairro, p.endereco, p.texto_bruto, grupoEfetivo);
-        const bairroFormatado = obterNomeBairroCanonica(p.bairro, p.endereco, p.texto_bruto);
+        const taxaSalva = (p.taxa_entrega !== null && p.taxa_entrega !== undefined && !isNaN(Number(p.taxa_entrega))) ? Number(p.taxa_entrega) : null;
+        const repasseFinal = (taxaSalva !== null && taxaSalva > 0) ? taxaSalva : repasse;
         return {
           id: p.id,
           numero_pedido: p.numero_pedido,
@@ -307,8 +308,8 @@ async function listarTodosPedidos(req, res) {
           cliente: p.cliente || 'Cliente Balcão',
           endereco: p.endereco || 'Retirada no balcão',
           bairro: bairroFormatado,
-          taxa_repasse: repasse,
-          taxa_entrega: repasse, // Reflete a taxa oficial por bairro da Ao Ponto
+          taxa_repasse: repasseFinal,
+          taxa_entrega: repasseFinal, // Respeita edições manuais ou cálculo do bairro
           telefone_cliente: p.telefone_cliente || '',
           localizador: p.localizador || '',
           texto_bruto: p.texto_bruto || '',
@@ -481,6 +482,7 @@ async function obterFechamentoEntregas(req, res) {
         p.data_inicio,
         p.data_fim,
         p.motoboy_id,
+        p.taxa_entrega,
         p.texto_bruto,
         m.nome as motoboy_nome,
         m.telefone as motoboy_telefone,
@@ -536,7 +538,8 @@ async function obterFechamentoEntregas(req, res) {
     const entregasDetalhadas = entregas.map(e => {
       totalGeralEntregas++;
       const grupoMotoboy = (e.motoboy_grupo || e.pedido_grupo || 'VELOZ').toUpperCase();
-      const taxaEfetiva = obterTaxaRepasse(e.bairro, e.endereco, e.texto_bruto, grupoMotoboy);
+      const taxaSalva = (e.taxa_entrega !== null && e.taxa_entrega !== undefined && !isNaN(Number(e.taxa_entrega))) ? Number(e.taxa_entrega) : null;
+      const taxaEfetiva = (taxaSalva !== null && taxaSalva > 0) ? taxaSalva : obterTaxaRepasse(e.bairro, e.endereco, e.texto_bruto, grupoMotoboy);
       const bairroNome = obterNomeBairroCanonica(e.bairro, e.endereco, e.texto_bruto) || e.bairro;
       totalGeralTaxas += taxaEfetiva;
 
@@ -948,6 +951,12 @@ async function atualizarTaxaBairro(req, res) {
       [cleanBairro, cleanTaxa]
     );
 
+    try {
+      const { atualizarCacheLocalTaxa, sincronizarTaxasDb } = require('../utils/rateResolver');
+      atualizarCacheLocalTaxa(cleanGrupo, cleanBairro, cleanTaxa);
+      await sincronizarTaxasDb(db, true);
+    } catch (_) {}
+
     memoryCache.clear();
 
     return res.json(200, {
@@ -1155,6 +1164,91 @@ async function confirmarPagamentoMotoboy(req, res) {
   }
 }
 
+/**
+ * Altera o valor da taxa de entrega/repasse de um pedido individual (mesmo já em rota ou no balcão)
+ * POST /api/admin/pedidos/alterar-taxa
+ * Body: { pedido_id, taxa }
+ * Restrito ao Painel da Cozinha / Administração
+ */
+async function alterarTaxaPedido(req, res) {
+  try {
+    const { pedido_id, id, taxa, taxa_entrega } = req.body || {};
+    const targetId = Number(pedido_id || id);
+    const taxaInformada = (taxa !== undefined && taxa !== null) ? taxa : taxa_entrega;
+    const novaTaxa = Number(taxaInformada);
+
+    if (!targetId) {
+      return res.json(400, { success: false, message: 'pedido_id é obrigatório.' });
+    }
+    if (isNaN(novaTaxa) || novaTaxa < 0) {
+      return res.json(400, { success: false, message: 'Valor de taxa inválido.' });
+    }
+
+    const db = getDb();
+    const pedido = await db.queryOne(
+      'SELECT id, numero_pedido, status, grupo, taxa_entrega, cliente, bairro FROM pedidos WHERE id = ?',
+      [targetId]
+    );
+
+    if (!pedido) {
+      return res.json(404, { success: false, message: 'Pedido não encontrado.' });
+    }
+
+    await db.execute('UPDATE pedidos SET taxa_entrega = ? WHERE id = ?', [novaTaxa, targetId]);
+
+    try {
+      memoryCache.clear();
+    } catch (_) {}
+
+    const pedidoAtualizado = await db.queryOne('SELECT * FROM pedidos WHERE id = ?', [targetId]);
+
+    console.log(`💰 [TAXA ALTERADA] Pedido #${pedido.numero_pedido} (ID ${targetId}, status: ${pedido.status}) teve a taxa alterada de R$ ${Number(pedido.taxa_entrega || 0).toFixed(2)} para R$ ${novaTaxa.toFixed(2)}.`);
+
+    return res.json(200, {
+      success: true,
+      message: `Taxa do pedido #${pedido.numero_pedido} alterada para R$ ${novaTaxa.toFixed(2)} com sucesso!`,
+      pedido: pedidoAtualizado
+    });
+  } catch (error) {
+    console.error('❌ Erro ao alterar taxa do pedido:', error);
+    return res.json(500, { success: false, message: 'Erro interno ao alterar taxa do pedido.', error: error.message });
+  }
+}
+
+/**
+ * Excluir Cadastro de Motoboy (tanto pendente quanto aprovado) protegido por senha de admin
+ * POST /api/admin/motoboys/excluir
+ * Body: { motoboy_id, senha_admin }
+ */
+async function excluirMotoboyAdmin(req, res) {
+  try {
+    const { motoboy_id, senha_admin } = req.body || {};
+    if (senha_admin && String(senha_admin).trim() !== SENHA_GESTAO_MOTOBOYS) {
+      return res.json(401, { success: false, message: 'Senha de administrador inválida.' });
+    }
+    if (!motoboy_id) {
+      return res.json(400, { success: false, message: 'ID do entregador é obrigatório.' });
+    }
+
+    const db = getDb();
+    const m = await db.queryOne('SELECT id, nome FROM motoboys WHERE id = ?', [Number(motoboy_id)]);
+    if (!m) {
+      return res.json(404, { success: false, message: 'Entregador não encontrado.' });
+    }
+
+    await db.execute('DELETE FROM motoboys WHERE id = ?', [Number(motoboy_id)]);
+    memoryCache.clear();
+
+    return res.json(200, {
+      success: true,
+      message: `Cadastro de "${m.nome}" foi excluído com sucesso do sistema.`
+    });
+  } catch (error) {
+    console.error('❌ Erro ao excluir motoboy:', error);
+    return res.json(500, { success: false, message: 'Erro ao excluir entregador.', error: error.message });
+  }
+}
+
 module.exports = {
   getPosicoesMapa,
   getDashboardStats,
@@ -1172,6 +1266,8 @@ module.exports = {
   atribuirPedidoMotoboy,
   descartarPedido,
   aprovarMotoboy,
-  recusarMotoboy
+  recusarMotoboy,
+  excluirMotoboyAdmin,
+  alterarTaxaPedido
 };
 

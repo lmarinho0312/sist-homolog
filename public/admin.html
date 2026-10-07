@@ -1403,7 +1403,12 @@
           </div>
 
           <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 13px; color: var(--text-muted);">Taxa de entrega: <strong id="dtlTaxaValor" style="color: var(--text-primary);">R$ 0,00</strong></span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 13px; color: var(--text-muted);">Taxa de entrega: <strong id="dtlTaxaValor" style="color: var(--text-primary);">R$ 0,00</strong></span>
+              <button class="btn btn-secondary btn-sm" id="btnEditarTaxaDtl" style="padding: 2px 7px; font-size: 11px; border-color: rgba(245, 158, 11, 0.4); color: var(--brand-gold-light);" onclick="alterarTaxaPedidoAtualPrompt()" title="Alterar valor da taxa de repasse">
+                ✏️ Alterar
+              </button>
+            </div>
             <div style="text-align: right;">
               <span style="font-size: 11px; color: var(--text-muted); display: block;">Total do Pedido</span>
               <strong style="font-size: 18px; color: var(--brand-gold-light);" id="dtlTotalValor">R$ 0,00</strong>
@@ -2744,7 +2749,10 @@
           ${motoboyInfo}
           <div class="order-meta">
             <span style="display: flex; align-items: center; gap: 4px;">${SVG_ICONS.clock} <span>${p.tempo_decorrido_minutos} min</span></span>
-            <span class="order-price">${taxaStr}</span>
+            <span class="order-price" style="cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" onclick="alterarTaxaPedidoPrompt(${p.id}, ${p.taxa_entrega || p.taxa_repasse || 0}); event.stopPropagation();" title="Clique para alterar a taxa deste pedido">
+              <span>${taxaStr}</span>
+              <span style="font-size: 11px; opacity: 0.7;">✏️</span>
+            </span>
           </div>
           ${botaoAcao}
         </div>
@@ -2886,6 +2894,9 @@
                 <button class="btn btn-gold btn-sm" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="focarMotoboyNoMapa(${m.id})">
                   ${SVG_ICONS.map}
                   <span>Mapa</span>
+                </button>
+                <button class="btn btn-secondary btn-sm" style="padding: 4px 8px; border-color: rgba(239, 68, 68, 0.4); color: #ef4444; display: inline-flex; align-items: center; justify-content: center;" onclick="excluirMotoboyAtivoPrompt(${m.id}, '${escapeHtml(m.nome)}')" title="Excluir este entregador">
+                  ${SVG_ICONS.trash}
                 </button>
               </div>
             </div>
@@ -4310,6 +4321,67 @@
       } catch (err) {
         showToast('Erro de comunicação ao recusar cadastro.', 'error');
       }
+    }
+
+    // Exclusão definitiva de entregador ativo com confirmação
+    async function excluirMotoboyAtivoPrompt(motoboyId, nome) {
+      if (!confirm(`ATENÇÃO: Deseja realmente EXCLUIR definitivamente o cadastro de "${nome}" do sistema?`)) return;
+      const senhaAdmin = sessionStorage.getItem('admin_motoboy_pass') || 'boijoaocarnes01';
+
+      try {
+        const res = await fetch('/api/admin/motoboys/excluir', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ motoboy_id: motoboyId, senha_admin: senhaAdmin })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(data.message || 'Entregador excluído com sucesso.', 'success');
+          carregarTudo(false);
+        } else {
+          showToast(data.message || 'Erro ao excluir entregador.', 'error');
+        }
+      } catch (err) {
+        showToast('Erro ao conectar ao servidor para excluir.', 'error');
+      }
+    }
+
+    // Alteração de taxa de pedido pela Cozinha
+    async function alterarTaxaPedidoPrompt(pedidoId, taxaAtual) {
+      const valorStr = prompt(`Digite a nova Taxa de Entrega para este pedido (R$):`, Number(taxaAtual || 0).toFixed(2));
+      if (valorStr === null) return;
+      const novaTaxa = parseFloat(valorStr.replace(',', '.'));
+      if (isNaN(novaTaxa) || novaTaxa < 0) {
+        alert('Valor de taxa inválido!');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/admin/pedidos/alterar-taxa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pedido_id: pedidoId, taxa: novaTaxa })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(data.message || 'Taxa atualizada com sucesso!', 'success');
+          carregarTudo(false);
+          if (state.pedidoSelecionado && state.pedidoSelecionado.id === pedidoId) {
+            abrirDetalhesPedido(pedidoId);
+          }
+        } else {
+          showToast(data.message || 'Erro ao alterar taxa.', 'error');
+        }
+      } catch (err) {
+        showToast('Erro de comunicação ao alterar taxa.', 'error');
+      }
+    }
+
+    function alterarTaxaPedidoAtualPrompt() {
+      if (!state.pedidoSelecionado) return;
+      const p = state.pedidoSelecionado;
+      const taxaAtual = p.financeiro?.taxa_entrega || p.taxa_entrega || p.taxa_repasse || 0;
+      alterarTaxaPedidoPrompt(p.id, taxaAtual);
     }
 
     // Ações de Direcionamento de Pedido

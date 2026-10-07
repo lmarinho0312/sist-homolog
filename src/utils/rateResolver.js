@@ -411,12 +411,112 @@ function identificarRegraBairro(bairroStr, enderecoStr, textoBrutoStr) {
   return null;
 }
 
+// Cache em memória das taxas salvas no banco de dados (tabelas taxa_bairro e taxa_bairro_speed)
+// Permite que qualquer alteração feita no painel da cozinha ou novo bairro cadastrado tenha efeito imediato.
+const dbRatesCache = {
+  veloz: new Map(), // chave: normalizarTextoBusca(bairro) => { bairroOriginal: string, taxa: number }
+  speed: new Map(), // chave: normalizarTextoBusca(bairro) => { bairroOriginal: string, taxa: number }
+  lastFetchedAt: 0,
+  ttlMs: 15000 // TTL de 15 segundos para manter alinhado
+};
+
 /**
- * Retorna o nome canônico do bairro identificado
+ * Sincroniza o cache em memória lendo as taxas salvas no Turso DB
+ * @param {object} db - Instância do banco
+ * @param {boolean} force - Forçar recarregamento mesmo dentro do TTL
+ */
+async function sincronizarTaxasDb(db, force = false) {
+  if (!db) return;
+  const now = Date.now();
+  if (!force && (now - dbRatesCache.lastFetchedAt) < dbRatesCache.ttlMs && (dbRatesCache.veloz.size > 0 || dbRatesCache.speed.size > 0)) {
+    return;
+  }
+
+  try {
+    const [taxasVeloz, taxasSpeed] = await Promise.all([
+      db.query('SELECT bairro, taxa FROM taxa_bairro'),
+      db.query('SELECT bairro, taxa FROM taxa_bairro_speed')
+    ]);
+
+    const novoMapVeloz = new Map();
+    if (Array.isArray(taxasVeloz)) {
+      for (const row of taxasVeloz) {
+        if (row && row.bairro && row.taxa !== undefined) {
+          novoMapVeloz.set(normalizarTextoBusca(row.bairro), {
+            bairroOriginal: row.bairro,
+            taxa: Number(row.taxa)
+          });
+        }
+      }
+    }
+
+    const novoMapSpeed = new Map();
+    if (Array.isArray(taxasSpeed)) {
+      for (const row of taxasSpeed) {
+        if (row && row.bairro && row.taxa !== undefined) {
+          novoMapSpeed.set(normalizarTextoBusca(row.bairro), {
+            bairroOriginal: row.bairro,
+            taxa: Number(row.taxa)
+          });
+        }
+      }
+    }
+
+    dbRatesCache.veloz = novoMapVeloz;
+    dbRatesCache.speed = novoMapSpeed;
+    dbRatesCache.lastFetchedAt = now;
+  } catch (err) {
+    console.warn('⚠️ Falha ao sincronizar taxas de bairros com o banco:', err.message);
+  }
+}
+
+/**
+ * Atualiza imediatamente o cache de taxa na memória após edição pelo painel
+ */
+function atualizarCacheLocalTaxa(grupo, bairro, taxa) {
+  const cleanGrupo = String(grupo || '').toUpperCase();
+  const key = normalizarTextoBusca(bairro);
+  if (!key) return;
+
+  const item = { bairroOriginal: String(bairro).trim(), taxa: Number(taxa) };
+  if (cleanGrupo === 'SPEED') {
+    dbRatesCache.speed.set(key, item);
+  } else {
+    dbRatesCache.veloz.set(key, item);
+  }
+}
+
+/**
+ * Retorna o nome canônico do bairro identificado (reconhecendo também novos bairros do banco)
  */
 function obterNomeBairroCanonica(bairroStr, enderecoStr, textoBrutoStr) {
   const r = identificarRegraBairro(bairroStr, enderecoStr, textoBrutoStr);
   if (r) return r.canonical;
+
+  // Checar se corresponde a algum bairro cadastrado no banco de dados
+  const fontes = [bairroStr, enderecoStr, textoBrutoStr]
+    .filter(f => f && typeof f === 'string' && f.trim() !== '' && f.trim() !== 'null');
+
+  for (const fonte of fontes) {
+    const n = normalizarTextoBusca(fonte);
+    if (!n) continue;
+
+    for (const [keyNorm, dados] of dbRatesCache.veloz.entries()) {
+      const escaped = keyNorm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const rx = new RegExp(`(?:^|[\\s,.;/\\-])${escaped}(?=[\\s,.;/\\-]|$)`, 'i');
+      if (rx.test(n)) {
+        return dados.bairroOriginal;
+      }
+    }
+    for (const [keyNorm, dados] of dbRatesCache.speed.entries()) {
+      const escaped = keyNorm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const rx = new RegExp(`(?:^|[\\s,.;/\\-])${escaped}(?=[\\s,.;/\\-]|$)`, 'i');
+      if (rx.test(n)) {
+        return dados.bairroOriginal;
+      }
+    }
+  }
+
   if (bairroStr && typeof bairroStr === 'string' && bairroStr.trim() !== 'null' && bairroStr.trim() !== '') {
     return bairroStr.trim();
   }
@@ -424,7 +524,7 @@ function obterNomeBairroCanonica(bairroStr, enderecoStr, textoBrutoStr) {
 }
 
 /**
- * Calcula a taxa de repasse oficial e inquestionável baseada no grupo
+ * Calcula a taxa de repasse oficial com prioridade MÁXIMA para alterações e novos bairros salvos no banco
  * @param {string} bairroStr - Bairro registrado
  * @param {string} enderecoStr - Endereço completo
  * @param {string} textoBrutoStr - Texto da comanda
@@ -433,9 +533,58 @@ function obterNomeBairroCanonica(bairroStr, enderecoStr, textoBrutoStr) {
  */
 function obterTaxaRepasse(bairroStr, enderecoStr, textoBrutoStr, grupo) {
   const cleanGrupo = String(grupo || 'VELOZ').toUpperCase();
+  const isSpeed = cleanGrupo === 'SPEED';
+  const mapaDb = isSpeed ? dbRatesCache.speed : dbRatesCache.veloz;
+
+  // 1. Identificar se casa com alguma regra canônica da tabela estática
   const r = identificarRegraBairro(bairroStr, enderecoStr, textoBrutoStr);
 
-  if (cleanGrupo === 'SPEED') {
+  // 2. Prioridade 1: Verificar se existe taxa configurada/alterada no banco de dados
+  // A) Checar pelo nome canônico identificado (se houver)
+  if (r && r.canonical) {
+    const keyCanonical = normalizarTextoBusca(r.canonical);
+    if (mapaDb.has(keyCanonical)) {
+      return Number(mapaDb.get(keyCanonical).taxa);
+    }
+  }
+
+  // B) Checar pelo bairro explícito informado
+  if (bairroStr && typeof bairroStr === 'string' && bairroStr.trim() && bairroStr.trim() !== 'null') {
+    const keyBairro = normalizarTextoBusca(bairroStr);
+    if (mapaDb.has(keyBairro)) {
+      return Number(mapaDb.get(keyBairro).taxa);
+    }
+  }
+
+  // C) Checar se qualquer bairro cadastrado no banco aparece no endereço ou texto
+  const fontes = [bairroStr, enderecoStr, textoBrutoStr]
+    .filter(f => f && typeof f === 'string' && f.trim() !== '' && f.trim() !== 'null');
+
+  for (const fonte of fontes) {
+    const n = normalizarTextoBusca(fonte);
+    if (!n) continue;
+
+    for (const [keyNorm, dados] of mapaDb.entries()) {
+      const escaped = keyNorm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const rx = new RegExp(`(?:^|[\\s,.;/\\-])${escaped}(?=[\\s,.;/\\-]|$)`, 'i');
+      if (rx.test(n)) {
+        return Number(dados.taxa);
+      }
+    }
+  }
+
+  // D) Checar por qualquer um dos aliases da regra estática
+  if (r && Array.isArray(r.aliases)) {
+    for (const alias of r.aliases) {
+      const keyAlias = normalizarTextoBusca(alias);
+      if (mapaDb.has(keyAlias)) {
+        return Number(mapaDb.get(keyAlias).taxa);
+      }
+    }
+  }
+
+  // 3. Fallback: usar a tabela de regras estática padrão caso o banco não tenha customização
+  if (isSpeed) {
     if (!r) return 11.00; // Padrão da Tabela Speed para zona urbana geral (NUNCA usa Veloz)
     return r.taxaSpeed;
   } else {
@@ -449,5 +598,8 @@ module.exports = {
   normalizarTextoBusca,
   identificarRegraBairro,
   obterNomeBairroCanonica,
-  obterTaxaRepasse
+  obterTaxaRepasse,
+  sincronizarTaxasDb,
+  atualizarCacheLocalTaxa,
+  dbRatesCache
 };

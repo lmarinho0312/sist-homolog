@@ -58,10 +58,22 @@ async function injectOrderToDb(payload) {
       );
     }
 
-    const addr = orderInfo.receive_address || {};
-    const cliente = addr.name || [addr.first_name, addr.last_name].filter(Boolean).join(' ') || 'Cliente 99Food';
-    const tel = addr.phone || addr.virtual_phone_number || '';
-    const loc = addr.locator ? String(addr.locator).trim() : null;
+    // Proteção crítica: se o evento for orderConfirm (que costuma vir sem receive_address),
+    // NÃO podemos sobrescrever o endereço e cliente já gravados no orderNew.
+    const addr = orderInfo.receive_address || null;
+    const temEnderecoValido = addr && (addr.street_name || addr.poi_address || addr.name || addr.phone || addr.locator);
+
+    if (payload.event_type === 'orderConfirm' || (!temEnderecoValido && existe)) {
+      if (!temEnderecoValido) {
+        console.log(`ℹ️ [99Food] Evento orderConfirm sem dados de endereço. Ignorado para preservar integridade da comanda.`);
+        return;
+      }
+    }
+
+    const safeAddr = addr || {};
+    const cliente = safeAddr.name || [safeAddr.first_name, safeAddr.last_name].filter(Boolean).join(' ') || 'Cliente 99Food';
+    const tel = safeAddr.phone || safeAddr.virtual_phone_number || '';
+    const loc = safeAddr.locator ? String(safeAddr.locator).trim() : null;
     
     // Concatena endereço completo incluindo número, complemento e ponto de referência
     const refComp = [addr.complement, addr.reference || addr.house_number].filter(Boolean).join(' - ');
