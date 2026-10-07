@@ -297,6 +297,7 @@ async function listarTodosPedidos(req, res) {
       pedidos: pedidos.map(p => {
         const grupoEfetivo = (p.grupo === 'SPEED' || p.motoboy_grupo === 'SPEED') ? 'SPEED' : (p.grupo === 'VELOZ' || p.motoboy_grupo === 'VELOZ' ? 'VELOZ' : 'VELOZ');
         const repasse = obterTaxaRepasse(p.bairro, p.endereco, p.texto_bruto, grupoEfetivo);
+        const bairroFormatado = obterNomeBairroCanonica(p.bairro, p.endereco, p.texto_bruto) || p.bairro;
         const taxaSalva = (p.taxa_entrega !== null && p.taxa_entrega !== undefined && !isNaN(Number(p.taxa_entrega))) ? Number(p.taxa_entrega) : null;
         const repasseFinal = (taxaSalva !== null && taxaSalva > 0) ? taxaSalva : repasse;
         return {
