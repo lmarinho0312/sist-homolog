@@ -260,7 +260,7 @@ async function checkStatus(req, res) {
     appId: env.FOOD99_APP_ID,
     shopId: env.FOOD99_SHOP_ID,
     appShopId: env.FOOD99_APP_SHOP_ID,
-    webhookUrl: 'https://sist-homolog.vercel.app/api/99food/webhook',
+    webhookUrl: process.env.FOOD99_WEBHOOK_URL || 'https://sist-homolog-iota.vercel.app/api/99food/webhook',
     authorizedShops: shopsData,
     timestamp: new Date().toISOString()
   });
