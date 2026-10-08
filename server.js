@@ -62,6 +62,7 @@ registerRoute('POST', '/api/pedidos/webhook-spool', pedidosController.webhookSpo
 registerRoute('GET', '/api/pedidos/disponiveis', pedidosController.listarPedidosDisponiveis);
 registerRoute('POST', '/api/pedidos/retirar', pedidosController.assumirPedido);
 registerRoute('GET', '/api/pedidos/detalhes', pedidosController.obterDetalhesPedido);
+registerRoute('POST', '/api/pedidos/editar', pedidosController.editarPedido);
 registerRoute('POST', '/api/pedidos/status', pedidosController.atualizarStatusPedido);
 registerRoute('POST', '/api/pedidos/definir-grupo', pedidosController.definirGrupoPedido);
 

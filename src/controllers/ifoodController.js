@@ -140,7 +140,11 @@ async function handleWebhook(req, res) {
           }
         }
       } else if (isConfirmed) {
-        await processNewOrder(orderId);
+        const db = getDb();
+        const jaExiste = await db.queryOne("SELECT id FROM pedidos WHERE pedido_id_origem = ? AND origem = 'IFOOD'", [orderId]);
+        if (!jaExiste) {
+          await processNewOrder(orderId);
+        }
         await updateOrderStatus(orderId, 'confirmado');
       } else if (isDispatched) {
         await updateOrderStatus(orderId, 'em_entrega');
@@ -194,11 +198,21 @@ async function handleWebhook(req, res) {
   }
 }
 
+const processingOrdersSet = new Set();
+
 /**
  * Processa um pedido recém-chegado (PLACED)
  * Busca os detalhes via API e salva na base local
  */
 async function processNewOrder(orderId) {
+  if (!orderId) return;
+  if (processingOrdersSet.has(orderId)) {
+    console.log(`ℹ️ [iFood processNewOrder] Pedido ${orderId} já está sendo processado concorrentemente.`);
+    return;
+  }
+  processingOrdersSet.add(orderId);
+  setTimeout(() => processingOrdersSet.delete(orderId), 10000);
+
   try {
     const db = getDb();
     let details = null;

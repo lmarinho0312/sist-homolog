@@ -253,7 +253,7 @@ async function webhookSpool(req, res) {
     const cleanTextoBruto = textoBruto ? String(textoBruto).trim() : null;
     const taxa = !isNaN(Number(taxaEntrega)) ? Number(taxaEntrega) : 0.0;
 
-    // Corte imediato: 99Food e iFood são processados exclusivamente via API/Webhook oficial
+    // Corte imediato: 99Food é processado exclusivamente via API/Webhook oficial
     if (cleanOrigem === '99FOOD' || cleanOrigem.includes('99')) {
       console.log(`ℹ️ [SPOOLER DESCARTADO] Pedido 99FOOD #${cleanPedidoId} descartado no webhook do spooler. Motivo: integração via API/Webhook oficial ativa.`);
       return res.json(202, {
@@ -261,16 +261,6 @@ async function webhookSpool(req, res) {
         descartado: true,
         motivo: 'origem_oficial_plataforma',
         message: 'Pedidos 99Food são processados exclusivamente via API/Webhook oficial. Descartado da fila do spooler térmico.'
-      });
-    }
-
-    if (cleanOrigem === 'IFOOD' || cleanOrigem.includes('IFOOD')) {
-      console.log(`ℹ️ [SPOOLER DESCARTADO] Pedido IFOOD #${cleanPedidoId} descartado no webhook do spooler. Motivo: integração via API/Webhook oficial ativa.`);
-      return res.json(202, {
-        success: false,
-        descartado: true,
-        motivo: 'origem_oficial_plataforma',
-        message: 'Pedidos iFood são processados exclusivamente via API/Webhook oficial. Descartado da fila do spooler térmico.'
       });
     }
 
@@ -297,7 +287,7 @@ async function webhookSpool(req, res) {
         cleanOrigem = '99FOOD';
       }
 
-      // Corte 99Food e iFood
+      // Corte 99Food (API oficial ativa)
       if (cleanOrigem === '99FOOD') {
         console.log(`ℹ️ [webhookSpool] Pedido 99Food #${cleanPedidoId} descartado do puller (integrado via API/Webhook oficial).`);
         return res.json(200, {
@@ -305,16 +295,6 @@ async function webhookSpool(req, res) {
           descartado: true,
           motivo: '99food_integrado_via_api',
           message: 'Pedidos 99Food são processados exclusivamente via API/Webhook oficial. Descartado do puller de impressão.'
-        });
-      }
-
-      if (cleanOrigem === 'IFOOD' || tbUpper.includes('IFOOD') || tbUpper.includes('I FOOD')) {
-        console.log(`ℹ️ [webhookSpool] Pedido iFood #${cleanPedidoId} descartado do puller (integrado via API/Webhook oficial).`);
-        return res.json(200, {
-          success: true,
-          descartado: true,
-          motivo: 'ifood_integrado_via_api',
-          message: 'Pedidos iFood são processados exclusivamente via API/Webhook oficial. Descartado do puller de impressão.'
         });
       }
 
@@ -407,6 +387,84 @@ async function webhookSpool(req, res) {
 
     const db = getDb();
     await expirarPedidosPendentesDiasAnteriores(db);
+
+    // 4. Integração Híbrida Inteligente para iFood:
+    // Se for iFood, verifica se já existe registro criado pelo Webhook (ou comanda anterior) e enriquece os dados
+    if (cleanOrigem === 'IFOOD' || cleanOrigem.includes('IFOOD')) {
+      cleanOrigem = 'IFOOD';
+      const pedidoExistenteIfood = await db.queryOne(
+        `SELECT id, numero_pedido, status, cliente, endereco, bairro, taxa_entrega, telefone_cliente, localizador, texto_bruto
+         FROM pedidos
+         WHERE origem = 'IFOOD'
+           AND (
+             numero_pedido = ? OR pedido_id_origem = ?
+             OR (cliente LIKE '%Cliente iFood%' OR endereco LIKE '%Endereço registrado no Gestor%')
+           )
+           AND DATE(COALESCE(criado_em, DATETIME('now', '-3 hours'))) = DATE(DATETIME('now', '-3 hours'))
+         ORDER BY (CASE WHEN (cliente LIKE '%Cliente iFood%' OR endereco LIKE '%Endereço registrado no Gestor%') THEN 0 ELSE 1 END), id DESC
+         LIMIT 1`,
+        [cleanPedidoId, cleanPedidoId]
+      );
+
+      if (pedidoExistenteIfood) {
+        console.log(`✨ [iFood Enriquecimento] Pedido ID ${pedidoExistenteIfood.id} (#${pedidoExistenteIfood.numero_pedido}) enriquecido com dados da comanda (#${cleanPedidoId})!`);
+        const updateFields = [];
+        const updateParams = [];
+
+        if (cleanPedidoId && (!pedidoExistenteIfood.numero_pedido || pedidoExistenteIfood.numero_pedido.length !== 4 || pedidoExistenteIfood.numero_pedido !== cleanPedidoId)) {
+          updateFields.push('numero_pedido = ?');
+          updateParams.push(cleanPedidoId);
+        }
+        if (cleanCliente && cleanCliente !== 'Cliente' && !cleanCliente.startsWith('Cliente iFood')) {
+          updateFields.push('cliente = ?');
+          updateParams.push(cleanCliente);
+        }
+        if (cleanEndereco && !cleanEndereco.includes('Gestor iFood')) {
+          updateFields.push('endereco = ?');
+          updateParams.push(cleanEndereco);
+        }
+        if (cleanBairro) {
+          updateFields.push('bairro = ?');
+          updateParams.push(cleanBairro);
+        }
+        if (cleanTextoBruto) {
+          updateFields.push('texto_bruto = ?');
+          updateParams.push(cleanTextoBruto);
+        }
+        if (cleanTelefone) {
+          updateFields.push('telefone_cliente = ?');
+          updateParams.push(cleanTelefone);
+        }
+        if (cleanLocalizador) {
+          updateFields.push('localizador = ?');
+          updateParams.push(cleanLocalizador);
+        }
+        let taxaFinalCalc = !isNaN(Number(taxaEntrega)) && Number(taxaEntrega) > 0 ? Number(taxaEntrega) : 0.0;
+        if (taxaFinalCalc === 0) {
+          taxaFinalCalc = obterTaxaRepasse(cleanBairro, cleanEndereco, cleanTextoBruto, 'VELOZ');
+        }
+        if (taxaFinalCalc > 0) {
+          updateFields.push('taxa_entrega = ?');
+          updateParams.push(taxaFinalCalc);
+        }
+
+        if (updateFields.length > 0) {
+          updateParams.push(pedidoExistenteIfood.id);
+          await db.execute(`UPDATE pedidos SET ${updateFields.join(', ')} WHERE id = ?`, updateParams);
+        }
+
+        memoryCache.clear();
+        const pedidoAtualizado = await db.queryOne(`SELECT * FROM pedidos WHERE id = ?`, [pedidoExistenteIfood.id]);
+
+        return res.json(200, {
+          success: true,
+          duplicado: true,
+          enriquecido: true,
+          message: `Pedido iFood #${cleanPedidoId} enriquecido com sucesso com dados da comanda impressa!`,
+          pedido: pedidoAtualizado || pedidoExistenteIfood
+        });
+      }
+    }
 
     // 4. Mecanismo Anti-Duplicação Estrito (origem + pedido_id_origem nas últimas 36 horas)
     // Permite que plataformas reutilizem numerações após o ciclo operacional, sem bloquear pedidos do mesmo turno
@@ -1342,6 +1400,73 @@ async function obterRendimentosMotoboy(req, res) {
   }
 }
 
+/**
+ * Permite que a Cozinha / Painel Admin edite os dados cadastrais de um pedido
+ * (Nome do cliente, Endereço, Bairro, Telefone e Taxa de Entrega)
+ * POST /api/pedidos/editar
+ */
+async function editarPedido(req, res) {
+  try {
+    const { id, cliente, endereco, bairro, taxa_entrega, telefone_cliente, numero_pedido } = req.body || {};
+    if (!id) {
+      return res.json(400, { success: false, message: 'ID do pedido é obrigatório.' });
+    }
+
+    const db = getDb();
+    const pedido = await db.queryOne('SELECT * FROM pedidos WHERE id = ?', [Number(id)]);
+    if (!pedido) {
+      return res.json(404, { success: false, message: 'Pedido não encontrado.' });
+    }
+
+    const updateFields = [];
+    const params = [];
+
+    if (numero_pedido !== undefined && String(numero_pedido).trim()) {
+      updateFields.push('numero_pedido = ?');
+      params.push(String(numero_pedido).trim());
+    }
+    if (cliente !== undefined) {
+      updateFields.push('cliente = ?');
+      params.push(String(cliente).trim());
+    }
+    if (endereco !== undefined) {
+      updateFields.push('endereco = ?');
+      params.push(String(endereco).trim());
+    }
+    if (bairro !== undefined) {
+      const bCanonico = obterNomeBairroCanonica(bairro, endereco) || bairro;
+      updateFields.push('bairro = ?');
+      params.push(String(bCanonico).trim());
+    }
+    if (telefone_cliente !== undefined) {
+      updateFields.push('telefone_cliente = ?');
+      params.push(telefone_cliente ? String(telefone_cliente).trim() : null);
+    }
+    if (taxa_entrega !== undefined && !isNaN(Number(taxa_entrega))) {
+      updateFields.push('taxa_entrega = ?');
+      updateFields.push('taxa_editada_manual = 1');
+      params.push(Number(taxa_entrega));
+    }
+
+    if (updateFields.length > 0) {
+      params.push(Number(id));
+      await db.execute(`UPDATE pedidos SET ${updateFields.join(', ')} WHERE id = ?`, params);
+    }
+
+    memoryCache.clear();
+    const atualizado = await db.queryOne('SELECT * FROM pedidos WHERE id = ?', [Number(id)]);
+
+    return res.json(200, {
+      success: true,
+      message: 'Dados do pedido atualizados com sucesso!',
+      pedido: atualizado
+    });
+  } catch (error) {
+    console.error('❌ Erro ao editar pedido:', error);
+    return res.json(500, { success: false, message: 'Erro ao editar dados do pedido.', error: error.message });
+  }
+}
+
 module.exports = {
   webhookSpool,
   definirGrupoPedido,
@@ -1354,6 +1479,7 @@ module.exports = {
   atualizarStatusPedido,
   obterDetalhesPedido,
   obterRendimentosMotoboy,
+  editarPedido,
   expirarPedidosPendentesDiasAnteriores,
   autoFinalizarPedidosEmRotaFimDoDia
 };
