@@ -107,6 +107,7 @@ registerRoute('GET', '/api/motoboy/rendimentos', pedidosController.obterRendimen
 
 // ── Homologação Oficial iFood API ─────────────────────────────────────────────
 const ifoodController = require('./src/controllers/ifoodController');
+registerRoute('GET', '/api/ifood/status', ifoodController.checkStatus);
 registerRoute('GET', '/api/ifood/webhook', (req, res) => res.json(200, {
   status: 'UP',
   app: 'rastv2',

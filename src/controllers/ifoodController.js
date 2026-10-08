@@ -209,24 +209,31 @@ async function processNewOrder(orderId) {
       console.warn(`⚠️ [iFood processNewOrder] Não foi possível buscar detalhes da API do iFood para o pedido ${orderId}: ${e.message}`);
     }
 
-    // Se os detalhes não foram obtidos (ex: loja não autorizada no token ou falha de rede),
-    // NUNCA cria um pedido oco ("Endereço não informado" / #uuid) para evitar poluição e duplicação
-    if (!details || (!details.displayId && !details.delivery?.deliveryAddress?.streetName)) {
-      console.warn(`⚠️ [iFood processNewOrder] Pedido ${orderId} sem detalhes cadastrais válidos da API. Criação abortada para evitar pedidos duplicados ou sem endereço.`);
-      return;
-    }
+    let merchantId = null;
+    try {
+      const evRow = await db.queryOne('SELECT merchant_id, payload FROM ifood_events WHERE order_id = ? ORDER BY id DESC LIMIT 1', [orderId]);
+      if (evRow) merchantId = evRow.merchant_id;
+    } catch(e) {}
 
-    const numeroExibicao = String(details.displayId || orderId.substring(0, 8));
-    const clienteNome = details.customer?.name || 'Cliente iFood';
-    const clienteTel = details.customer?.phone?.number || null;
-    const enderecoEntrega = details.delivery?.deliveryAddress;
+    const LOJAS_IFOOD = {
+      '851c6395-504f-44d9-b017-6c10cdfd3de1': 'Ao Ponto Comidas Brasileiras',
+      '758a1a94-d7e3-46b0-83fc-a35e16a6eec5': 'Ao Ponto Burgers & Sanduíches',
+      '517ac701-53b4-4bb4-a74c-ca0220533b87': 'Ao Ponto Carnes'
+    };
+    const nomeLoja = LOJAS_IFOOD[merchantId] || 'Ao Ponto iFood';
+
+    const numeroCurto = (orderId && orderId.length >= 4) ? orderId.slice(-4).toUpperCase() : 'IFOOD';
+    const numeroExibicao = details?.displayId ? String(details.displayId) : numeroCurto;
+    const clienteNome = details?.customer?.name || `Cliente iFood (${nomeLoja})`;
+    const clienteTel = details?.customer?.phone?.number || null;
+    const enderecoEntrega = details?.delivery?.deliveryAddress;
     
     const rua = enderecoEntrega?.streetName 
       ? `${enderecoEntrega.streetName}, ${enderecoEntrega.streetNumber || 'S/N'}${enderecoEntrega.complement ? ' ' + enderecoEntrega.complement : ''}` 
-      : 'Endereço não informado';
-    const bairroBruto = enderecoEntrega?.neighborhood || 'Centro';
-    const bairroCanonica = obterNomeBairroCanonica(bairroBruto, rua) || bairroBruto;
-    const taxaEntrega = obterTaxaRepasse(bairroCanonica, 'VELOZ');
+      : 'Endereço registrado no Gestor iFood';
+    const bairroBruto = enderecoEntrega?.neighborhood || 'Várzea';
+    const bairroCanonica = obterNomeBairroCanonica(bairroBruto, rua) || bairroBruto || 'Várzea';
+    const taxaEntrega = obterTaxaRepasse(bairroCanonica, 'VELOZ') || 10.0;
 
     // Mecanismo rigoroso anti-duplicação: verifica tanto por pedido_id_origem (UUID) quanto por numero_pedido (#8639)
     const existente = await db.queryOne(
@@ -248,7 +255,7 @@ async function processNewOrder(orderId) {
           bairroCanonica,
           taxaEntrega,
           clienteTel,
-          JSON.stringify(details),
+          JSON.stringify(details || { orderId, merchantId, nomeLoja, via: 'ifood_api_webhook', data: new Date().toISOString() }),
           existente.id
         ]
       );
@@ -266,7 +273,7 @@ async function processNewOrder(orderId) {
           bairroCanonica,
           taxaEntrega,
           clienteTel,
-          JSON.stringify(details)
+          JSON.stringify(details || { orderId, merchantId, nomeLoja, via: 'ifood_api_webhook', data: new Date().toISOString() })
         ]
       );
       console.log(`✅ [iFood] Pedido #${numeroExibicao} (${orderId}) inserido com sucesso na base de entregas!`);
