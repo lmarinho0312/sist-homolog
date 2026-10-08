@@ -1897,6 +1897,15 @@
 
       agendarPolling();
 
+      // Suporte a navegação direta por URL hash ou parâmetro (ex: #fechamento ou ?view=fechamento)
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const viewParam = urlParams.get('view') || urlParams.get('tab') || window.location.hash.replace('#', '');
+        if (['fechamento', 'pedidos', 'entregas', 'motoboys', 'historico'].includes(viewParam)) {
+          setTimeout(() => alternarVisao(viewParam), 250);
+        }
+      } catch (e) {}
+
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden) {
           carregarTudo(false);
