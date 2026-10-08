@@ -2092,14 +2092,10 @@
     function renderizarOrigemBadge(origem) {
       const o = (origem || '').toUpperCase();
       if (o.includes('IFOOD')) {
-        return `<span class="origem-badge-logo" title="iFood" style="display: inline-flex; align-items: center; justify-content: center; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; padding: 2px 6px; height: 28px; vertical-align: middle;">
-          <img src="/assets/iFood-New-Logo-Small.png" alt="iFood" style="height: 22px; width: 22px; object-fit: contain; display: block; border-radius: 4px; image-rendering: -webkit-optimize-contrast;">
-        </span>`;
+        return `<img src="/assets/iFood-New-Logo-Small.png" alt="iFood" title="iFood" style="height: 24px; width: 24px; object-fit: contain; display: inline-block; vertical-align: middle; image-rendering: -webkit-optimize-contrast;">`;
       }
       if (o.includes('99')) {
-        return `<span class="origem-badge-logo" title="99 Food" style="display: inline-flex; align-items: center; justify-content: center; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 6px; padding: 2px 6px; height: 28px; vertical-align: middle;">
-          <img src="/assets/Logotipo_da_99.svg" alt="99 Food" style="height: 22px; width: 22px; object-fit: contain; display: block; border-radius: 4px; image-rendering: -webkit-optimize-contrast;">
-        </span>`;
+        return `<img src="/assets/Logotipo_da_99.svg" alt="99 Food" title="99 Food" style="height: 24px; width: 24px; object-fit: contain; display: inline-block; vertical-align: middle; image-rendering: -webkit-optimize-contrast;">`;
       }
       if (o.includes('CARDAPIO')) {
         return `<span class="origem-badge origem-cardapio_web" style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px; border-radius: 6px; font-size: 12px; font-weight: 800; background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.35); height: 28px; box-sizing: border-box; vertical-align: middle;">
