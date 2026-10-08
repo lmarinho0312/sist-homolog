@@ -881,6 +881,64 @@ async function finalizarPedido(req, res) {
 }
 
 /**
+ * Abandonar/Devolver Entrega do Pedido ao Balcão
+ * POST /api/pedidos/abandonar
+ * Body: { pedido_id, numero_pedido, motoboy_id }
+ */
+async function abandonarPedido(req, res) {
+  try {
+    const { pedido_id, numero_pedido, motoboy_id } = req.body || {};
+
+    if ((!pedido_id && !numero_pedido) || !motoboy_id) {
+      return res.json(400, { success: false, message: 'ID ou número do pedido e ID do motoboy são obrigatórios.' });
+    }
+
+    const db = getDb();
+    const motoboyIdNum = Number(motoboy_id);
+    let targetPedidoId = Number(pedido_id);
+
+    if (!targetPedidoId && numero_pedido) {
+      const p = await db.queryOne(
+        `SELECT id FROM pedidos WHERE numero_pedido = ? AND motoboy_id = ? AND status = 'em_rota'`,
+        [String(numero_pedido).trim(), motoboyIdNum]
+      );
+      if (p) targetPedidoId = p.id;
+    }
+
+    if (!targetPedidoId) {
+      return res.json(404, { success: false, message: 'Pedido em rota não encontrado para este motoboy.' });
+    }
+
+    // Devolver o pedido para o balcão com status 'disponivel', desvinculando o motoboy
+    const result = await db.execute(
+      `UPDATE pedidos 
+       SET status = 'disponivel', 
+           motoboy_id = NULL, 
+           data_inicio = NULL 
+       WHERE id = ? AND motoboy_id = ? AND status = 'em_rota'`,
+      [targetPedidoId, motoboyIdNum]
+    );
+
+    if (result.changes === 0) {
+      return res.json(404, { success: false, message: 'Pedido não está mais sob sua responsabilidade ou já foi alterado.' });
+    }
+
+    memoryCache.clear();
+
+    const pedidoDevolvido = await db.queryOne(`SELECT id, numero_pedido FROM pedidos WHERE id = ?`, [targetPedidoId]);
+    console.log(`↩️ [PEDIDO ABANDONADO] Pedido #${pedidoDevolvido?.numero_pedido || targetPedidoId} devolvido ao balcão pelo entregador #${motoboyIdNum}.`);
+
+    return res.json(200, {
+      success: true,
+      message: `Pedido #${pedidoDevolvido?.numero_pedido || targetPedidoId} devolvido ao balcão com sucesso!`
+    });
+  } catch (error) {
+    console.error('❌ Erro ao devolver/abandonar pedido:', error);
+    return res.json(500, { success: false, message: 'Erro interno ao devolver pedido ao balcão.', error: error.message });
+  }
+}
+
+/**
  * Listar entregas ativas do motoboy logado
  */
 async function listarPedidosMotoboy(req, res) {
@@ -1287,6 +1345,7 @@ module.exports = {
   assumirPedido,
   iniciarPedido,
   finalizarPedido,
+  abandonarPedido,
   listarPedidosMotoboy,
   atualizarStatusPedido,
   obterDetalhesPedido,

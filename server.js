@@ -56,6 +56,7 @@ registerRoute('POST', '/api/auth/admin-alterar-senha', authController.alterarSen
 // Pedidos
 registerRoute('POST', '/api/pedidos/iniciar', pedidosController.iniciarPedido);
 registerRoute('POST', '/api/pedidos/finalizar', pedidosController.finalizarPedido);
+registerRoute('POST', '/api/pedidos/abandonar', pedidosController.abandonarPedido);
 registerRoute('GET', '/api/pedidos/motoboy', pedidosController.listarPedidosMotoboy);
 registerRoute('POST', '/api/pedidos/webhook-spool', pedidosController.webhookSpool);
 registerRoute('GET', '/api/pedidos/disponiveis', pedidosController.listarPedidosDisponiveis);

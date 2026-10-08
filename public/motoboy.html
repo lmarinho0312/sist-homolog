@@ -834,6 +834,23 @@
     </div>
   </div>
 
+  <!-- MODAL DE CONFIRMAÇÃO DE ABANDONO DE ENTREGA -->
+  <div class="modal-confirm-overlay" id="modalAbandonar" style="display: none;">
+    <div class="modal-confirm-box">
+      <div style="display: flex; justify-content: center; margin-bottom: 14px;"><div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); display: flex; align-items: center; justify-content: center; color: #ef4444;"><i data-lucide="corner-up-left" style="width: 26px; height: 26px;"></i></div></div>
+      <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 8px;">Abandonar Entrega?</h3>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;" id="modalAbandonarTexto">Deseja realmente abandonar o pedido #--?</p>
+      <p style="font-size: 12px; color: #f87171; background: rgba(239, 68, 68, 0.1); border-radius: 6px; padding: 8px; margin-bottom: 20px;">
+        ⚠️ O pedido será devolvido imediatamente para o balcão e ficará disponível para outro entregador retirar.
+      </p>
+      
+      <div style="display: flex; gap: 10px;">
+        <button class="btn btn-secondary" style="flex: 1;" onclick="fecharModalAbandonar()">Voltar</button>
+        <button class="btn btn-danger" style="flex: 1.2; background: #dc2626; border-color: #b91c1c;" id="btnConfirmarAbandono" onclick="confirmarAbandonarPedido()">SIM, ABANDONAR</button>
+      </div>
+    </div>
+  </div>
+
   <!-- TOAST CONTAINER -->
   <div class="toast-container" id="toastContainer"></div>
 
@@ -864,6 +881,7 @@
       pedidosBalcao: [],
       pedidoAtivoSelecionadoId: null,
       pedidoParaFinalizar: null,
+      pedidoParaAbandonar: null,
       filtroBalcao: '',
       abaAtual: 'inicio',
       mapa: null,
@@ -1408,6 +1426,11 @@
           <button class="btn-finalizar-master" style="margin-top: 14px;" onclick="solicitarFinalizarEntrega(${p.id}, '${p.numero_pedido}')">
             <span>✓ FINALIZAR ENTREGA</span>
           </button>
+
+          <!-- BOTÃO ABANDONAR ENTREGA -->
+          <button type="button" class="btn btn-secondary" style="width: 100%; margin-top: 8px; padding: 10px; font-size: 13px; font-weight: 700; color: #ef4444; border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.06); display: inline-flex; align-items: center; justify-content: center; gap: 6px;" onclick="solicitarAbandonarEntrega(${p.id}, '${p.numero_pedido}')">
+            <span>↩ Abandonar Entrega</span>
+          </button>
         </div>
       `;
     }
@@ -1483,9 +1506,12 @@
                 ${telLimpo ? `<a href="tel:${telLimpo}" onclick="event.stopPropagation()" class="badge-balcao-tel" style="display: inline-flex; align-items: center; gap: 4px;">${SVG_ICONS.phone} Central</a>` : ''}
               </div>
             ` : ''}
-            <div style="margin-top: 8px;">
-              <button class="btn btn-secondary btn-sm" onclick="selecionarEntregaAtiva(${p.id}); event.stopPropagation();" style="border-color: rgba(245, 158, 11, 0.4); color: var(--brand-gold-light); font-weight: 700; font-size: 11px; padding: 4px 8px;">
+            <div style="margin-top: 8px; display: flex; gap: 6px;">
+              <button class="btn btn-secondary btn-sm" onclick="selecionarEntregaAtiva(${p.id}); event.stopPropagation();" style="flex: 1; border-color: rgba(245, 158, 11, 0.4); color: var(--brand-gold-light); font-weight: 700; font-size: 11px; padding: 4px 8px;">
                 Alternar para esta Rota ➔
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="solicitarAbandonarEntrega(${p.id}, '${p.numero_pedido}'); event.stopPropagation();" style="border-color: rgba(239, 68, 68, 0.4); color: #ef4444; font-weight: 700; font-size: 11px; padding: 4px 8px;" title="Devolver pedido ao balcão">
+                ↩ Abandonar
               </button>
             </div>
           </div>
@@ -1704,6 +1730,64 @@
         if (btn) {
           btn.disabled = false;
           btn.textContent = 'SIM, ENTREGUE';
+        }
+      }
+    }
+
+    // AÇÃO: ABANDONAR ENTREGA (DEVOLVER AO BALCÃO)
+    function solicitarAbandonarEntrega(pedidoId, numero) {
+      state.pedidoParaAbandonar = { id: pedidoId, numero: numero };
+      const elTexto = document.getElementById('modalAbandonarTexto');
+      if (elTexto) elTexto.textContent = `Deseja realmente abandonar o pedido #${numero}?`;
+      const modal = document.getElementById('modalAbandonar');
+      if (modal) modal.style.display = 'flex';
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function fecharModalAbandonar() {
+      const modal = document.getElementById('modalAbandonar');
+      if (modal) modal.style.display = 'none';
+      state.pedidoParaAbandonar = null;
+    }
+
+    async function confirmarAbandonarPedido() {
+      if (!state.pedidoParaAbandonar) return;
+
+      const p = state.pedidoParaAbandonar;
+      const btn = document.getElementById('btnConfirmarAbandono');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Devolvendo...';
+      }
+
+      try {
+        const res = await fetch('/api/pedidos/abandonar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pedido_id: p.id,
+            numero_pedido: p.numero,
+            motoboy_id: state.motoboy.id
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(`Pedido #${p.numero} devolvido ao balcão!`, 'info');
+          fecharModalAbandonar();
+          if (state.pedidoAtivoSelecionadoId === p.id) {
+            state.pedidoAtivoSelecionadoId = null;
+          }
+          carregarDados();
+        } else {
+          showToast(data.message || 'Erro ao abandonar entrega.', 'error');
+        }
+      } catch (err) {
+        showToast('Erro de conexão ao devolver pedido.', 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'SIM, ABANDONAR';
         }
       }
     }
