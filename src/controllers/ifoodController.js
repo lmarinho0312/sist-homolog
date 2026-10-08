@@ -140,6 +140,7 @@ async function handleWebhook(req, res) {
           }
         }
       } else if (isConfirmed) {
+        await processNewOrder(orderId);
         await updateOrderStatus(orderId, 'confirmado');
       } else if (isDispatched) {
         await updateOrderStatus(orderId, 'em_entrega');
