@@ -1,6 +1,6 @@
 {
   "spool_dir": "C:\\Windows\\System32\\spool\\PRINTERS",
-  "api_url": "https://sistrastreamento.vercel.app/api/pedidos/webhook-spool",
+  "api_url": "https://sist-homolog-iota.vercel.app/api/pedidos/webhook-spool",
   "api_secret": "balcao_secret_token_aoponto_2026",
   "poll_interval_ms": 1500,
   "delete_processed_files": false,
