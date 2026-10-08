@@ -944,23 +944,7 @@
       if (sessaoStr) {
         try {
           state.motoboy = JSON.parse(sessaoStr);
-          const permissaoOk = await verificarPermissaoLocalizacaoAntesLogin();
-          if (permissaoOk) {
-            iniciarApp();
-          } else {
-            exibirTelaAuth();
-            const notice = document.getElementById('msgAvisoAuthLogin');
-            if (notice) {
-              notice.innerHTML = `<div style="display: flex; align-items: flex-start; gap: 8px;">
-                <span style="font-size: 16px;">📍</span>
-                <div>
-                  <strong style="color: #fbbf24;">Permissão de Localização Necessária</strong><br>
-                  <span style="color: var(--text-muted); font-size: 12px;">Para acessar o painel de entregas, autorize a localização (GPS) nas configurações do seu celular.</span>
-                </div>
-              </div>`;
-              notice.style.display = 'block';
-            }
-          }
+          iniciarApp();
         } catch (e) {
           localStorage.removeItem('motoboySession');
           exibirTelaAuth();
@@ -2003,29 +1987,12 @@
       const notice = document.getElementById('msgAvisoAuthLogin');
 
       btn.disabled = true;
-      btn.textContent = 'Verificando GPS...';
+      btn.textContent = 'Entrando...';
 
-      // Validação discreta: apenas quem aceitar a localização pode fazer login
-      const permissaoConcedida = await verificarPermissaoLocalizacaoAntesLogin();
-      if (!permissaoConcedida) {
-        btn.disabled = false;
-        btn.textContent = 'ENTRAR NO SISTEMA';
-        if (notice) {
-          notice.innerHTML = `<div style="display: flex; align-items: flex-start; gap: 8px;">
-            <span style="font-size: 16px;">📍</span>
-            <div>
-              <strong style="color: #fbbf24;">Permissão de Localização Obrigatória</strong><br>
-              <span style="color: var(--text-muted); font-size: 12px;">Para entrar no aplicativo, é necessário autorizar a permissão de localização (GPS).</span>
-            </div>
-          </div>`;
-          notice.style.display = 'block';
-        }
-        showToast('Autorize o GPS para entrar no sistema.', 'warning');
-        return;
-      }
+      // Solicitar permissão de GPS em segundo plano sem travar o acesso
+      verificarPermissaoLocalizacaoAntesLogin().catch(() => {});
 
       if (notice) notice.style.display = 'none';
-      btn.textContent = 'Entrando...';
 
       try {
         const res = await fetch('/api/auth/login', {
