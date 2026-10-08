@@ -2698,7 +2698,7 @@
       } else if (colTipo === 'rota') {
         botaoAcao = `
           <div style="margin-top: 8px; display: flex; gap: 5px;">
-            <button class="btn btn-secondary btn-sm" style="flex: 1; padding: 4px 6px; font-size: 11px;" onclick="abrirDetalhesPedido(${p.id})">Rota</button>
+            <button class="btn btn-secondary btn-sm" style="flex: 1; padding: 4px 6px; font-size: 11px;" onclick="abrirDetalhesPedido(${p.id})">Detalhes</button>
             <button class="btn btn-secondary btn-sm" style="flex: 1; padding: 4px 6px; font-size: 11px;" onclick="abrirModalAtribuirEntregador(${p.id})" title="Substituir entregador">Trocar</button>
             <button class="btn btn-success btn-sm" style="flex: 1; padding: 4px 6px; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="alterarStatusPedido(${p.id}, 'entregue')">
               ${SVG_ICONS.check}
