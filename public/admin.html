@@ -2174,7 +2174,7 @@
                 ${SVG_ICONS.bike}
                 <span>${p.motoboy ? escapeHtml(p.motoboy.nome) : 'Aguardando motoboy'}</span>
               </span>
-              <span class="order-price">${taxaStr}</span>
+              ${(!p.status || ['disponivel', 'aguardando_retirada', 'pronto', 'em_preparo'].includes(p.status)) ? '' : `<span class="order-price">${taxaStr}</span>`}
             </div>
 
             <div style="margin-top: 8px; display: flex; gap: 6px;" onclick="event.stopPropagation()">
@@ -2749,10 +2749,11 @@
           ${motoboyInfo}
           <div class="order-meta">
             <span style="display: flex; align-items: center; gap: 4px;">${SVG_ICONS.clock} <span>${p.tempo_decorrido_minutos} min</span></span>
+            ${colTipo === 'aguardando' ? '' : `
             <span class="order-price" style="cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" onclick="alterarTaxaPedidoPrompt(${p.id}, ${p.taxa_entrega || p.taxa_repasse || 0}); event.stopPropagation();" title="Clique para alterar a taxa deste pedido">
               <span>${taxaStr}</span>
               <span style="font-size: 11px; opacity: 0.7;">✏️</span>
-            </span>
+            </span>`}
           </div>
           ${botaoAcao}
         </div>
@@ -4366,7 +4367,7 @@
         if (res.ok && data.success) {
           showToast(data.message || 'Taxa atualizada com sucesso!', 'success');
           carregarTudo(false);
-          if (state.pedidoSelecionado && state.pedidoSelecionado.id === pedidoId) {
+          if ((state.pedidoDetalheCache && state.pedidoDetalheCache.id === pedidoId) || (state.pedidoSelecionado && state.pedidoSelecionado.id === pedidoId)) {
             abrirDetalhesPedido(pedidoId);
           }
         } else {
@@ -4378,8 +4379,8 @@
     }
 
     function alterarTaxaPedidoAtualPrompt() {
-      if (!state.pedidoSelecionado) return;
-      const p = state.pedidoSelecionado;
+      const p = state.pedidoDetalheCache || state.pedidoSelecionado;
+      if (!p) return;
       const taxaAtual = p.financeiro?.taxa_entrega || p.taxa_entrega || p.taxa_repasse || 0;
       alterarTaxaPedidoPrompt(p.id, taxaAtual);
     }

@@ -1069,8 +1069,9 @@ async function obterDetalhesPedido(req, res) {
       ];
     }
 
-    const grupoEfetivo = (p.grupo === 'SPEED' || p.motoboy_grupo === 'SPEED') ? 'SPEED' : 'VELOZ';
-    const taxa = obterTaxaRepasse(p.bairro, p.endereco, p.texto_bruto, grupoEfetivo);
+    const taxaSalva = (p.taxa_entrega !== null && p.taxa_entrega !== undefined && !isNaN(Number(p.taxa_entrega))) ? Number(p.taxa_entrega) : null;
+    const taxaCalculada = obterTaxaRepasse(p.bairro, p.endereco, p.texto_bruto, grupoEfetivo);
+    const taxa = (taxaSalva !== null && taxaSalva > 0) ? taxaSalva : taxaCalculada;
     const bairroFormatado = obterNomeBairroCanonica(p.bairro, p.endereco, p.texto_bruto) || p.bairro;
     const subtotal = itens.reduce((acc, it) => acc + (it.preco * it.qtd), 0);
     const total = subtotal + taxa;
