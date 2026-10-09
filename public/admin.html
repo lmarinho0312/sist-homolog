@@ -1948,13 +1948,16 @@
 
       agendarPolling();
 
-      // Suporte a navegação direta por URL hash ou parâmetro (ex: #fechamento ou ?view=fechamento)
+      // Suporte a navegação direta por URL hash ou parâmetro (ex: #fechamento ou ?view=fechamento), com padrão em 'pedidos'
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const viewParam = urlParams.get('view') || urlParams.get('tab') || window.location.hash.replace('#', '');
-        if (['fechamento', 'pedidos', 'entregas', 'motoboys', 'historico'].includes(viewParam)) {
-          setTimeout(() => alternarVisao(viewParam), 250);
-        }
+        const savedView = localStorage.getItem('adminActiveView');
+        const viewInicial = (['fechamento', 'pedidos', 'entregas', 'motoboys', 'historico', 'inicio'].includes(viewParam))
+          ? viewParam
+          : (savedView && ['fechamento', 'pedidos', 'entregas', 'motoboys', 'historico', 'inicio'].includes(savedView) ? savedView : 'pedidos');
+        
+        setTimeout(() => alternarVisao(viewInicial), 200);
       } catch (e) {}
 
       document.addEventListener('visibilitychange', () => {
@@ -2055,6 +2058,10 @@
     // Alternar visões da sidebar (Layout estável e sem glitch)
     function alternarVisao(visao) {
       state.visaoAtual = visao;
+
+      try {
+        localStorage.setItem('adminActiveView', visao);
+      } catch (e) {}
 
       // Atualizar classes da sidebar
       document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
@@ -2720,8 +2727,8 @@
         lista = lista.filter(p => pedidoCorrespondeBusca(p, filtroTexto));
       }
 
-      const aguardando = lista.filter(p => (p.status === 'disponivel' || p.status === 'aguardando_retirada' || p.status === 'pronto' || p.status === 'em_preparo') && !p.motoboy_id && p.status !== 'entregue');
-      const rota = lista.filter(p => p.status === 'em_rota');
+      const aguardando = lista.filter(p => (p.status === 'disponivel' || p.status === 'aguardando_retirada' || p.status === 'pronto' || p.status === 'em_preparo' || p.status === 'confirmado' || (p.status === 'em_entrega' && !p.motoboy_id)) && !p.motoboy_id && p.status !== 'entregue' && p.status !== 'cancelado' && p.status !== 'expirado');
+      const rota = lista.filter(p => p.status === 'em_rota' || (p.status === 'em_entrega' && p.motoboy_id));
       const entregues = lista.filter(p => p.status === 'entregue');
 
       document.getElementById('countKanbanAguardando').textContent = aguardando.length;

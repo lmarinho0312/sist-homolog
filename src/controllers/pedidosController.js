@@ -530,59 +530,61 @@ let ultimaDataExpiracao = null;
 
 /**
  * Auto-finaliza como 'entregue' os pedidos em rota que não foram finalizados manualmente
- * pelo motoboy até as 23:59 do dia correspondente (ou de dias anteriores).
+ * pelo motoboy após as 02:00 da manhã correspondente ao turno de cada dia.
+ * Nunca finaliza pedidos durante o turno ativo (entre 00:00 e 01:59).
  */
 async function autoFinalizarPedidosEmRotaFimDoDia(db) {
   try {
     const result = await db.execute(`
       UPDATE pedidos 
       SET status = 'entregue',
-          data_fim = COALESCE(data_fim, DATETIME(DATE(COALESCE(data_inicio, criado_em, DATETIME('now', '-3 hours'))), '+23 hours', '+59 minutes'))
+          data_fim = COALESCE(data_fim, DATETIME(DATE(COALESCE(data_inicio, criado_em, DATETIME('now', '-3 hours')), '-2 hours'), '+1 day', '+2 hours'))
       WHERE status = 'em_rota'
         AND motoboy_id IS NOT NULL
-        AND (
-          DATE(COALESCE(data_inicio, criado_em, DATETIME('now', '-3 hours'))) < DATE(DATETIME('now', '-3 hours'))
-          OR TIME(DATETIME('now', '-3 hours')) >= '23:59:00'
-        )
+        AND DATE(COALESCE(data_inicio, criado_em, DATETIME('now', '-3 hours')), '-2 hours') < DATE(DATETIME('now', '-3 hours'), '-2 hours')
     `);
 
     if (result && result.changes > 0) {
-      console.log(`✅ [AUTO-FINALIZAR 23:59] ${result.changes} pedido(s) em rota finalizados automaticamente como entregues.`);
+      console.log(`✅ [AUTO-FINALIZAR 02:00] ${result.changes} pedido(s) em rota de turnos anteriores finalizados automaticamente como entregues.`);
       memoryCache.clear();
     }
     return result?.changes || 0;
   } catch (err) {
-    console.error('⚠️ Erro ao auto-finalizar pedidos das 23:59:', err.message);
+    console.error('⚠️ Erro ao auto-finalizar pedidos de turnos anteriores:', err.message);
     return 0;
   }
 }
 
 /**
  * Ignora e expira automaticamente pedidos que ficaram pendentes de entrega
- * de dias anteriores toda vez que a data vira (horário de Brasília).
+ * de turnos anteriores apenas após a virada do turno às 02:00 da manhã (horário de Brasília).
  * Atualiza status para 'expirado', garantindo que não acumulem no painel da cozinha ou app motoboy.
- * Roda apenas 1 vez por virada de data para não queimar Row Reads no Turso.
+ * Roda apenas 1 vez por virada de turno para não queimar Row Reads no Turso.
  */
 async function expirarPedidosPendentesDiasAnteriores(db, forcar = false) {
-  const hojeStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
-  if (!forcar && ultimaDataExpiracao === hojeStr) {
-    return 0; // Já executou hoje! Zero leituras/escritas gastas.
+  // Data operacional do turno da loja (vira às 02:00 da manhã de Brasília)
+  const agoraTimestamp = Date.now() - 3 * 3600000;
+  const turnoTimestamp = agoraTimestamp - 2 * 3600000;
+  const turnoDataStr = new Date(turnoTimestamp).toISOString().slice(0, 10);
+
+  if (!forcar && ultimaDataExpiracao === turnoDataStr) {
+    return 0; // Já executou para este turno! Zero leituras/escritas gastas.
   }
   try {
-    // 1. Auto-finaliza pedidos em rota não finalizados até as 23:59 do dia
+    // 1. Auto-finaliza pedidos em rota não finalizados de turnos anteriores (após as 02:00)
     await autoFinalizarPedidosEmRotaFimDoDia(db);
 
-    // 2. Expirar apenas pedidos que não foram retirados por ninguém (abandonados no balcão)
+    // 2. Expirar apenas pedidos que não foram retirados por ninguém de turnos anteriores (antes das 02:00)
     const resExpirados = await db.execute(`
       UPDATE pedidos 
       SET status = 'expirado',
           data_fim = COALESCE(data_fim, DATETIME('now', '-3 hours'))
-      WHERE (status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo') OR status IS NULL)
+      WHERE (status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo', 'confirmado') OR status IS NULL)
         AND motoboy_id IS NULL
-        AND criado_em < ?
-    `, [hojeStr + ' 00:00:00']);
+        AND DATE(COALESCE(criado_em, DATETIME('now', '-3 hours')), '-2 hours') < DATE(DATETIME('now', '-3 hours'), '-2 hours')
+    `);
 
-    ultimaDataExpiracao = hojeStr;
+    ultimaDataExpiracao = turnoDataStr;
     const totalAlterados = resExpirados?.changes || 0;
     if (totalAlterados > 0) {
       console.log(`🧹 [VIRADA DE DATA] ${totalAlterados} pedido(s) sem retirada de dias anteriores expirados.`);
@@ -677,18 +679,17 @@ async function listarPedidosDisponiveis(req, res) {
       grupoMotoboy = String(grupo).toUpperCase();
     }
 
-    // Busca rápida indexada por data de hoje
-    const hojeInicio = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) + ' 00:00:00';
+    // Busca pedidos disponíveis do turno atual (com virada estrita às 02:00 da manhã)
     const pedidos = await db.query(`
       SELECT p.id, p.numero_pedido, p.status, p.origem, p.grupo, p.pedido_id_origem, p.cliente, p.endereco, p.bairro, p.taxa_entrega, p.telefone_cliente, p.localizador, p.texto_bruto, p.criado_em,
              ROUND((julianday(DATETIME('now', '-3 hours')) - julianday(COALESCE(p.criado_em, DATETIME('now', '-3 hours')))) * 1440) as minutos_aguardando
       FROM pedidos p
-      WHERE (p.status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo') OR p.status IS NULL)
+      WHERE (p.status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo', 'confirmado') OR p.status IS NULL)
         AND (p.motoboy_id IS NULL OR p.status != 'em_rota')
         AND p.status NOT IN ('entregue', 'expirado', 'cancelado')
-        AND p.criado_em >= ?
+        AND DATE(COALESCE(p.criado_em, DATETIME('now', '-3 hours')), '-2 hours') = DATE(DATETIME('now', '-3 hours'), '-2 hours')
       ORDER BY p.id DESC
-    `, [hojeInicio]);
+    `);
 
     const resultado = {
       success: true,
@@ -1294,10 +1295,10 @@ async function obterRendimentosMotoboy(req, res) {
     let dataFiltro = '';
     switch (periodo) {
       case 'hoje':
-        dataFiltro = `AND DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em)) = DATE(DATETIME('now', '-3 hours'))`;
+        dataFiltro = `AND DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em), '-2 hours') = DATE(DATETIME('now', '-3 hours'), '-2 hours')`;
         break;
       case 'ontem':
-        dataFiltro = `AND DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em)) = DATE(DATETIME('now', '-3 hours', '-1 day'))`;
+        dataFiltro = `AND DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em), '-2 hours') = DATE(DATETIME('now', '-3 hours', '-1 day'), '-2 hours')`;
         break;
       case 'semana':
         dataFiltro = `AND DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em)) >= DATE(DATETIME('now', '-3 hours', 'weekday 0', '-7 days'))`;

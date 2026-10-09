@@ -25,15 +25,13 @@ async function getPosicoesMapa(req, res) {
       return res.json(200, respVazia);
     }
 
-    const hojeInicio = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) + ' 00:00:00';
     const pedidosEmRota = await db.query(
       `SELECT id, numero_pedido, cliente, endereco, bairro, motoboy_id, data_inicio,
               ROUND((julianday('now') - julianday(data_inicio)) * 1440) as minutos_em_rota
        FROM pedidos 
        WHERE status = 'em_rota' 
-         AND criado_em >= ?
-       ORDER BY data_inicio ASC`,
-      [hojeInicio]
+         AND DATE(COALESCE(criado_em, DATETIME('now', '-3 hours')), '-2 hours') = DATE(DATETIME('now', '-3 hours'), '-2 hours')
+       ORDER BY data_inicio ASC`
     );
 
     const pedidosPorMotoboy = {};
@@ -158,21 +156,19 @@ async function getDashboardStats(req, res) {
     const db = getDb();
     await expirarPedidosPendentesDiasAnteriores(db);
 
-    const hojeInicio = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) + ' 00:00:00';
-
     const [statsRes, motoboysCountRes] = await Promise.all([
       db.queryOne(`
         SELECT 
-          COUNT(CASE WHEN (status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo') OR status IS NULL) 
+          COUNT(CASE WHEN (status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo', 'confirmado') OR (status = 'em_entrega' AND motoboy_id IS NULL) OR status IS NULL) 
                           AND motoboy_id IS NULL 
                           AND status NOT IN ('entregue', 'expirado', 'cancelado') THEN 1 END) as aguardando,
-          COUNT(CASE WHEN status = 'em_rota' THEN 1 END) as em_rota,
+          COUNT(CASE WHEN status = 'em_rota' OR (status = 'em_entrega' AND motoboy_id IS NOT NULL) THEN 1 END) as em_rota,
           COUNT(CASE WHEN status = 'entregue' THEN 1 END) as entregues,
           COUNT(CASE WHEN status NOT IN ('expirado', 'cancelado') THEN 1 END) as total,
           COALESCE(SUM(CASE WHEN status = 'entregue' THEN taxa_entrega ELSE 0 END), 0) as total_taxas
         FROM pedidos 
-        WHERE criado_em >= ?
-      `, [hojeInicio]),
+        WHERE DATE(COALESCE(criado_em, DATETIME('now', '-3 hours')), '-2 hours') = DATE(DATETIME('now', '-3 hours'), '-2 hours')
+      `),
       db.queryOne(`SELECT COUNT(*) as count FROM motoboys`)
     ]);
 
@@ -234,9 +230,9 @@ async function listarTodosPedidos(req, res) {
              p.texto_bruto, p.data_inicio, p.data_fim, p.criado_em,
              m.id as motoboy_id, m.nome as motoboy_nome, m.telefone as motoboy_telefone, m.grupo as motoboy_grupo,
              CASE 
-               WHEN p.status = 'em_rota' AND p.data_inicio IS NOT NULL THEN
-                 ROUND((julianday(DATETIME('now', '-3 hours')) - julianday(p.data_inicio)) * 1440)
-               WHEN p.status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo') OR p.status IS NULL THEN
+               WHEN (p.status = 'em_rota' OR (p.status = 'em_entrega' AND p.motoboy_id IS NOT NULL)) AND p.data_inicio IS NOT NULL THEN
+                  ROUND((julianday(DATETIME('now', '-3 hours')) - julianday(p.data_inicio)) * 1440)
+                WHEN p.status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo', 'confirmado') OR (p.status = 'em_entrega' AND p.motoboy_id IS NULL) OR p.status IS NULL THEN
                  ROUND((julianday(DATETIME('now', '-3 hours')) - julianday(COALESCE(p.criado_em, DATETIME('now', '-3 hours')))) * 1440)
                WHEN p.status = 'entregue' AND p.data_fim IS NOT NULL AND p.data_inicio IS NOT NULL THEN
                  ROUND((julianday(p.data_fim) - julianday(p.data_inicio)) * 1440)
@@ -260,9 +256,7 @@ async function listarTodosPedidos(req, res) {
     } else {
       // Regra de virada de data: por padrão no painel ativo da cozinha, apenas pedidos de HOJE são exibidos
       if (data === 'hoje') {
-        const hojeInicio = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) + ' 00:00:00';
-        conditions.push(`p.criado_em >= ?`);
-        params.push(hojeInicio);
+        conditions.push(`DATE(COALESCE(p.criado_em, DATETIME('now', '-3 hours')), '-2 hours') = DATE(DATETIME('now', '-3 hours'), '-2 hours')`);
       } else if (data && data !== 'todos' && data !== 'all') {
         conditions.push(`p.criado_em >= ? AND p.criado_em <= ?`);
         params.push(`${data} 00:00:00`, `${data} 23:59:59`);
@@ -276,7 +270,9 @@ async function listarTodosPedidos(req, res) {
 
     if (status && status !== 'todos' && status !== 'all') {
       if (status === 'aguardando' || status === 'disponivel' || status === 'balcao' || status === 'pronto') {
-        conditions.push(`(p.status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo') OR status IS NULL) AND p.motoboy_id IS NULL AND (p.status != 'entregue' OR p.status IS NULL)`);
+        conditions.push(`(p.status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo', 'confirmado') OR (p.status = 'em_entrega' AND p.motoboy_id IS NULL) OR p.status IS NULL) AND p.motoboy_id IS NULL AND (p.status != 'entregue' OR p.status IS NULL)`);
+      } else if (status === 'em_rota') {
+        conditions.push(`(p.status = 'em_rota' OR (p.status = 'em_entrega' AND p.motoboy_id IS NOT NULL))`);
       } else {
         conditions.push(`p.status = ?`);
         params.push(status);
@@ -421,16 +417,16 @@ async function obterFechamentoEntregas(req, res) {
 
     switch (periodo) {
       case 'hoje':
-        dataFiltro = `AND DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em)) = DATE(DATETIME('now', '-3 hours'))`;
+        dataFiltro = `AND DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em, DATETIME('now', '-3 hours')), '-2 hours') = DATE(DATETIME('now', '-3 hours'), '-2 hours')`;
         break;
       case 'ontem':
-        dataFiltro = `AND DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em)) = DATE(DATETIME('now', '-3 hours', '-1 day'))`;
+        dataFiltro = `AND DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em, DATETIME('now', '-3 hours')), '-2 hours') = DATE(DATETIME('now', '-3 hours'), '-2 hours', '-1 day')`;
         break;
       case 'semana':
-        dataFiltro = `AND DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em)) >= DATE(DATETIME('now', '-3 hours', 'weekday 0', '-7 days'))`;
+        dataFiltro = `AND DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em, DATETIME('now', '-3 hours')), '-2 hours') >= DATE(DATETIME('now', '-3 hours'), '-2 hours', 'weekday 0', '-7 days')`;
         break;
       case 'mes':
-        dataFiltro = `AND strftime('%Y-%m', COALESCE(p.data_fim, p.data_inicio, p.criado_em)) = strftime('%Y-%m', DATETIME('now', '-3 hours'))`;
+        dataFiltro = `AND strftime('%Y-%m', DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em, DATETIME('now', '-3 hours')), '-2 hours')) = strftime('%Y-%m', DATE(DATETIME('now', '-3 hours'), '-2 hours'))`;
         break;
       case 'personalizado': {
         let dtIni = String(data_inicio || '').trim();
@@ -501,8 +497,9 @@ async function obterFechamentoEntregas(req, res) {
 
     // Buscar pagamentos já confirmados pela administração para os motoboys neste período específico
     let pagamentosConfirmados = [];
-    const hojeDataIso = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
-    const ontemDataIso = new Date(Date.now() - 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    const dTurno = new Date(Date.now() - (3 * 3600000) - (2 * 3600000));
+    const hojeDataIso = dTurno.toISOString().split('T')[0];
+    const ontemDataIso = new Date(dTurno.getTime() - 86400000).toISOString().split('T')[0];
     
     let sqlPag = `SELECT motoboy_id, periodo, data_referencia, status, confirmado_em, valor FROM pagamentos_motoboys WHERE status = 'confirmado'`;
     const paramsPag = [];

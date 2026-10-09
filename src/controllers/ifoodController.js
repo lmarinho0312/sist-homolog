@@ -129,25 +129,21 @@ async function handleWebhook(req, res) {
 
       if (isPlaced) {
         await processNewOrder(orderId);
-        // Se o modo automático estiver ligado (para o robô do iFood homologar 100%):
+        // Se o modo automático estiver ligado (para o robô de testes homologar):
         if (isAuto) {
           try {
             await ifoodService.confirmOrder(orderId);
-            console.log(`🤖 [AutoMode] Pedido ${orderId} confirmado automaticamente para o robô de homologação!`);
-            await updateOrderStatus(orderId, 'confirmado');
+            console.log(`🤖 [AutoMode] Pedido ${orderId} confirmado no iFood.`);
           } catch (errConfirm) {
             console.warn(`⚠️ [AutoMode] Falha ao auto-confirmar pedido ${orderId}: ${errConfirm.message}`);
           }
         }
       } else if (isConfirmed) {
-        const db = getDb();
-        const jaExiste = await db.queryOne("SELECT id FROM pedidos WHERE pedido_id_origem = ? AND origem = 'IFOOD'", [orderId]);
-        if (!jaExiste) {
-          await processNewOrder(orderId);
-        }
-        await updateOrderStatus(orderId, 'confirmado');
+        // Pedido confirmado: garante dados cadastrais e mantém disponível no balcão para os entregadores
+        await processNewOrder(orderId);
       } else if (isDispatched) {
-        await updateOrderStatus(orderId, 'em_entrega');
+        // Despachado no Gestor iFood: apenas loga, pois o despacho e rota do sistema é controlado pelos motoboys da loja
+        console.log(`ℹ️ [iFood Event DSP] Pedido ${orderId} despachado no Gestor do iFood.`);
       } else if (isCancelRequested) {
         console.log(`🔔 [iFood Cancel Request] Evento de cancelamento ${code} recebido para o pedido ${orderId}!`);
         await updateOrderStatus(orderId, 'cancelamento_solicitado');
@@ -265,9 +261,10 @@ async function processNewOrder(orderId) {
 
     if (existente) {
       console.log(`ℹ️ [iFood API] Pedido #${numeroExibicao} (${orderId}) já existe na base (ID ${existente.id}). Atualizando dados cadastrais via API.`);
+      const novoStatus = (existente.status === 'em_rota' || existente.status === 'entregue') ? existente.status : 'disponivel';
       await db.execute(
         `UPDATE pedidos 
-         SET numero_pedido = ?, pedido_id_origem = ?, cliente = ?, endereco = ?, bairro = ?, taxa_entrega = ?, telefone_cliente = ?, localizador = ?, texto_bruto = ?
+         SET numero_pedido = ?, pedido_id_origem = ?, cliente = ?, endereco = ?, bairro = ?, taxa_entrega = ?, telefone_cliente = ?, localizador = ?, status = ?, texto_bruto = ?
          WHERE id = ?`,
         [
           numeroExibicao,
@@ -278,6 +275,7 @@ async function processNewOrder(orderId) {
           taxaEntrega,
           clienteTel,
           localizador,
+          novoStatus,
           JSON.stringify(details || { orderId, merchantId, nomeLoja, via: 'ifood_api_webhook', data: new Date().toISOString() }),
           existente.id
         ]
@@ -314,8 +312,9 @@ async function processNewOrder(orderId) {
 async function updateOrderStatus(orderId, novoStatus) {
   try {
     const db = getDb();
+    // Nunca sobrescreve se o pedido já estiver em rota ou entregue pelos motoboys
     await db.execute(
-      'UPDATE pedidos SET status = ? WHERE pedido_id_origem = ? AND origem = ?',
+      "UPDATE pedidos SET status = ? WHERE pedido_id_origem = ? AND origem = ? AND status NOT IN ('em_rota', 'entregue')",
       [novoStatus, orderId, 'IFOOD']
     );
     memoryCache.clear();
