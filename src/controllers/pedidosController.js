@@ -287,7 +287,7 @@ async function webhookSpool(req, res) {
         cleanOrigem = '99FOOD';
       }
 
-      // Corte 99Food (API oficial ativa)
+      // Corte 99Food e iFood (APIs oficiais ativas)
       if (cleanOrigem === '99FOOD') {
         console.log(`ℹ️ [webhookSpool] Pedido 99Food #${cleanPedidoId} descartado do puller (integrado via API/Webhook oficial).`);
         return res.json(200, {
@@ -295,6 +295,16 @@ async function webhookSpool(req, res) {
           descartado: true,
           motivo: '99food_integrado_via_api',
           message: 'Pedidos 99Food são processados exclusivamente via API/Webhook oficial. Descartado do puller de impressão.'
+        });
+      }
+
+      if (cleanOrigem === 'IFOOD' || tbUpper.includes('IFOOD') || tbUpper.includes('I FOOD')) {
+        console.log(`ℹ️ [webhookSpool] Pedido iFood #${cleanPedidoId} descartado do puller (integrado 100% via API/Webhook oficial).`);
+        return res.json(200, {
+          success: true,
+          descartado: true,
+          motivo: 'ifood_integrado_via_api',
+          message: 'Pedidos iFood são processados exclusivamente via API/Webhook oficial. Descartado do puller de impressão.'
         });
       }
 

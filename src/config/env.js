@@ -28,10 +28,10 @@ module.exports = {
   TRACCAR_PASS: process.env.TRACCAR_PASS || 'admin',
   JWT_SECRET: process.env.JWT_SECRET || 'default_secret_key',
   BALCAO_API_SECRET: process.env.BALCAO_API_SECRET || 'balcao_secret_token_aoponto_2026',
-  // Configurações iFood (Homologação)
-  IFOOD_CLIENT_ID: process.env.IFOOD_CLIENT_ID || 'c88219c5-8ad0-40d1-8f2f-387d9895ce02',
-  IFOOD_CLIENT_SECRET: process.env.IFOOD_CLIENT_SECRET || 'bb0o039xteom0dym0lxp38tos1he9qmnb2qimf81tiotbxuvjg4lf1fxled3hwllvqi1dmx9lc2luhjr4ywkoz7vkkskdfcruun',
-  IFOOD_MERCHANT_ID: process.env.IFOOD_MERCHANT_ID || 'ce4602c7-54ae-4594-855c-a170ff081af9',
+  // Configurações iFood (Oficial / rastv2)
+  IFOOD_CLIENT_ID: process.env.IFOOD_CLIENT_ID || 'b7b5dda0-bbc4-40d2-b5c8-ebd904c88611',
+  IFOOD_CLIENT_SECRET: process.env.IFOOD_CLIENT_SECRET || 'h8dgsnwab9i88ucvvzpjhxmxjnkatocbv9mm9ou8wi07dups8b3pk8rjcjh67u2mcdt3v4zn91ydrq0qghxb5y2ulu30bftar7f',
+  IFOOD_MERCHANT_ID: process.env.IFOOD_MERCHANT_ID || '851c6395-504f-44d9-b017-6c10cdfd3de1',
   IFOOD_API_URL: process.env.IFOOD_API_URL || 'https://merchant-api.ifood.com.br',
   IFOOD_WEBHOOK_SECRET: process.env.IFOOD_WEBHOOK_SECRET || '',
   // Configurações 99Food (Produção / DiDi Open Platform)

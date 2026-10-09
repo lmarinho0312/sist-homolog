@@ -240,14 +240,21 @@ async function processNewOrder(orderId) {
     const numeroExibicao = details?.displayId ? String(details.displayId) : numeroCurto;
     const clienteNome = details?.customer?.name || `Cliente iFood (${nomeLoja})`;
     const clienteTel = details?.customer?.phone?.number || null;
+    const localizador = details?.customer?.phone?.localizer || details?.delivery?.pickupCode || null;
     const enderecoEntrega = details?.delivery?.deliveryAddress;
     
-    const rua = enderecoEntrega?.streetName 
-      ? `${enderecoEntrega.streetName}, ${enderecoEntrega.streetNumber || 'S/N'}${enderecoEntrega.complement ? ' ' + enderecoEntrega.complement : ''}` 
-      : 'Endereço registrado no Gestor iFood';
+    let rua = 'Endereço registrado no Gestor iFood';
+    if (enderecoEntrega?.formattedAddress) {
+      rua = enderecoEntrega.formattedAddress;
+      if (enderecoEntrega.complement) rua += ` - ${enderecoEntrega.complement}`;
+      if (enderecoEntrega.reference) rua += ` (Ref: ${enderecoEntrega.reference})`;
+    } else if (enderecoEntrega?.streetName) {
+      rua = `${enderecoEntrega.streetName}, ${enderecoEntrega.streetNumber || 'S/N'}${enderecoEntrega.complement ? ' - ' + enderecoEntrega.complement : ''}${enderecoEntrega.reference ? ' (Ref: ' + enderecoEntrega.reference + ')' : ''}`;
+    }
+
     const bairroBruto = enderecoEntrega?.neighborhood || 'Várzea';
     const bairroCanonica = obterNomeBairroCanonica(bairroBruto, rua) || bairroBruto || 'Várzea';
-    const taxaEntrega = obterTaxaRepasse(bairroCanonica, 'VELOZ') || 10.0;
+    const taxaEntrega = obterTaxaRepasse(bairroCanonica, rua, '', 'VELOZ') || 10.0;
 
     // Mecanismo rigoroso anti-duplicação: verifica tanto por pedido_id_origem (UUID) quanto por numero_pedido (#8639)
     const existente = await db.queryOne(
@@ -257,18 +264,20 @@ async function processNewOrder(orderId) {
     );
 
     if (existente) {
-      console.log(`ℹ️ [iFood] Pedido #${numeroExibicao} (${orderId}) já existe na base (ID ${existente.id}). Atualizando dados cadastrais.`);
+      console.log(`ℹ️ [iFood API] Pedido #${numeroExibicao} (${orderId}) já existe na base (ID ${existente.id}). Atualizando dados cadastrais via API.`);
       await db.execute(
         `UPDATE pedidos 
-         SET pedido_id_origem = ?, cliente = ?, endereco = ?, bairro = ?, taxa_entrega = ?, telefone_cliente = ?, texto_bruto = ?
+         SET numero_pedido = ?, pedido_id_origem = ?, cliente = ?, endereco = ?, bairro = ?, taxa_entrega = ?, telefone_cliente = ?, localizador = ?, texto_bruto = ?
          WHERE id = ?`,
         [
+          numeroExibicao,
           orderId,
           clienteNome,
           rua,
           bairroCanonica,
           taxaEntrega,
           clienteTel,
+          localizador,
           JSON.stringify(details || { orderId, merchantId, nomeLoja, via: 'ifood_api_webhook', data: new Date().toISOString() }),
           existente.id
         ]
@@ -276,8 +285,8 @@ async function processNewOrder(orderId) {
     } else {
       await db.execute(
         `INSERT INTO pedidos 
-         (numero_pedido, origem, pedido_id_origem, cliente, endereco, bairro, taxa_entrega, telefone_cliente, status, texto_bruto, criado_em)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'disponivel', ?, DATETIME('now', '-3 hours'))`,
+         (numero_pedido, origem, pedido_id_origem, cliente, endereco, bairro, taxa_entrega, telefone_cliente, localizador, status, texto_bruto, criado_em)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'disponivel', ?, DATETIME('now', '-3 hours'))`,
         [
           numeroExibicao,
           'IFOOD',
@@ -287,10 +296,11 @@ async function processNewOrder(orderId) {
           bairroCanonica,
           taxaEntrega,
           clienteTel,
+          localizador,
           JSON.stringify(details || { orderId, merchantId, nomeLoja, via: 'ifood_api_webhook', data: new Date().toISOString() })
         ]
       );
-      console.log(`✅ [iFood] Pedido #${numeroExibicao} (${orderId}) inserido com sucesso na base de entregas!`);
+      console.log(`✅ [iFood API] Pedido #${numeroExibicao} (${orderId}) inserido com sucesso na base de entregas via API!`);
     }
     memoryCache.clear();
   } catch (err) {
