@@ -398,82 +398,15 @@ async function webhookSpool(req, res) {
     const db = getDb();
     await expirarPedidosPendentesDiasAnteriores(db);
 
-    // 4. Integração Híbrida Inteligente para iFood:
-    // Se for iFood, verifica se já existe registro criado pelo Webhook (ou comanda anterior) e enriquece os dados
+    // 4. Regra Estrita: Pedidos iFood são processados ÚNICA E EXCLUSIVAMENTE pela API Oficial do iFood (nunca via Spooler)
     if (cleanOrigem === 'IFOOD' || cleanOrigem.includes('IFOOD')) {
-      cleanOrigem = 'IFOOD';
-      const pedidoExistenteIfood = await db.queryOne(
-        `SELECT id, numero_pedido, status, cliente, endereco, bairro, taxa_entrega, telefone_cliente, localizador, texto_bruto
-         FROM pedidos
-         WHERE origem = 'IFOOD'
-           AND (
-             numero_pedido = ? OR pedido_id_origem = ?
-             OR (cliente LIKE '%Cliente iFood%' OR endereco LIKE '%Endereço registrado no Gestor%')
-           )
-           AND DATE(COALESCE(criado_em, DATETIME('now', '-3 hours'))) = DATE(DATETIME('now', '-3 hours'))
-         ORDER BY (CASE WHEN (cliente LIKE '%Cliente iFood%' OR endereco LIKE '%Endereço registrado no Gestor%') THEN 0 ELSE 1 END), id DESC
-         LIMIT 1`,
-        [cleanPedidoId, cleanPedidoId]
-      );
-
-      if (pedidoExistenteIfood) {
-        console.log(`✨ [iFood Enriquecimento] Pedido ID ${pedidoExistenteIfood.id} (#${pedidoExistenteIfood.numero_pedido}) enriquecido com dados da comanda (#${cleanPedidoId})!`);
-        const updateFields = [];
-        const updateParams = [];
-
-        if (cleanPedidoId && (!pedidoExistenteIfood.numero_pedido || pedidoExistenteIfood.numero_pedido.length !== 4 || pedidoExistenteIfood.numero_pedido !== cleanPedidoId)) {
-          updateFields.push('numero_pedido = ?');
-          updateParams.push(cleanPedidoId);
-        }
-        if (cleanCliente && cleanCliente !== 'Cliente' && !cleanCliente.startsWith('Cliente iFood')) {
-          updateFields.push('cliente = ?');
-          updateParams.push(cleanCliente);
-        }
-        if (cleanEndereco && !cleanEndereco.includes('Gestor iFood')) {
-          updateFields.push('endereco = ?');
-          updateParams.push(cleanEndereco);
-        }
-        if (cleanBairro) {
-          updateFields.push('bairro = ?');
-          updateParams.push(cleanBairro);
-        }
-        if (cleanTextoBruto) {
-          updateFields.push('texto_bruto = ?');
-          updateParams.push(cleanTextoBruto);
-        }
-        if (cleanTelefone) {
-          updateFields.push('telefone_cliente = ?');
-          updateParams.push(cleanTelefone);
-        }
-        if (cleanLocalizador) {
-          updateFields.push('localizador = ?');
-          updateParams.push(cleanLocalizador);
-        }
-        let taxaFinalCalc = !isNaN(Number(taxaEntrega)) && Number(taxaEntrega) > 0 ? Number(taxaEntrega) : 0.0;
-        if (taxaFinalCalc === 0) {
-          taxaFinalCalc = obterTaxaRepasse(cleanBairro, cleanEndereco, cleanTextoBruto, 'VELOZ');
-        }
-        if (taxaFinalCalc > 0) {
-          updateFields.push('taxa_entrega = ?');
-          updateParams.push(taxaFinalCalc);
-        }
-
-        if (updateFields.length > 0) {
-          updateParams.push(pedidoExistenteIfood.id);
-          await db.execute(`UPDATE pedidos SET ${updateFields.join(', ')} WHERE id = ?`, updateParams);
-        }
-
-        memoryCache.clear();
-        const pedidoAtualizado = await db.queryOne(`SELECT * FROM pedidos WHERE id = ?`, [pedidoExistenteIfood.id]);
-
-        return res.json(200, {
-          success: true,
-          duplicado: true,
-          enriquecido: true,
-          message: `Pedido iFood #${cleanPedidoId} enriquecido com sucesso com dados da comanda impressa!`,
-          pedido: pedidoAtualizado || pedidoExistenteIfood
-        });
-      }
+      console.log(`ℹ️ [Spooler Ignorado] Pedido iFood #${cleanPedidoId} ignorado no Spooler (processado exclusivamente via API Oficial iFood).`);
+      return res.json(200, {
+        success: true,
+        ignorado: true,
+        motivo: 'ifood_somente_api',
+        message: 'Pedidos do iFood são processados única e exclusivamente via API oficial.'
+      });
     }
 
     // 4. Mecanismo Anti-Duplicação Estrito (origem + pedido_id_origem nas últimas 36 horas)
@@ -533,16 +466,52 @@ let ultimaDataExpiracao = null;
  * pelo motoboy após as 02:00 da manhã correspondente ao turno de cada dia.
  * Nunca finaliza pedidos durante o turno ativo (entre 00:00 e 01:59).
  */
+/**
+ * Calcula os limites de timestamp do turno operacional atual (corte às 02:00 da manhã no horário de Brasília).
+ * Permite consultas SQL 100% indexadas (criado_em >= ?), evitando Full Table Scan e economizando reads no Turso.
+ */
+function obterLimitesTurnoOperacional() {
+  const agoraBrasiliaMs = Date.now() - (3 * 3600000);
+  const turnoAtualMs = agoraBrasiliaMs - (2 * 3600000);
+  const turnoOntemMs = turnoAtualMs - 86400000;
+
+  const hojeDataStr = new Date(turnoAtualMs).toISOString().slice(0, 10);
+  const ontemDataStr = new Date(turnoOntemMs).toISOString().slice(0, 10);
+
+  // Início da semana (domingo às 02:00)
+  const dSemana = new Date(turnoAtualMs);
+  dSemana.setUTCDate(dSemana.getUTCDate() - dSemana.getUTCDay());
+  const semanaDataStr = dSemana.toISOString().slice(0, 10);
+
+  // Início do mês (dia 01 às 02:00)
+  const mesDataStr = hojeDataStr.slice(0, 8) + '01';
+
+  return {
+    hojeDataStr,
+    ontemDataStr,
+    inicioTurnoHoje: `${hojeDataStr} 02:00:00`,
+    inicioTurnoOntem: `${ontemDataStr} 02:00:00`,
+    inicioTurnoSemana: `${semanaDataStr} 02:00:00`,
+    inicioTurnoMes: `${mesDataStr} 02:00:00`
+  };
+}
+
+/**
+ * Auto-finaliza como 'entregue' os pedidos em rota que não foram finalizados manualmente
+ * pelo motoboy após as 02:00 da manhã correspondente ao turno de cada dia.
+ * Usa índice (status, criado_em) para não consumir reads desnecessários no Turso.
+ */
 async function autoFinalizarPedidosEmRotaFimDoDia(db) {
   try {
+    const { inicioTurnoHoje } = obterLimitesTurnoOperacional();
     const result = await db.execute(`
       UPDATE pedidos 
       SET status = 'entregue',
-          data_fim = COALESCE(data_fim, DATETIME(DATE(COALESCE(data_inicio, criado_em, DATETIME('now', '-3 hours')), '-2 hours'), '+1 day', '+2 hours'))
+          data_fim = COALESCE(data_fim, DATETIME('now', '-3 hours'))
       WHERE status = 'em_rota'
         AND motoboy_id IS NOT NULL
-        AND DATE(COALESCE(data_inicio, criado_em, DATETIME('now', '-3 hours')), '-2 hours') < DATE(DATETIME('now', '-3 hours'), '-2 hours')
-    `);
+        AND criado_em < ?
+    `, [inicioTurnoHoje]);
 
     if (result && result.changes > 0) {
       console.log(`✅ [AUTO-FINALIZAR 02:00] ${result.changes} pedido(s) em rota de turnos anteriores finalizados automaticamente como entregues.`);
@@ -556,38 +525,34 @@ async function autoFinalizarPedidosEmRotaFimDoDia(db) {
 }
 
 /**
- * Ignora e expira automaticamente pedidos que ficaram pendentes de entrega
- * de turnos anteriores apenas após a virada do turno às 02:00 da manhã (horário de Brasília).
- * Atualiza status para 'expirado', garantindo que não acumulem no painel da cozinha ou app motoboy.
+ * Expira automaticamente pedidos que ficaram pendentes sem retirada de turnos anteriores
+ * apenas após a virada do turno às 02:00 da manhã (horário de Brasília).
  * Roda apenas 1 vez por virada de turno para não queimar Row Reads no Turso.
  */
 async function expirarPedidosPendentesDiasAnteriores(db, forcar = false) {
-  // Data operacional do turno da loja (vira às 02:00 da manhã de Brasília)
-  const agoraTimestamp = Date.now() - 3 * 3600000;
-  const turnoTimestamp = agoraTimestamp - 2 * 3600000;
-  const turnoDataStr = new Date(turnoTimestamp).toISOString().slice(0, 10);
+  const { hojeDataStr, inicioTurnoHoje } = obterLimitesTurnoOperacional();
 
-  if (!forcar && ultimaDataExpiracao === turnoDataStr) {
+  if (!forcar && ultimaDataExpiracao === hojeDataStr) {
     return 0; // Já executou para este turno! Zero leituras/escritas gastas.
   }
   try {
     // 1. Auto-finaliza pedidos em rota não finalizados de turnos anteriores (após as 02:00)
     await autoFinalizarPedidosEmRotaFimDoDia(db);
 
-    // 2. Expirar apenas pedidos que não foram retirados por ninguém de turnos anteriores (antes das 02:00)
+    // 2. Expirar apenas pedidos que não foram retirados por ninguém de turnos anteriores (usando índice criado_em < ?)
     const resExpirados = await db.execute(`
       UPDATE pedidos 
       SET status = 'expirado',
           data_fim = COALESCE(data_fim, DATETIME('now', '-3 hours'))
-      WHERE (status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo', 'confirmado') OR status IS NULL)
+      WHERE status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo', 'confirmado')
         AND motoboy_id IS NULL
-        AND DATE(COALESCE(criado_em, DATETIME('now', '-3 hours')), '-2 hours') < DATE(DATETIME('now', '-3 hours'), '-2 hours')
-    `);
+        AND criado_em < ?
+    `, [inicioTurnoHoje]);
 
-    ultimaDataExpiracao = turnoDataStr;
+    ultimaDataExpiracao = hojeDataStr;
     const totalAlterados = resExpirados?.changes || 0;
     if (totalAlterados > 0) {
-      console.log(`🧹 [VIRADA DE DATA] ${totalAlterados} pedido(s) sem retirada de dias anteriores expirados.`);
+      console.log(`🧹 [VIRADA DE DATA] ${totalAlterados} pedido(s) sem retirada de turnos anteriores expirados.`);
       memoryCache.clear();
     }
     return totalAlterados;
@@ -680,16 +645,17 @@ async function listarPedidosDisponiveis(req, res) {
     }
 
     // Busca pedidos disponíveis do turno atual (com virada estrita às 02:00 da manhã)
+    const { inicioTurnoHoje } = obterLimitesTurnoOperacional();
     const pedidos = await db.query(`
       SELECT p.id, p.numero_pedido, p.status, p.origem, p.grupo, p.pedido_id_origem, p.cliente, p.endereco, p.bairro, p.taxa_entrega, p.telefone_cliente, p.localizador, p.texto_bruto, p.criado_em,
              ROUND((julianday(DATETIME('now', '-3 hours')) - julianday(COALESCE(p.criado_em, DATETIME('now', '-3 hours')))) * 1440) as minutos_aguardando
       FROM pedidos p
-      WHERE (p.status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo', 'confirmado') OR p.status IS NULL)
+      WHERE p.criado_em >= ?
+        AND (p.status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo', 'confirmado') OR p.status IS NULL)
         AND (p.motoboy_id IS NULL OR p.status != 'em_rota')
         AND p.status NOT IN ('entregue', 'expirado', 'cancelado')
-        AND DATE(COALESCE(p.criado_em, DATETIME('now', '-3 hours')), '-2 hours') = DATE(DATETIME('now', '-3 hours'), '-2 hours')
       ORDER BY p.id DESC
-    `);
+    `, [inicioTurnoHoje]);
 
     const resultado = {
       success: true,
@@ -1292,19 +1258,24 @@ async function obterRendimentosMotoboy(req, res) {
 
     const params = [motoboyIdNum];
 
+    const { inicioTurnoHoje, inicioTurnoOntem, inicioTurnoSemana, inicioTurnoMes } = obterLimitesTurnoOperacional();
     let dataFiltro = '';
     switch (periodo) {
       case 'hoje':
-        dataFiltro = `AND DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em), '-2 hours') = DATE(DATETIME('now', '-3 hours'), '-2 hours')`;
+        dataFiltro = `AND p.criado_em >= ?`;
+        params.push(inicioTurnoHoje);
         break;
       case 'ontem':
-        dataFiltro = `AND DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em), '-2 hours') = DATE(DATETIME('now', '-3 hours', '-1 day'), '-2 hours')`;
+        dataFiltro = `AND p.criado_em >= ? AND p.criado_em < ?`;
+        params.push(inicioTurnoOntem, inicioTurnoHoje);
         break;
       case 'semana':
-        dataFiltro = `AND DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em)) >= DATE(DATETIME('now', '-3 hours', 'weekday 0', '-7 days'))`;
+        dataFiltro = `AND p.criado_em >= ?`;
+        params.push(inicioTurnoSemana);
         break;
       case 'mes':
-        dataFiltro = `AND strftime('%Y-%m', COALESCE(p.data_fim, p.data_inicio, p.criado_em)) = strftime('%Y-%m', DATETIME('now', '-3 hours'))`;
+        dataFiltro = `AND p.criado_em >= ?`;
+        params.push(inicioTurnoMes);
         break;
       case 'todos':
       default:
@@ -1492,5 +1463,6 @@ module.exports = {
   obterRendimentosMotoboy,
   editarPedido,
   expirarPedidosPendentesDiasAnteriores,
+  obterLimitesTurnoOperacional,
   autoFinalizarPedidosEmRotaFimDoDia
 };

@@ -29,6 +29,10 @@ function getDb() {
         try {
           return await fn();
         } catch (err) {
+          // Erros de constraint (ex: UNIQUE) não são erros de rede e não devem sofrer retry
+          if (err && err.message && (err.message.includes('UNIQUE') || err.message.includes('constraint'))) {
+            throw err;
+          }
           attempt++;
           if (attempt >= maxRetries) {
             console.error(`❌ Falha definitiva na operação com Turso após ${attempt} tentativas:`, err.message);
@@ -194,8 +198,12 @@ CREATE TABLE IF NOT EXISTS ifood_events (
 
 CREATE INDEX IF NOT EXISTS idx_pedidos_motoboy_status ON pedidos(motoboy_id, status);
 CREATE INDEX IF NOT EXISTS idx_pedidos_status ON pedidos(status);
+CREATE INDEX IF NOT EXISTS idx_pedidos_criado_em ON pedidos(criado_em);
+CREATE INDEX IF NOT EXISTS idx_pedidos_status_criado ON pedidos(status, criado_em);
 CREATE INDEX IF NOT EXISTS idx_pedidos_origem_id ON pedidos(origem, pedido_id_origem);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pedidos_ifood_unique_origem ON pedidos(origem, pedido_id_origem) WHERE origem = 'IFOOD' AND pedido_id_origem IS NOT NULL AND pedido_id_origem != '';
 CREATE INDEX IF NOT EXISTS idx_ifood_events_order_id ON ifood_events(order_id);
+CREATE INDEX IF NOT EXISTS idx_ifood_events_created_at ON ifood_events(created_at DESC);
     `);
   } catch (err) {
     console.warn('⚠️ Inicialização de schema local:', err.message);

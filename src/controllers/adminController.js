@@ -1,6 +1,6 @@
 const { getDb } = require('../database/db');
 const { getPosicoesMotoboys } = require('../services/traccarService');
-const { expirarPedidosPendentesDiasAnteriores } = require('./pedidosController');
+const { expirarPedidosPendentesDiasAnteriores, obterLimitesTurnoOperacional } = require('./pedidosController');
 const { obterTaxaRepasse, obterNomeBairroCanonica } = require('../utils/rateResolver');
 const memoryCache = require('../utils/memoryCache');
 
@@ -25,13 +25,15 @@ async function getPosicoesMapa(req, res) {
       return res.json(200, respVazia);
     }
 
+    const { inicioTurnoHoje } = obterLimitesTurnoOperacional();
     const pedidosEmRota = await db.query(
       `SELECT id, numero_pedido, cliente, endereco, bairro, motoboy_id, data_inicio,
               ROUND((julianday('now') - julianday(data_inicio)) * 1440) as minutos_em_rota
        FROM pedidos 
        WHERE status = 'em_rota' 
-         AND DATE(COALESCE(criado_em, DATETIME('now', '-3 hours')), '-2 hours') = DATE(DATETIME('now', '-3 hours'), '-2 hours')
-       ORDER BY data_inicio ASC`
+         AND criado_em >= ?
+       ORDER BY data_inicio ASC`,
+      [inicioTurnoHoje]
     );
 
     const pedidosPorMotoboy = {};
@@ -156,6 +158,7 @@ async function getDashboardStats(req, res) {
     const db = getDb();
     await expirarPedidosPendentesDiasAnteriores(db);
 
+    const { inicioTurnoHoje } = obterLimitesTurnoOperacional();
     const [statsRes, motoboysCountRes] = await Promise.all([
       db.queryOne(`
         SELECT 
@@ -167,8 +170,8 @@ async function getDashboardStats(req, res) {
           COUNT(CASE WHEN status NOT IN ('expirado', 'cancelado') THEN 1 END) as total,
           COALESCE(SUM(CASE WHEN status = 'entregue' THEN taxa_entrega ELSE 0 END), 0) as total_taxas
         FROM pedidos 
-        WHERE DATE(COALESCE(criado_em, DATETIME('now', '-3 hours')), '-2 hours') = DATE(DATETIME('now', '-3 hours'), '-2 hours')
-      `),
+        WHERE criado_em >= ?
+      `, [inicioTurnoHoje]),
       db.queryOne(`SELECT COUNT(*) as count FROM motoboys`)
     ]);
 
@@ -256,7 +259,9 @@ async function listarTodosPedidos(req, res) {
     } else {
       // Regra de virada de data: por padrão no painel ativo da cozinha, apenas pedidos de HOJE são exibidos
       if (data === 'hoje') {
-        conditions.push(`DATE(COALESCE(p.criado_em, DATETIME('now', '-3 hours')), '-2 hours') = DATE(DATETIME('now', '-3 hours'), '-2 hours')`);
+        const { inicioTurnoHoje } = obterLimitesTurnoOperacional();
+        conditions.push(`p.criado_em >= ?`);
+        params.push(inicioTurnoHoje);
       } else if (data && data !== 'todos' && data !== 'all') {
         conditions.push(`p.criado_em >= ? AND p.criado_em <= ?`);
         params.push(`${data} 00:00:00`, `${data} 23:59:59`);
@@ -415,18 +420,23 @@ async function obterFechamentoEntregas(req, res) {
     let dataFiltro = '';
     const params = [];
 
+    const { inicioTurnoHoje, inicioTurnoOntem, inicioTurnoSemana, inicioTurnoMes } = obterLimitesTurnoOperacional();
     switch (periodo) {
       case 'hoje':
-        dataFiltro = `AND DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em, DATETIME('now', '-3 hours')), '-2 hours') = DATE(DATETIME('now', '-3 hours'), '-2 hours')`;
+        dataFiltro = `AND p.criado_em >= ?`;
+        params.push(inicioTurnoHoje);
         break;
       case 'ontem':
-        dataFiltro = `AND DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em, DATETIME('now', '-3 hours')), '-2 hours') = DATE(DATETIME('now', '-3 hours'), '-2 hours', '-1 day')`;
+        dataFiltro = `AND p.criado_em >= ? AND p.criado_em < ?`;
+        params.push(inicioTurnoOntem, inicioTurnoHoje);
         break;
       case 'semana':
-        dataFiltro = `AND DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em, DATETIME('now', '-3 hours')), '-2 hours') >= DATE(DATETIME('now', '-3 hours'), '-2 hours', 'weekday 0', '-7 days')`;
+        dataFiltro = `AND p.criado_em >= ?`;
+        params.push(inicioTurnoSemana);
         break;
       case 'mes':
-        dataFiltro = `AND strftime('%Y-%m', DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em, DATETIME('now', '-3 hours')), '-2 hours')) = strftime('%Y-%m', DATE(DATETIME('now', '-3 hours'), '-2 hours'))`;
+        dataFiltro = `AND p.criado_em >= ?`;
+        params.push(inicioTurnoMes);
         break;
       case 'personalizado': {
         let dtIni = String(data_inicio || '').trim();
