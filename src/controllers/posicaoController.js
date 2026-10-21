@@ -1,4 +1,10 @@
 const { getDb } = require('../database/db');
+const memoryCache = require('../utils/memoryCache');
+
+// Caches dedicados de GPS em memória (persistem independentemente de limpezas de cache de pedidos)
+const lastMotoboyPos = new Map(); // motoboyId -> { lat, lng, spd, ts }
+const lastPedidoPos = new Map();  // pedidoId -> { lat, lng, ts }
+const deviceToMotoboyMap = new Map(); // telefone/deviceId -> motoboyId
 
 /**
  * Cálculo da distância Haversine em metros entre duas coordenadas GPS
@@ -15,30 +21,35 @@ function calcularDistanciaMetros(lat1, lon1, lat2, lon2) {
 }
 
 /**
- * Filtro de Outliers: Verifica se a nova coordenada é um salto de ruído irreal
+ * Filtro de Outliers com cache em memória para evitar leituras repetidas na tabela pedido_rotas
  */
 async function eOutlierGps(db, pedidoId, newLat, newLng) {
   try {
-    const ultimoPonto = await db.queryOne(
-      `SELECT latitude, longitude, criado_em FROM pedido_rotas WHERE pedido_id = ? ORDER BY id DESC LIMIT 1`,
-      [pedidoId]
-    );
-    if (!ultimoPonto) return false;
+    let ultimoPonto = lastPedidoPos.get(pedidoId);
 
-    const distMetros = calcularDistanciaMetros(ultimoPonto.latitude, ultimoPonto.longitude, newLat, newLng);
-
-    // Ignorar pontos idênticos ou com deslocamento insignificante (< 3 metros)
-    if (distMetros < 3) return true;
-
-    // Calcular tempo decorrido com fuso horário correto
-    let dtSeconds = 5;
-    if (ultimoPonto.criado_em) {
-      const dataStr = ultimoPonto.criado_em.includes('T') ? ultimoPonto.criado_em : ultimoPonto.criado_em.replace(' ', 'T') + '-03:00';
-      const t1 = new Date(dataStr).getTime();
-      const t2 = Date.now();
-      dtSeconds = Math.max(1, Math.abs((t2 - t1) / 1000));
+    if (!ultimoPonto) {
+      const dbPonto = await db.queryOne(
+        `SELECT latitude, longitude, criado_em FROM pedido_rotas WHERE pedido_id = ? ORDER BY id DESC LIMIT 1`,
+        [pedidoId]
+      );
+      if (!dbPonto) return false;
+      const dataStr = dbPonto.criado_em
+        ? (dbPonto.criado_em.includes('T') ? dbPonto.criado_em : dbPonto.criado_em.replace(' ', 'T') + '-03:00')
+        : null;
+      ultimoPonto = {
+        lat: Number(dbPonto.latitude),
+        lng: Number(dbPonto.longitude),
+        ts: dataStr ? new Date(dataStr).getTime() : (Date.now() - 5000)
+      };
+      lastPedidoPos.set(pedidoId, ultimoPonto);
     }
 
+    const distMetros = calcularDistanciaMetros(ultimoPonto.lat, ultimoPonto.lng, newLat, newLng);
+
+    // Ignorar pontos idênticos ou com deslocamento insignificante (< 4 metros)
+    if (distMetros < 4) return true;
+
+    const dtSeconds = Math.max(1, Math.abs((Date.now() - ultimoPonto.ts) / 1000));
     const velocidadeImpliedKmH = (distMetros / dtSeconds) * 3.6;
 
     // Descartar apenas teletransporte irreal (> 500m em segundos a mais de 180 km/h)
@@ -58,10 +69,16 @@ async function eOutlierGps(db, pedidoId, newLat, newLng) {
  */
 async function gravarHistoricoRota(db, motoboyId, lat, lng, spd) {
   try {
-    const pedidosAtivos = await db.query(
-      `SELECT id FROM pedidos WHERE motoboy_id = ? AND status = 'em_rota'`,
-      [motoboyId]
-    );
+    // Cache curto de 5s para os pedidos em rota de cada motoboy
+    const cacheKey = `active_route_orders_${motoboyId}`;
+    let pedidosAtivos = memoryCache.get(cacheKey);
+    if (!pedidosAtivos) {
+      pedidosAtivos = await db.query(
+        `SELECT id FROM pedidos WHERE motoboy_id = ? AND status = 'em_rota'`,
+        [motoboyId]
+      );
+      memoryCache.set(cacheKey, pedidosAtivos || [], 5000);
+    }
 
     if (pedidosAtivos && pedidosAtivos.length > 0) {
       for (const p of pedidosAtivos) {
@@ -72,6 +89,7 @@ async function gravarHistoricoRota(db, motoboyId, lat, lng, spd) {
              VALUES (?, ?, ?, ?, ?, DATETIME('now', '-3 hours'))`,
             [p.id, motoboyId, lat, lng, spd]
           );
+          lastPedidoPos.set(p.id, { lat, lng, ts: Date.now() });
         }
       }
     }
@@ -81,9 +99,22 @@ async function gravarHistoricoRota(db, motoboyId, lat, lng, spd) {
 }
 
 /**
+ * Verifica se o motoboy se moveu significativamente ou se já passou o tempo de heartbeat (40s)
+ * para evitar leituras e escritas desnecessárias no Turso quando o motoboy está parado.
+ */
+function devePersistirPosicaoMotoboy(motoboyId, lat, lng) {
+  const prev = lastMotoboyPos.get(motoboyId);
+  const now = Date.now();
+  if (!prev) return true;
+  const elapsedMs = now - prev.ts;
+  const distMetros = calcularDistanciaMetros(prev.lat, prev.lng, lat, lng);
+  // Persiste se moveu >= 5 metros OU se já passaram mais de 40 segundos (mantém status online)
+  return distMetros >= 5 || elapsedMs >= 40000;
+}
+
+/**
  * Endpoint para o Web App do Motoboy enviar sua localização GPS em tempo real (HTML5 Geolocation)
  * POST /api/motoboy/posicao
- * Body: { motoboy_id, latitude, longitude, speed, accuracy }
  */
 async function atualizarPosicaoMotoboy(req, res) {
   try {
@@ -98,9 +129,7 @@ async function atualizarPosicaoMotoboy(req, res) {
       return res.json(400, { success: false, message: 'latitude e longitude são obrigatórios.' });
     }
 
-    // FILTRO DE ACURÁCIA (LAYER 1): Aceitar leituras até 250m para garantir fix mesmo em áreas urbanas densas
     if (accuracy !== undefined && Number(accuracy) > 250) {
-      console.warn(`⚠️ Posição ignorada por acurácia excessivamente baixa (${accuracy}m > 250m)`);
       return res.json(200, { success: true, message: 'Posição ignorada por baixa precisão do GPS.' });
     }
 
@@ -116,23 +145,39 @@ async function atualizarPosicaoMotoboy(req, res) {
     let motoboyIdNum = targetIdRaw ? Number(targetIdRaw) : null;
 
     if (!motoboyIdNum && telefone) {
-      const moto = await db.queryOne('SELECT id FROM motoboys WHERE telefone = ? OR telefone LIKE ?', [telefone, `%${telefone}%`]);
-      if (moto) motoboyIdNum = moto.id;
+      const telKey = String(telefone).trim();
+      motoboyIdNum = deviceToMotoboyMap.get(telKey) || null;
+      if (!motoboyIdNum) {
+        const moto = await db.queryOne('SELECT id FROM motoboys WHERE telefone = ? OR telefone LIKE ?', [telKey, `%${telKey}%`]);
+        if (moto) {
+          motoboyIdNum = Number(moto.id);
+          deviceToMotoboyMap.set(telKey, motoboyIdNum);
+        }
+      }
     }
 
     if (!motoboyIdNum) {
       return res.json(404, { success: false, message: 'Motoboy não identificado.' });
     }
-    
-    // Lista de IDs a sincronizar (garante que contas de teste e produção do mesmo motoboy fiquem 100% atualizadas)
-    let idsParaAtualizar = [motoboyIdNum];
-    if (motoboyIdNum === 4 || motoboyIdNum === 64) {
-      idsParaAtualizar = [4, 64]; // Lucas Pantufa (Oficial e Teste)
-    } else if (motoboyIdNum === 5 || motoboyIdNum === 63) {
-      idsParaAtualizar = [5, 63]; // Otávio Mickey (Oficial e Teste)
+
+    // Se o motoboy está parado (< 5m) e já atualizou nos últimos 40 segundos, economiza 100% das queries no Turso
+    if (!devePersistirPosicaoMotoboy(motoboyIdNum, lat, lng)) {
+      return res.json(200, {
+        success: true,
+        cached: true,
+        message: 'Localização mantida (estacionário).',
+        posicao: { latitude: lat, longitude: lng, speed: spd, timestamp: new Date().toISOString() }
+      });
     }
 
-    // Atualizar última posição do motoboy no banco Turso
+    let idsParaAtualizar = [motoboyIdNum];
+    if (motoboyIdNum === 4 || motoboyIdNum === 64) {
+      idsParaAtualizar = [4, 64];
+    } else if (motoboyIdNum === 5 || motoboyIdNum === 63) {
+      idsParaAtualizar = [5, 63];
+    }
+
+    const nowTs = Date.now();
     for (const mId of idsParaAtualizar) {
       await db.execute(
         `UPDATE motoboys 
@@ -140,6 +185,7 @@ async function atualizarPosicaoMotoboy(req, res) {
          WHERE id = ?`,
         [lat, lng, spd, mId]
       );
+      lastMotoboyPos.set(mId, { lat, lng, spd, ts: nowTs });
       await gravarHistoricoRota(db, mId, lat, lng, spd);
     }
 
@@ -168,9 +214,7 @@ async function webhookTraccarClient(req, res) {
     const rawLng = query.lon ?? query.lng ?? query.longitude ?? body.lon ?? body.lng ?? body.longitude;
     const rawAcc = query.accuracy ?? body.accuracy ?? query.hdop ?? body.hdop;
     
-    // FILTRO DE ACURÁCIA (LAYER 1): Descartar apenas se a acurácia/hdop estiver acima de 200m
     if (rawAcc !== undefined && Number(rawAcc) > 200) {
-      console.warn(`⚠️ Traccar ping ignorado por acurácia excessivamente baixa (${rawAcc}m > 200m)`);
       if (!res.headersSent) res.writeHead(200, { 'Content-Type': 'text/plain' });
       return res.end('OK');
     }
@@ -198,25 +242,38 @@ async function webhookTraccarClient(req, res) {
     }
 
     const db = getDb();
+    let motoboyId = deviceToMotoboyMap.get(deviceId) || null;
 
-    const motoboy = await db.queryOne(
-      `SELECT id FROM motoboys WHERE telefone = ? OR traccar_device_id = ?`,
-      [deviceId, deviceId]
-    );
+    if (!motoboyId) {
+      const motoboy = await db.queryOne(
+        `SELECT id FROM motoboys WHERE telefone = ? OR traccar_device_id = ?`,
+        [deviceId, deviceId]
+      );
+      if (motoboy) {
+        motoboyId = Number(motoboy.id);
+        deviceToMotoboyMap.set(deviceId, motoboyId);
+      }
+    }
 
-    if (!motoboy) {
+    if (!motoboyId) {
       if (!res.headersSent) res.writeHead(404, { 'Content-Type': 'text/plain' });
       return res.end('MOTOBOY_NOT_FOUND');
+    }
+
+    if (!devePersistirPosicaoMotoboy(motoboyId, lat, lng)) {
+      if (!res.headersSent) res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+      return res.end('OK');
     }
 
     await db.execute(
       `UPDATE motoboys 
        SET latitude = ?, longitude = ?, velocidade = ?, ultima_atualizacao = DATETIME('now', '-3 hours') 
        WHERE id = ?`,
-      [lat, lng, speedKmH, motoboy.id]
+      [lat, lng, speedKmH, motoboyId]
     );
+    lastMotoboyPos.set(motoboyId, { lat, lng, spd: speedKmH, ts: Date.now() });
 
-    await gravarHistoricoRota(db, motoboy.id, lat, lng, speedKmH);
+    await gravarHistoricoRota(db, motoboyId, lat, lng, speedKmH);
 
     if (!res.headersSent) {
       res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });

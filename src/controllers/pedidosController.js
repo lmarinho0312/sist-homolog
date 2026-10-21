@@ -623,8 +623,7 @@ async function definirGrupoPedido(req, res) {
  */
 async function listarPedidosDisponiveis(req, res) {
   try {
-    const { motoboy_id, grupo } = req.query || {};
-    const cacheKey = `pedidos_disponiveis_${motoboy_id || grupo || 'todos'}`;
+    const cacheKey = 'pedidos_disponiveis_global';
     const cached = memoryCache.get(cacheKey);
     if (cached) {
       return res.json(200, cached);
@@ -633,18 +632,7 @@ async function listarPedidosDisponiveis(req, res) {
     const db = getDb();
     await expirarPedidosPendentesDiasAnteriores(db);
 
-    let grupoMotoboy = 'SPEED';
-
-    if (motoboy_id) {
-      const motoboy = await db.queryOne('SELECT id, nome, grupo FROM motoboys WHERE id = ?', [Number(motoboy_id)]);
-      if (motoboy && motoboy.grupo) {
-        grupoMotoboy = String(motoboy.grupo).toUpperCase();
-      }
-    } else if (grupo) {
-      grupoMotoboy = String(grupo).toUpperCase();
-    }
-
-    // Busca pedidos disponíveis do turno atual (com virada estrita às 02:00 da manhã)
+    // Busca pedidos disponíveis do turno atual (100% indexado por criado_em >= ?)
     const { inicioTurnoHoje } = obterLimitesTurnoOperacional();
     const pedidos = await db.query(`
       SELECT p.id, p.numero_pedido, p.status, p.origem, p.grupo, p.pedido_id_origem, p.cliente, p.endereco, p.bairro, p.taxa_entrega, p.telefone_cliente, p.localizador, p.texto_bruto, p.criado_em,
@@ -661,7 +649,6 @@ async function listarPedidosDisponiveis(req, res) {
       success: true,
       total: pedidos.length,
       pedidos: pedidos.map(p => {
-        const repasse = obterTaxaRepasse(p.bairro, p.endereco, p.texto_bruto, grupoMotoboy);
         const bairroNome = obterNomeBairroCanonica(p.bairro, p.endereco, p.texto_bruto) || p.bairro;
         let telCentral = p.telefone_cliente;
         let locPin = p.localizador;
@@ -691,7 +678,7 @@ async function listarPedidosDisponiveis(req, res) {
       })
     };
 
-    memoryCache.set(cacheKey, resultado, 3000);
+    memoryCache.set(cacheKey, resultado, 8000);
     return res.json(200, resultado);
   } catch (error) {
     console.error('❌ Erro ao listar pedidos disponíveis:', error);
@@ -745,7 +732,7 @@ async function assumirPedido(req, res) {
            grupo = ?, 
            taxa_entrega = ?, 
            data_inicio = COALESCE(data_inicio, DATETIME('now', '-3 hours')) 
-       WHERE id = ? AND (status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo') OR status IS NULL) AND (motoboy_id IS NULL OR motoboy_id = ?)`,
+       WHERE id = ? AND (status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo', 'confirmado') OR status IS NULL) AND (motoboy_id IS NULL OR motoboy_id = ?)`,
       [motoboyIdNum, grupoMotoboy, taxaRepasseCalculada, pedidoIdNum, motoboyIdNum]
     );
 
@@ -997,17 +984,17 @@ async function listarPedidosMotoboy(req, res) {
     const db = getDb();
     await expirarPedidosPendentesDiasAnteriores(db);
 
-    const motoboy = await db.queryOne('SELECT id, nome, grupo FROM motoboys WHERE id = ?', [Number(motoboy_id)]);
-    const grupoMotoboy = (motoboy && motoboy.grupo) ? String(motoboy.grupo).toUpperCase() : 'VELOZ';
-
     const pedidos = await db.query(
-      `SELECT p.id, p.numero_pedido, p.status, p.origem, p.grupo, p.cliente, p.endereco, p.bairro, p.taxa_entrega, p.telefone_cliente, p.localizador, p.texto_bruto, p.data_inicio, 
+      `SELECT p.id, p.numero_pedido, p.status, p.origem, p.grupo, p.cliente, p.endereco, p.bairro, p.taxa_entrega, p.telefone_cliente, p.localizador, p.texto_bruto, p.data_inicio,
+              m.grupo as motoboy_grupo,
               ROUND((julianday(DATETIME('now', '-3 hours')) - julianday(p.data_inicio)) * 1440) as minutos_em_rota
        FROM pedidos p 
+       LEFT JOIN motoboys m ON p.motoboy_id = m.id
        WHERE p.motoboy_id = ? AND p.status = 'em_rota' 
        ORDER BY p.data_inicio DESC`,
       [Number(motoboy_id)]
     );
+    const grupoMotoboy = (pedidos[0] && pedidos[0].motoboy_grupo) ? String(pedidos[0].motoboy_grupo).toUpperCase() : 'VELOZ';
 
     const resultado = {
       success: true,
@@ -1043,7 +1030,7 @@ async function listarPedidosMotoboy(req, res) {
       })
     };
 
-    memoryCache.set(cacheKey, resultado, 3000);
+    memoryCache.set(cacheKey, resultado, 8000);
     return res.json(200, resultado);
   } catch (error) {
     console.error('❌ Erro ao listar pedidos do motoboy:', error);

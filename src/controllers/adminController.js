@@ -4,6 +4,41 @@ const { expirarPedidosPendentesDiasAnteriores, obterLimitesTurnoOperacional } = 
 const { obterTaxaRepasse, obterNomeBairroCanonica } = require('../utils/rateResolver');
 const memoryCache = require('../utils/memoryCache');
 
+/**
+ * Helper compartilhado: lê a lista de motoboys 1 única vez a cada 8s e serve
+ * simultaneamente Mapa, Aba Entregadores e KPI de Total de Motoboys.
+ */
+async function obterMotoboysCached(db) {
+  const cached = memoryCache.get('shared_raw_motoboys');
+  if (cached) return cached;
+  const rows = await db.query(
+    `SELECT id, nome, telefone, traccar_device_id, latitude, longitude, velocidade, ultima_atualizacao, criado_em, grupo, status FROM motoboys ORDER BY id ASC`
+  );
+  memoryCache.set('shared_raw_motoboys', rows || [], 8000);
+  return rows || [];
+}
+
+/**
+ * Helper compartilhado: lê os pedidos em rota 1 única vez a cada 8s e serve
+ * simultaneamente Mapa e Aba Entregadores.
+ */
+async function obterPedidosEmRotaCached(db) {
+  const cached = memoryCache.get('shared_raw_pedidos_em_rota');
+  if (cached) return cached;
+  const { inicioTurnoHoje } = obterLimitesTurnoOperacional();
+  const rows = await db.query(
+    `SELECT id, numero_pedido, cliente, endereco, bairro, motoboy_id, data_inicio,
+            ROUND((julianday('now') - julianday(data_inicio)) * 1440) as minutos_em_rota
+     FROM pedidos 
+     WHERE status = 'em_rota' 
+       AND criado_em >= ?
+     ORDER BY data_inicio ASC`,
+    [inicioTurnoHoje]
+  );
+  memoryCache.set('shared_raw_pedidos_em_rota', rows || [], 8000);
+  return rows || [];
+}
+
 async function getPosicoesMapa(req, res) {
   try {
     const cached = memoryCache.get('admin_posicoes_mapa');
@@ -14,27 +49,16 @@ async function getPosicoesMapa(req, res) {
     const db = getDb();
     await expirarPedidosPendentesDiasAnteriores(db);
 
-    // Buscar motoboys incluindo suas coordenadas gravadas em tempo real e grupo
-    const motoboys = await db.query(
-      `SELECT id, nome, telefone, grupo, traccar_device_id, latitude, longitude, velocidade, ultima_atualizacao FROM motoboys`
-    );
+    const [motoboys, pedidosEmRota] = await Promise.all([
+      obterMotoboysCached(db),
+      obterPedidosEmRotaCached(db)
+    ]);
 
     if (!motoboys || motoboys.length === 0) {
       const respVazia = { success: true, traccar_online: false, motoboys: [] };
-      memoryCache.set('admin_posicoes_mapa', respVazia, 3000);
+      memoryCache.set('admin_posicoes_mapa', respVazia, 8000);
       return res.json(200, respVazia);
     }
-
-    const { inicioTurnoHoje } = obterLimitesTurnoOperacional();
-    const pedidosEmRota = await db.query(
-      `SELECT id, numero_pedido, cliente, endereco, bairro, motoboy_id, data_inicio,
-              ROUND((julianday('now') - julianday(data_inicio)) * 1440) as minutos_em_rota
-       FROM pedidos 
-       WHERE status = 'em_rota' 
-         AND criado_em >= ?
-       ORDER BY data_inicio ASC`,
-      [inicioTurnoHoje]
-    );
 
     const pedidosPorMotoboy = {};
     pedidosEmRota.forEach(p => {
@@ -136,7 +160,7 @@ async function getPosicoesMapa(req, res) {
       data: resultado
     };
 
-    memoryCache.set('admin_posicoes_mapa', responseData, 3000);
+    memoryCache.set('admin_posicoes_mapa', responseData, 8000);
     return res.json(200, responseData);
   } catch (error) {
     console.error('❌ Erro ao obter posições para o mapa:', error);
@@ -172,7 +196,7 @@ async function getDashboardStats(req, res) {
         FROM pedidos 
         WHERE criado_em >= ?
       `, [inicioTurnoHoje]),
-      db.queryOne(`SELECT COUNT(*) as count FROM motoboys`)
+      obterMotoboysCached(db)
     ]);
 
     const aguardando = Number(statsRes?.aguardando || 0);
@@ -180,7 +204,7 @@ async function getDashboardStats(req, res) {
     const entregues = Number(statsRes?.entregues || 0);
     const total = Number(statsRes?.total || 0);
     const faturamentoTaxas = Number(statsRes?.total_taxas || 0);
-    const totalMotoboys = Number(motoboysCountRes?.count || 0);
+    const totalMotoboys = Array.isArray(motoboysCountRes) ? motoboysCountRes.length : Number(motoboysCountRes?.count || 0);
 
     // Estimativa de faturamento operacional do dia (ticket médio + taxas)
     const faturamentoEstimado = entregues > 0 
@@ -201,7 +225,7 @@ async function getDashboardStats(req, res) {
       }
     };
 
-    memoryCache.set('admin_dashboard_stats', responseData, 3000);
+    memoryCache.set('admin_dashboard_stats', responseData, 8000);
     return res.json(200, responseData);
   } catch (error) {
     console.error('❌ Erro ao obter estatísticas:', error);
@@ -215,7 +239,8 @@ async function getDashboardStats(req, res) {
  */
 async function listarTodosPedidos(req, res) {
   try {
-    const cacheKey = 'admin_pedidos_' + JSON.stringify(req.query || {});
+    const { status: qStatus = 'todos', busca: qBusca = '', data: qData = 'hoje', incluir_expirados: qExp = 'false' } = req.query || {};
+    const cacheKey = `admin_pedidos_${qStatus}_${qBusca.trim()}_${qData}_${qExp}`;
     const cached = memoryCache.get(cacheKey);
     if (cached) {
       return res.json(200, cached);
@@ -330,7 +355,7 @@ async function listarTodosPedidos(req, res) {
       })
     };
 
-    memoryCache.set(cacheKey, responseData, 3000);
+    memoryCache.set(cacheKey, responseData, 8000);
     return res.json(200, responseData);
   } catch (error) {
     console.error('❌ Erro ao listar todos os pedidos:', error);
@@ -350,13 +375,10 @@ async function listarMotoboysAdmin(req, res) {
     }
 
     const db = getDb();
-    const motoboys = await db.query(
-      `SELECT id, nome, telefone, traccar_device_id, latitude, longitude, velocidade, ultima_atualizacao, criado_em, grupo, status FROM motoboys ORDER BY id ASC`
-    );
-
-    const pedidosAtivos = await db.query(
-      `SELECT id, numero_pedido, motoboy_id, data_inicio, cliente, endereco FROM pedidos WHERE status = 'em_rota'`
-    );
+    const [motoboys, pedidosAtivos] = await Promise.all([
+      obterMotoboysCached(db),
+      obterPedidosEmRotaCached(db)
+    ]);
 
     const pedidosPorMotoboy = {};
     pedidosAtivos.forEach(p => {
@@ -399,7 +421,7 @@ async function listarMotoboysAdmin(req, res) {
       motoboys: resultado
     };
 
-    memoryCache.set('admin_motoboys', responseData, 3000);
+    memoryCache.set('admin_motoboys', responseData, 8000);
     return res.json(200, responseData);
   } catch (error) {
     console.error('❌ Erro ao listar motoboys:', error);
