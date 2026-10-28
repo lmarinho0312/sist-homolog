@@ -40,6 +40,11 @@ module.exports = {
   FOOD99_AUTH_TOKEN: process.env.FOOD99_AUTH_TOKEN || '',
   FOOD99_SHOP_ID: process.env.FOOD99_SHOP_ID || '',
   FOOD99_APP_SHOP_ID: process.env.FOOD99_APP_SHOP_ID || '',
-  FOOD99_API_URL: process.env.FOOD99_API_URL || 'https://openapi.99food.com'
+  FOOD99_API_URL: process.env.FOOD99_API_URL || 'https://openapi.99food.com',
+  // Configurações CardápioWeb (Partner API v1)
+  CARDAPIOWEB_API_KEY: process.env.CARDAPIOWEB_API_KEY || 'injwmL35vqF4pn2YjDdHcjjGaoc4LE3S6wnH2d71Uk5UMcQ8Ym5ov36HRRiT',
+  CARDAPIOWEB_STORE_ID: process.env.CARDAPIOWEB_STORE_ID || '24175',
+  CARDAPIOWEB_API_URL: process.env.CARDAPIOWEB_API_URL || 'https://integracao.cardapioweb.com',
+  CARDAPIOWEB_WEBHOOK_TOKEN: process.env.CARDAPIOWEB_WEBHOOK_TOKEN || ''
 };
 

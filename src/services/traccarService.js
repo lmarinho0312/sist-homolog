@@ -5,6 +5,9 @@ const config = require('../config/env');
  */
 async function fetchTraccarPositions() {
   const traccarUrl = config.TRACCAR_URL.replace(/\/$/, '');
+  if (!traccarUrl || traccarUrl.includes('localhost') || traccarUrl.includes('127.0.0.1')) {
+    return { connected: false, positions: {} };
+  }
   const authHeader = 'Basic ' + Buffer.from(`${config.TRACCAR_USER}:${config.TRACCAR_PASS}`).toString('base64');
 
   try {

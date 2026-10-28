@@ -68,6 +68,7 @@ async function eOutlierGps(db, pedidoId, newLat, newLng) {
  * Função auxiliar para salvar o ponto GPS no histórico das entregas ativas do motoboy
  */
 async function gravarHistoricoRota(db, motoboyId, lat, lng, spd) {
+  return; // Otimização Turso: mantém apenas GPS ao vivo na tabela motoboys, zero leituras/escritas em pedido_rotas
   try {
     // Cache curto de 5s para os pedidos em rota de cada motoboy
     const cacheKey = `active_route_orders_${motoboyId}`;

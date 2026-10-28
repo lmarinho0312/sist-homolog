@@ -389,7 +389,21 @@ function normalizarTextoBusca(texto) {
 /**
  * Identifica a regra do bairro a partir do bairro explícito, endereço ou texto da comanda
  */
+const regexCache = new Map();
+function obterRegexTermo(termo) {
+  let rx = regexCache.get(termo);
+  if (!rx) {
+    const escaped = termo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    rx = new RegExp(`(?:^|[\\s,.;/\\-])${escaped}(?=[\\s,.;/\\-]|$)`, 'i');
+    regexCache.set(termo, rx);
+  }
+  return rx;
+}
+
+const regraBairroCache = new Map();
 function identificarRegraBairro(bairroStr, enderecoStr, textoBrutoStr) {
+  const cacheKey = `${bairroStr || ''}|${enderecoStr || ''}|${textoBrutoStr || ''}`;
+  if (regraBairroCache.has(cacheKey)) return regraBairroCache.get(cacheKey);
   const fontes = [bairroStr, enderecoStr, textoBrutoStr]
     .filter(f => f && typeof f === 'string' && f.trim() !== '' && f.trim() !== 'null' && f.trim() !== 'undefined');
 
@@ -399,18 +413,25 @@ function identificarRegraBairro(bairroStr, enderecoStr, textoBrutoStr) {
 
     for (const r of TABELA_REGRAS) {
       for (const alias of r.aliases) {
-        const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const rx = new RegExp(`(?:^|[\\s,.;/\\-])${escaped}(?=[\\s,.;/\\-]|$)`, 'i');
+        const escaped = alias;
+        const rx = obterRegexTermo(escaped);
         if (rx.test(n)) {
+          if (regraBairroCache.size > 500) regraBairroCache.clear();
+          regraBairroCache.set(cacheKey, r);
           return r;
         }
       }
     }
   }
 
+  if (regraBairroCache.size > 500) regraBairroCache.clear();
+  regraBairroCache.set(cacheKey, null);
   return null;
 }
 
+/**
+ * Retorna o nome canônico do bairro identificado
+ */
 // Cache em memória das taxas salvas no banco de dados (tabelas taxa_bairro e taxa_bairro_speed)
 // Permite que qualquer alteração feita no painel da cozinha ou novo bairro cadastrado tenha efeito imediato.
 const dbRatesCache = {
@@ -421,9 +442,9 @@ const dbRatesCache = {
 };
 
 /**
- * Sincroniza o cache em memória lendo as taxas salvas no Turso DB
- * @param {object} db - Instância do banco
- * @param {boolean} force - Forçar recarregamento mesmo dentro do TTL
+ * Carrega ou sincroniza as taxas cadastradas no banco de dados com o cache em memória
+ * @param {object} db - Instância do banco de dados (getDb())
+ * @param {boolean} force - Se true, força recarga ignorando TTL
  */
 async function sincronizarTaxasDb(db, force = false) {
   if (!db) return;
@@ -465,20 +486,22 @@ async function sincronizarTaxasDb(db, force = false) {
     dbRatesCache.veloz = novoMapVeloz;
     dbRatesCache.speed = novoMapSpeed;
     dbRatesCache.lastFetchedAt = now;
+    taxaRepasseCache.clear();
   } catch (err) {
-    console.warn('⚠️ Falha ao sincronizar taxas de bairros com o banco:', err.message);
+    console.error('⚠️ [rateResolver] Falha ao sincronizar taxas do banco de dados:', err.message);
   }
 }
 
 /**
- * Atualiza imediatamente o cache de taxa na memória após edição pelo painel
+ * Atualiza imediatamente uma taxa no cache após edição no banco pelo painel da cozinha
  */
 function atualizarCacheLocalTaxa(grupo, bairro, taxa) {
-  const cleanGrupo = String(grupo || '').toUpperCase();
+  const cleanGrupo = String(grupo || '').toUpperCase() === 'SPEED' ? 'SPEED' : 'VELOZ';
   const key = normalizarTextoBusca(bairro);
   if (!key) return;
 
   const item = { bairroOriginal: String(bairro).trim(), taxa: Number(taxa) };
+  taxaRepasseCache.clear();
   if (cleanGrupo === 'SPEED') {
     dbRatesCache.speed.set(key, item);
   } else {
@@ -502,15 +525,15 @@ function obterNomeBairroCanonica(bairroStr, enderecoStr, textoBrutoStr) {
     if (!n) continue;
 
     for (const [keyNorm, dados] of dbRatesCache.veloz.entries()) {
-      const escaped = keyNorm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const rx = new RegExp(`(?:^|[\\s,.;/\\-])${escaped}(?=[\\s,.;/\\-]|$)`, 'i');
+      const escaped = keyNorm;
+      const rx = obterRegexTermo(escaped);
       if (rx.test(n)) {
         return dados.bairroOriginal;
       }
     }
     for (const [keyNorm, dados] of dbRatesCache.speed.entries()) {
-      const escaped = keyNorm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const rx = new RegExp(`(?:^|[\\s,.;/\\-])${escaped}(?=[\\s,.;/\\-]|$)`, 'i');
+      const escaped = keyNorm;
+      const rx = obterRegexTermo(escaped);
       if (rx.test(n)) {
         return dados.bairroOriginal;
       }
@@ -531,7 +554,17 @@ function obterNomeBairroCanonica(bairroStr, enderecoStr, textoBrutoStr) {
  * @param {string} grupo - 'SPEED' ou 'VELOZ'
  * @returns {number} Taxa em Reais
  */
+const taxaRepasseCache = new Map();
 function obterTaxaRepasse(bairroStr, enderecoStr, textoBrutoStr, grupo) {
+  const cacheKey = `${grupo || 'VELOZ'}|${bairroStr || ''}|${enderecoStr || ''}|${textoBrutoStr || ''}`;
+  if (taxaRepasseCache.has(cacheKey)) return taxaRepasseCache.get(cacheKey);
+  const valorCalculado = _calcularTaxaRepasseInterno(bairroStr, enderecoStr, textoBrutoStr, grupo);
+  if (taxaRepasseCache.size > 1000) taxaRepasseCache.clear();
+  taxaRepasseCache.set(cacheKey, valorCalculado);
+  return valorCalculado;
+}
+
+function _calcularTaxaRepasseInterno(bairroStr, enderecoStr, textoBrutoStr, grupo) {
   const cleanGrupo = String(grupo || 'VELOZ').toUpperCase();
   const isSpeed = cleanGrupo === 'SPEED';
   const mapaDb = isSpeed ? dbRatesCache.speed : dbRatesCache.veloz;
@@ -548,7 +581,7 @@ function obterTaxaRepasse(bairroStr, enderecoStr, textoBrutoStr, grupo) {
     }
   }
 
-  // B) Checar pelo bairro explícito informado
+  // B) Checar pelo bairroStr explícito informado
   if (bairroStr && typeof bairroStr === 'string' && bairroStr.trim() && bairroStr.trim() !== 'null') {
     const keyBairro = normalizarTextoBusca(bairroStr);
     if (mapaDb.has(keyBairro)) {
@@ -565,8 +598,8 @@ function obterTaxaRepasse(bairroStr, enderecoStr, textoBrutoStr, grupo) {
     if (!n) continue;
 
     for (const [keyNorm, dados] of mapaDb.entries()) {
-      const escaped = keyNorm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const rx = new RegExp(`(?:^|[\\s,.;/\\-])${escaped}(?=[\\s,.;/\\-]|$)`, 'i');
+      const escaped = keyNorm;
+      const rx = obterRegexTermo(escaped);
       if (rx.test(n)) {
         return Number(dados.taxa);
       }
@@ -583,14 +616,13 @@ function obterTaxaRepasse(bairroStr, enderecoStr, textoBrutoStr, grupo) {
     }
   }
 
-  // 3. Fallback: usar a tabela de regras estática padrão caso o banco não tenha customização
-  if (isSpeed) {
-    if (!r) return 11.00; // Padrão da Tabela Speed para zona urbana geral (NUNCA usa Veloz)
-    return r.taxaSpeed;
-  } else {
-    if (!r) return 10.00; // Padrão da Tabela Veloz para zona urbana geral
-    return r.taxaVeloz;
+  // 3. Prioridade 2: Se não houver override no banco, aplicar valor da TABELA_REGRAS padrão
+  if (r) {
+    return isSpeed ? r.taxaSpeed : r.taxaVeloz;
   }
+
+  // 4. Prioridade 3: Padrão oficial do grupo caso não seja identificado
+  return isSpeed ? 11.00 : 10.00;
 }
 
 module.exports = {

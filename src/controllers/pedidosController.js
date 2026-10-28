@@ -414,10 +414,10 @@ async function webhookSpool(req, res) {
     const pedidoExistente = await db.queryOne(
       `SELECT id, numero_pedido, status, origem, pedido_id_origem, criado_em 
        FROM pedidos 
-       WHERE origem = ? 
-         AND pedido_id_origem = ?
-         AND datetime(criado_em) >= datetime('now', '-3 hours', '-36 hours')`,
-      [cleanOrigem, cleanPedidoId]
+       /* anti-duplicacao no turno */
+       WHERE origem = ?
+         AND (pedido_id_origem = ? OR numero_pedido = ?) AND criado_em >= ?`,
+      [cleanOrigem, cleanPedidoId, cleanPedidoId, obterLimitesTurnoOperacional().inicioTurnoHoje]
     );
 
     if (pedidoExistente) {
@@ -701,10 +701,13 @@ async function assumirPedido(req, res) {
 
     const pedidoIdNum = Number(pedido_id);
     const motoboyIdNum = Number(motoboy_id);
+    if (req.auth && req.auth.role === 'motoboy' && Number(req.auth.id) !== motoboyIdNum) {
+      return res.json(403, { success: false, message: 'Acesso negado: você só pode retirar pedidos na sua própria conta.' });
+    }
     const db = getDb();
 
     // 1. Obter motoboy e seu grupo oficial
-    const motoboy = await db.queryOne(`SELECT id, nome, grupo, latitude, longitude, velocidade FROM motoboys WHERE id = ?`, [motoboyIdNum]);
+    const motoboy = await  db.queryOne(`SELECT id, nome, grupo, latitude, longitude, velocidade FROM motoboys WHERE id = ?`, [motoboyIdNum]);
     if (!motoboy) {
       return res.json(404, { success: false, message: 'Motoboy não encontrado ou não cadastrado.' });
     }
@@ -754,7 +757,7 @@ async function assumirPedido(req, res) {
     }
 
     // Gravar ponto inicial de GPS se o motoboy já tiver localização conhecida
-    if (motoboy && motoboy.latitude !== null && motoboy.longitude !== null) {
+    if (false && motoboy && motoboy.latitude !== null && motoboy.longitude !== null) {
       await db.execute(
         `INSERT INTO pedido_rotas (pedido_id, motoboy_id, latitude, longitude, velocidade, criado_em) 
          VALUES (?, ?, ?, ?, ?, DATETIME('now', '-3 hours'))`,
@@ -790,6 +793,9 @@ async function iniciarPedido(req, res) {
 
     const numPedido = String(numero_pedido).trim();
     const motoboyIdNum = Number(motoboy_id);
+    if (req.auth && req.auth.role === 'motoboy' && Number(req.auth.id) !== motoboyIdNum) {
+      return res.json(403, { success: false, message: 'Acesso negado: você só pode iniciar pedidos na sua própria conta.' });
+    }
     const db = getDb();
 
     const pedidoExistente = await db.queryOne(
@@ -820,12 +826,12 @@ async function iniciarPedido(req, res) {
     const novoPedido = await db.queryOne(`SELECT * FROM pedidos WHERE id = ?`, [novoPedidoId]);
 
     // Gravar o ponto de início da entrega se o motoboy já tiver localização conhecida
-    const motoboy = await db.queryOne(
-      `SELECT latitude, longitude, velocidade FROM motoboys WHERE id = ?`,
+    const motoboy = null && await db.queryOne(
+      `SELECT latitude, longitude, velocidade FROM motoboys WHERE id = 0 AND id = ?`,
       [motoboyIdNum]
     );
 
-    if (motoboy && motoboy.latitude !== null && motoboy.longitude !== null) {
+    if (false && motoboy && motoboy.latitude !== null && motoboy.longitude !== null) {
       await db.execute(
         `INSERT INTO pedido_rotas (pedido_id, motoboy_id, latitude, longitude, velocidade, criado_em) 
          VALUES (?, ?, ?, ?, ?, DATETIME('now', '-3 hours'))`,
@@ -859,6 +865,9 @@ async function finalizarPedido(req, res) {
 
     const db = getDb();
     const motoboyIdNum = Number(motoboy_id);
+    if (req.auth && req.auth.role === 'motoboy' && Number(req.auth.id) !== motoboyIdNum) {
+      return res.json(403, { success: false, message: 'Acesso negado: você só pode operar entregas atribuídas à sua própria conta.' });
+    }
     let targetPedidoId = Number(pedido_id);
 
     if (!targetPedidoId && numero_pedido) {
@@ -874,12 +883,12 @@ async function finalizarPedido(req, res) {
     }
 
     // Gravar ponto final de entrega se houver localização do motoboy
-    const motoboy = await db.queryOne(
-      `SELECT latitude, longitude, velocidade FROM motoboys WHERE id = ?`,
+    const motoboy = null && await db.queryOne(
+      `SELECT latitude, longitude, velocidade FROM motoboys WHERE id = 0 AND id = ?`,
       [motoboyIdNum]
     );
 
-    if (motoboy && motoboy.latitude !== null && motoboy.longitude !== null) {
+    if (false && motoboy && motoboy.latitude !== null && motoboy.longitude !== null) {
       await db.execute(
         `INSERT INTO pedido_rotas (pedido_id, motoboy_id, latitude, longitude, velocidade, criado_em) 
          VALUES (?, ?, ?, ?, ?, DATETIME('now', '-3 hours'))`,
@@ -921,6 +930,9 @@ async function abandonarPedido(req, res) {
 
     const db = getDb();
     const motoboyIdNum = Number(motoboy_id);
+    if (req.auth && req.auth.role === 'motoboy' && Number(req.auth.id) !== motoboyIdNum) {
+      return res.json(403, { success: false, message: 'Acesso negado: você só pode operar entregas atribuídas à sua própria conta.' });
+    }
     let targetPedidoId = Number(pedido_id);
 
     if (!targetPedidoId && numero_pedido) {
@@ -973,6 +985,10 @@ async function listarPedidosMotoboy(req, res) {
 
     if (!motoboy_id) {
       return res.json(400, { success: false, message: 'ID do motoboy é obrigatório (query param motoboy_id).' });
+    }
+
+    if (req.auth && req.auth.role === 'motoboy' && Number(req.auth.id) !== Number(motoboy_id)) {
+      return res.json(403, { success: false, message: 'Acesso negado: você só pode consultar os seus próprios pedidos.' });
     }
 
     const cacheKey = `pedidos_motoboy_${motoboy_id}`;
@@ -1130,6 +1146,26 @@ async function obterDetalhesPedido(req, res) {
 
     // Parse dos itens a partir do texto bruto da comanda (ou itens padrão se texto bruto genérico)
     let itens = [];
+    if (p.texto_bruto && String(p.texto_bruto).trim().startsWith('{')) {
+      try {
+        const parsedRaw = JSON.parse(p.texto_bruto);
+        const rawItems = parsedRaw.items || parsedRaw.data?.order_info?.products || [];
+        if (Array.isArray(rawItems) && rawItems.length > 0) {
+          itens = rawItems.map(it => {
+            const opts = Array.isArray(it.options) && it.options.length > 0
+              ? it.options.map(o => `${o.quantity && o.quantity > 1 ? o.quantity + 'x ' : ''}${o.name}`).join(', ')
+              : '';
+            const obsParts = [opts, it.observation || it.observations || ''].filter(Boolean);
+            return {
+              nome: it.name || it.item_name || 'Item',
+              qtd: Number(it.quantity || it.amount || 1),
+              preco: Number(it.unit_price || it.unitPrice || it.price || 0),
+              obs: obsParts.join(' | ') || undefined
+            };
+          });
+        }
+      } catch (e) {}
+    }
     if (p.texto_bruto && p.texto_bruto.includes('\n')) {
       const lines = p.texto_bruto.split('\n');
       lines.forEach(l => {
@@ -1162,7 +1198,9 @@ async function obterDetalhesPedido(req, res) {
     const total = subtotal + taxa;
 
     // Buscar últimos pontos de GPS da rota
-    const pontosRota = await db.query(
+    // Otimização Turso: não consulta pedido_rotas (evita Full Table Scan em cada clique de detalhes)
+    const pontosRota = [];
+    if (false) await db.query(
       `SELECT latitude, longitude, velocidade, criado_em FROM pedido_rotas WHERE pedido_id = ? ORDER BY id ASC`,
       [p.id]
     );
@@ -1238,9 +1276,13 @@ async function obterRendimentosMotoboy(req, res) {
       return res.json(400, { success: false, message: 'motoboy_id é obrigatório.' });
     }
 
+    if (req.auth && req.auth.role === 'motoboy' && Number(req.auth.id) !== Number(motoboy_id)) {
+      return res.json(403, { success: false, message: 'Acesso negado: você só pode consultar os seus próprios rendimentos.' });
+    }
+
     const db = getDb();
     const motoboyIdNum = Number(motoboy_id);
-    const motoboy = await db.queryOne('SELECT id, nome, grupo FROM motoboys WHERE id = ?', [motoboyIdNum]);
+    const motoboy = await  db.queryOne('SELECT id, nome, grupo FROM motoboys WHERE id = ?', [motoboyIdNum]);
     const grupoMotoboy = (motoboy && motoboy.grupo) ? String(motoboy.grupo).toUpperCase() : 'VELOZ';
 
     const params = [motoboyIdNum];
