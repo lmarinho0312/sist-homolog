@@ -676,6 +676,23 @@
           </div>
         </section>
 
+        <!-- PRESTAÇÃO DE CONTAS: CARTÃO / MAQUININHA E DINHEIRO (COZINHA) -->
+        <section class="section-proximas" id="sectionAcertosCartaoDinheiro" style="display: none; padding-top: 4px; margin-bottom: 18px;">
+          <div class="section-title-row">
+            <span class="section-title-text" style="display: inline-flex; align-items: center; gap: 6px; color: var(--brand-gold-light);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+              <span>Acerto de Maquininha & Dinheiro</span>
+            </span>
+            <span class="status-badge badge-retirada" id="badgeTotalAcertosCD">0</span>
+          </div>
+          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">
+            Informe abaixo quando entregar o dinheiro ou a maquininha na cozinha. A cozinha confirmará o recebimento no painel.
+          </p>
+          <div id="containerAcertosCartaoDinheiro" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Renderizado via JavaScript -->
+          </div>
+        </section>
+
       </main>
 
       <!-- ====================================================================
@@ -744,10 +761,32 @@
         </div>
 
         <!-- Seletores de Período -->
-        <div style="display: flex; gap: 8px; justify-content: center;">
+        <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
           <button class="filter-pill active" id="pfPeriodoHoje" onclick="selecionarPeriodoRendimento('hoje', this)">Hoje</button>
+          <button class="filter-pill" id="pfPeriodoOntem" onclick="selecionarPeriodoRendimento('ontem', this)">Ontem</button>
           <button class="filter-pill" id="pfPeriodoSemana" onclick="selecionarPeriodoRendimento('semana', this)">Esta Semana</button>
           <button class="filter-pill" id="pfPeriodoMes" onclick="selecionarPeriodoRendimento('mes', this)">Este Mês</button>
+          <button class="filter-pill" id="pfPeriodoPersonalizado" onclick="selecionarPeriodoRendimento('personalizado', this)">📅 Personalizado</button>
+        </div>
+
+        <!-- Seletor de Datas Personalizado (De / Até) -->
+        <div id="boxPerfilPeriodoPersonalizado" class="card card-elevated" style="display: none; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px solid rgba(245, 158, 11, 0.35);">
+          <div style="font-size: 12px; font-weight: 800; color: var(--brand-gold-light); display: flex; align-items: center; gap: 6px;">
+            <span>📅 Consulta Personalizada por Datas</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div>
+              <label for="inpPerfilDataInicio" style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Data Inicial (De):</label>
+              <input type="date" id="inpPerfilDataInicio" class="form-input" style="width: 100%; padding: 8px 10px; font-size: 13px;" onchange="atualizarMétricasPerfil()">
+            </div>
+            <div>
+              <label for="inpPerfilDataFim" style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Data Final (Até):</label>
+              <input type="date" id="inpPerfilDataFim" class="form-input" style="width: 100%; padding: 8px 10px; font-size: 13px;" onchange="atualizarMétricasPerfil()">
+            </div>
+          </div>
+          <button type="button" class="btn btn-gold btn-sm" style="width: 100%; padding: 10px; font-weight: 800;" onclick="atualizarMétricasPerfil()">
+            <span>Consultar Período Selecionado</span>
+          </button>
         </div>
 
         <!-- KPIs de Rendimento e Status de Pagamento -->
@@ -1154,11 +1193,13 @@
 
         if (ativosRes && ativosRes.success) {
           state.pedidosAtivos = ativosRes.pedidos || [];
+          state.acertosCartaoDinheiro = ativosRes.acertos_cartao_dinheiro || [];
           if (!state.pedidosAtivos.some(p => p.id === state.pedidoAtivoSelecionadoId)) {
             state.pedidoAtivoSelecionadoId = state.pedidosAtivos.length > 0 ? state.pedidosAtivos[0].id : null;
           }
           renderizarEntregaAtiva();
           renderizarProximasEntregas();
+          renderizarAcertosCartaoDinheiroMotoboy();
           atualizarMétricasPerfil();
         }
 
@@ -1402,6 +1443,8 @@
             <span class="hero-taxa-badge">${taxaStr}</span>
           </div>
 
+          ${renderizarBlocoPrestacaoInline(p)}
+
           <!-- CONTATO / CENTRAL / LOCALIZADOR -->
           ${renderizarBlocoContato(p)}
 
@@ -1433,6 +1476,153 @@
           </button>
         </div>
       `;
+    }
+
+    function renderizarBlocoPrestacaoInline(p) {
+      if (!p || !p.pagamento || p.pagamento.is_cartao_ou_dinheiro !== true) return '';
+      const isDinheiro = p.pagamento.metodo === 'DINHEIRO';
+      const valorCobrar = Number(p.pagamento.valor_cobrar || p.valor_pedido || 0);
+      const valorFmt = valorCobrar > 0 ? `R$ ${valorCobrar.toFixed(2).replace('.', ',')}` : 'Ver comanda';
+      const prestStatus = p.prestacao_status || 'pendente';
+
+      let acaoHtml = '';
+      if (prestStatus === 'confirmado_cozinha') {
+        acaoHtml = `
+          <div style="margin-top: 8px; padding: 9px 12px; border-radius: var(--radius-md); background: rgba(16, 185, 129, 0.16); border: 1px solid rgba(16, 185, 129, 0.45); color: #34d399; font-size: 12px; font-weight: 800; text-align: center;">
+            ✓ Confirmado pela Cozinha (${isDinheiro ? 'Pago / Dinheiro OK' : 'Pago & Maquininha na Cozinha'})
+          </div>
+        `;
+      } else if (prestStatus === 'informado_motoboy') {
+        acaoHtml = `
+          <div style="margin-top: 8px; padding: 9px 12px; border-radius: var(--radius-md); background: rgba(245, 158, 11, 0.16); border: 1px solid rgba(245, 158, 11, 0.45); color: #fbbf24; font-size: 12px; font-weight: 800; text-align: center;">
+            ⏳ Informado • Aguardando Cozinha Conferir ${isDinheiro ? 'Dinheiro' : 'Maquininha'}
+          </div>
+        `;
+      } else {
+        acaoHtml = `
+          <button type="button" class="btn btn-gold" style="width: 100%; margin-top: 8px; padding: 10px 12px; font-size: 12px; font-weight: 800;" onclick="informarPrestacaoMotoboy(${p.id}, '${escapeHtml(p.numero_pedido)}', '${p.pagamento.metodo}')">
+            <span>✓ ${isDinheiro ? 'Marcar Pago + Dinheiro Entregue na Cozinha' : 'Marcar Pago + Maquininha Entregue na Cozinha'}</span>
+          </button>
+        `;
+      }
+
+      return `
+        <div style="margin-bottom: 12px; padding: 12px 14px; border-radius: var(--radius-md); background: ${isDinheiro ? 'rgba(34, 197, 94, 0.1)' : 'rgba(59, 130, 246, 0.1)'}; border: 1px solid ${isDinheiro ? 'rgba(34, 197, 94, 0.35)' : 'rgba(59, 130, 246, 0.35)'};">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <div>
+              <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: ${isDinheiro ? '#4ade80' : '#60a5fa'}; display: block;">
+                ${isDinheiro ? '💵 Cobrar em Dinheiro na Entrega' : '💳 Cobrar no Cartão (Levar Maquininha)'}
+              </span>
+              <strong style="font-size: 13px; color: var(--text-primary);">${escapeHtml(p.pagamento.rotulo || 'Cartão / Dinheiro')}</strong>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 10px; color: var(--text-muted); display: block;">Valor Pedido</span>
+              <strong style="font-size: 16px; font-weight: 900; color: var(--brand-gold-light);">${valorFmt}</strong>
+            </div>
+          </div>
+          ${acaoHtml}
+        </div>
+      `;
+    }
+
+    async function informarPrestacaoMotoboy(pedidoId, numeroPedido, metodo) {
+      const isDinheiro = metodo === 'DINHEIRO';
+      const msgConfirm = isDinheiro
+        ? `Confirmar que você já entregou o DINHEIRO do pedido #${numeroPedido} na cozinha? (O painel da cozinha fará a conferência final)`
+        : `Confirmar que o pedido #${numeroPedido} está PAGO e que você já devolveu a MAQUININHA dentro da cozinha? (O painel da cozinha fará a conferência final)`;
+      if (!confirm(msgConfirm)) return;
+
+      try {
+        const res = await fetch('/api/pedidos/prestacao-contas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pedido_id: pedidoId,
+            motoboy_id: state.motoboy ? state.motoboy.id : null,
+            acao: 'informar_motoboy'
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(data.message || 'Informado! Aguarde a cozinha confirmar o recebido.', 'success');
+          await carregarDados();
+        } else {
+          showToast(data.message || 'Não foi possível informar a entrega.', 'error');
+        }
+      } catch (err) {
+        showToast('Erro de conexão ao informar prestação de contas.', 'error');
+      }
+    }
+
+    function renderizarAcertosCartaoDinheiroMotoboy() {
+      const sec = document.getElementById('sectionAcertosCartaoDinheiro');
+      const container = document.getElementById('containerAcertosCartaoDinheiro');
+      const badge = document.getElementById('badgeTotalAcertosCD');
+      if (!sec || !container) return;
+
+      const lista = state.acertosCartaoDinheiro || [];
+      if (lista.length === 0) {
+        sec.style.display = 'none';
+        container.innerHTML = '';
+        return;
+      }
+
+      sec.style.display = 'block';
+      const pendentesCount = lista.filter(p => p.prestacao_status !== 'confirmado_cozinha').length;
+      if (badge) {
+        badge.textContent = pendentesCount > 0 ? `${pendentesCount} pendente(s)` : 'Tudo OK ✓';
+      }
+
+      container.innerHTML = lista.map(p => {
+        const isDinheiro = p.pagamento?.metodo === 'DINHEIRO';
+        const valorCobrar = Number(p.pagamento?.valor_cobrar || p.valor_pedido || 0);
+        const valorFmt = valorCobrar > 0 ? `R$ ${valorCobrar.toFixed(2).replace('.', ',')}` : 'Ver comanda';
+        const prestStatus = p.prestacao_status || 'pendente';
+
+        let statusBlocoHtml = '';
+        if (prestStatus === 'confirmado_cozinha') {
+          statusBlocoHtml = `
+            <div style="margin-top: 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399; font-size: 12px; font-weight: 800; text-align: center;">
+              ✓ Confirmado pela Cozinha (${isDinheiro ? 'Pago / Dinheiro Recebido' : 'Pago & Maquininha na Cozinha'})
+            </div>
+          `;
+        } else if (prestStatus === 'informado_motoboy') {
+          statusBlocoHtml = `
+            <div style="margin-top: 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: rgba(245, 158, 11, 0.16); border: 1px solid rgba(245, 158, 11, 0.45); color: #fbbf24; font-size: 12px; font-weight: 800; text-align: center;">
+              ⏳ Informado por você • Aguardando Cozinha Confirmar ${isDinheiro ? 'o Dinheiro' : 'a Maquininha'}
+            </div>
+          `;
+        } else {
+          statusBlocoHtml = `
+            <button type="button" class="btn btn-gold btn-sm" style="width: 100%; margin-top: 8px; padding: 10px; font-size: 12px; font-weight: 800;" onclick="informarPrestacaoMotoboy(${p.id}, '${escapeHtml(p.numero_pedido)}', '${p.pagamento?.metodo || 'CARTAO'}')">
+              <span>✓ ${isDinheiro ? 'Pago + Dinheiro Entregue na Cozinha' : 'Pago + Maquininha Entregue na Cozinha'}</span>
+            </button>
+          `;
+        }
+
+        return `
+          <div class="card card-elevated" style="padding: 14px; border-left: 4px solid ${prestStatus === 'confirmado_cozinha' ? '#10b981' : (isDinheiro ? '#22c55e' : '#3b82f6')};">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <strong style="font-size: 15px; color: var(--text-primary);">#${escapeHtml(p.numero_pedido)}</strong>
+                  <span style="font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: ${isDinheiro ? 'rgba(34, 197, 94, 0.15)' : 'rgba(59, 130, 246, 0.15)'}; color: ${isDinheiro ? '#4ade80' : '#60a5fa'};">
+                    ${isDinheiro ? '💵 Dinheiro' : '💳 Cartão / Maquininha'}
+                  </span>
+                </div>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 3px;">
+                  ${escapeHtml(p.cliente || 'Cliente')} • <span style="color: var(--text-muted);">${p.status === 'entregue' ? 'Entregue' : 'Em Rota'}</span>
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <span style="font-size: 10px; color: var(--text-muted); display: block;">Valor a Prestar Contas</span>
+                <strong style="font-size: 16px; font-weight: 800; color: var(--brand-gold-light);">${valorFmt}</strong>
+              </div>
+            </div>
+            ${statusBlocoHtml}
+          </div>
+        `;
+      }).join('');
     }
 
     // DISPARO NATIVO DE ROTAS (GPS PADRÃO / GOOGLE MAPS / APPLE MAPS)
@@ -1876,13 +2066,42 @@
 
     let periodoRendimentoAtivo = 'hoje';
 
+    function formatarDataHoraPerfil(dtStr) {
+      if (!dtStr) return '--';
+      const clean = String(dtStr).replace('T', ' ');
+      const partes = clean.split(' ');
+      const dataPart = partes[0] || '';
+      const horaPart = partes[1] || '';
+      const dp = dataPart.split('-');
+      const horaFmt = horaPart ? horaPart.substring(0, 5) : '';
+      if (dp.length === 3) {
+        return `${dp[2]}/${dp[1]} às ${horaFmt}`.trim();
+      }
+      return horaFmt || clean.substring(0, 16);
+    }
+
     function selecionarPeriodoRendimento(periodo, btn) {
       periodoRendimentoAtivo = periodo;
       document.querySelectorAll('#tabContentPerfil .filter-pill').forEach(b => b.classList.remove('active'));
       if (btn) btn.classList.add('active');
-      const labels = { hoje: 'Desempenho de Hoje', semana: 'Desempenho desta Semana', mes: 'Desempenho deste Mês' };
-      const lbl = document.getElementById('perfilPeriodoLabel');
-      if (lbl) lbl.textContent = labels[periodo] || 'Desempenho';
+
+      const boxPersonalizado = document.getElementById('boxPerfilPeriodoPersonalizado');
+      if (periodo === 'personalizado') {
+        if (boxPersonalizado) boxPersonalizado.style.display = 'flex';
+        const inpIni = document.getElementById('inpPerfilDataInicio');
+        const inpFim = document.getElementById('inpPerfilDataFim');
+        const hoje = new Date();
+        const yyyy = hoje.getFullYear();
+        const mm = String(hoje.getMonth() + 1).padStart(2, '0');
+        const dd = String(hoje.getDate()).padStart(2, '0');
+        const hojeStr = `${yyyy}-${mm}-${dd}`;
+        const inicioMesStr = `${yyyy}-${mm}-01`;
+        if (inpIni && !inpIni.value) inpIni.value = inicioMesStr;
+        if (inpFim && !inpFim.value) inpFim.value = hojeStr;
+      } else {
+        if (boxPersonalizado) boxPersonalizado.style.display = 'none';
+      }
+
       atualizarMétricasPerfil();
     }
 
@@ -1891,7 +2110,38 @@
       const motoboy_id = state.motoboy.id;
       try {
         const t = Date.now();
-        const res = await fetch(`/api/motoboy/rendimentos?motoboy_id=${motoboy_id}&periodo=${periodoRendimentoAtivo}&_t=${t}`, { cache: 'no-store' });
+        let extraParams = '';
+        const labels = {
+          hoje: 'Desempenho de Hoje',
+          ontem: 'Desempenho de Ontem',
+          semana: 'Desempenho desta Semana',
+          mes: 'Desempenho deste Mês'
+        };
+        let labelPeriodo = labels[periodoRendimentoAtivo] || 'Desempenho';
+
+        if (periodoRendimentoAtivo === 'personalizado') {
+          const dtIni = document.getElementById('inpPerfilDataInicio')?.value || '';
+          const dtFim = document.getElementById('inpPerfilDataFim')?.value || '';
+          extraParams = `&data_inicio=${encodeURIComponent(dtIni)}&data_fim=${encodeURIComponent(dtFim)}`;
+          if (dtIni && dtFim) {
+            const [y1, m1, d1] = dtIni.split('-');
+            const [y2, m2, d2] = dtFim.split('-');
+            labelPeriodo = `Período: ${d1}/${m1}/${y1} a ${d2}/${m2}/${y2}`;
+          } else if (dtIni) {
+            const [y1, m1, d1] = dtIni.split('-');
+            labelPeriodo = `A partir de ${d1}/${m1}/${y1}`;
+          } else if (dtFim) {
+            const [y2, m2, d2] = dtFim.split('-');
+            labelPeriodo = `Até ${d2}/${m2}/${y2}`;
+          } else {
+            labelPeriodo = 'Período Personalizado';
+          }
+        }
+
+        const lbl = document.getElementById('perfilPeriodoLabel');
+        if (lbl) lbl.textContent = labelPeriodo;
+
+        const res = await fetch(`/api/motoboy/rendimentos?motoboy_id=${motoboy_id}&periodo=${periodoRendimentoAtivo}${extraParams}&_t=${t}`, { cache: 'no-store' });
         const data = await res.json();
         if (data && data.success) {
           document.getElementById('perfilQtdEntregas').textContent = data.resumo.total_entregas;
@@ -1953,13 +2203,13 @@
           const hist = document.getElementById('perfilHistoricoEntregas');
           if (hist) {
             if (!data.entregas || data.entregas.length === 0) {
-              hist.innerHTML = `<div style="text-align: center; color: var(--text-faint); padding: 20px; font-size: 13px;">Nenhuma entrega no período</div>`;
+              hist.innerHTML = `<div style="text-align: center; color: var(--text-faint); padding: 20px; font-size: 13px;">Nenhuma entrega no período selecionado</div>`;
             } else {
               hist.innerHTML = data.entregas.map(e => `
                 <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border-subtle);">
                   <div>
-                    <div style="font-weight: 700; font-size: 13px;">#${e.numero_pedido} — ${e.cliente || '—'}</div>
-                    <div style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px;">${SVG_ICONS.mapPin} <span>${e.bairro || e.endereco || '—'} • ${e.data_fim ? e.data_fim.substring(11, 16) : '--'}</span></div>
+                    <div style="font-weight: 700; font-size: 13px;">#${e.numero_pedido} — ${escapeHtml(e.cliente || '—')}</div>
+                    <div style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px;">${SVG_ICONS.mapPin} <span>${escapeHtml(e.bairro || e.endereco || '—')} • ${formatarDataHoraPerfil(e.data_fim || e.data_inicio)}</span></div>
                   </div>
                   <span style="font-weight: 800; color: #34d399; font-size: 14px;">+R$ ${e.taxa_repasse.toFixed(2).replace('.', ',')}</span>
                 </div>

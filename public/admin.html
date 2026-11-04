@@ -3436,15 +3436,99 @@
       return pg.metodo === 'CARTAO' || pg.metodo === 'DINHEIRO';
     }
 
+    async function atualizarPrestacaoPedidoCozinha(pedidoId, numeroPedido, acao = 'confirmar_cozinha') {
+      if (acao === 'reabrir_cozinha') {
+        if (!confirm(`Deseja desmarcar o recebimento do pedido #${numeroPedido} e voltar para Pendente?`)) {
+          return;
+        }
+      }
+      try {
+        const res = await fetch('/api/admin/pedidos/prestacao-contas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pedido_id: pedidoId,
+            acao: acao
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          const item = (state.pedidos || []).find(p => Number(p.id) === Number(pedidoId));
+          if (item) {
+            item.prestacao_status = data.prestacao_status;
+            item.prestacao_maquininha = data.prestacao_maquininha;
+          }
+          showToast(data.message || 'Conferência atualizada com sucesso!', 'success');
+          renderizarCartaoDinheiro();
+          carregarTudo(false);
+        } else {
+          showToast(data.message || 'Erro ao atualizar conferência.', 'error');
+        }
+      } catch (err) {
+        showToast('Erro de conexão ao atualizar conferência.', 'error');
+      }
+    }
+
+    async function confirmarPrestacaoLoteCozinha(motoboyId, motoboyNome, pedidoIdsStr) {
+      const ids = String(pedidoIdsStr || '')
+        .split(',')
+        .map(s => Number(s.trim()))
+        .filter(n => !isNaN(n) && n > 0);
+      if (ids.length === 0) return;
+
+      if (!confirm(`Confirmar que ${motoboyNome} entregou o pagamento e a(s) maquininha(s) dentro da cozinha para ${ids.length} pedido(s)?`)) {
+        return;
+      }
+      try {
+        const res = await fetch('/api/admin/pedidos/prestacao-contas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            motoboy_id: motoboyId,
+            pedido_ids: ids,
+            acao: 'confirmar_lote_cozinha'
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          (state.pedidos || []).forEach(p => {
+            if (ids.includes(Number(p.id))) {
+              p.prestacao_status = 'confirmado_cozinha';
+              p.prestacao_maquininha = true;
+            }
+          });
+          showToast(data.message || `Pedidos de ${motoboyNome} confirmados na cozinha!`, 'success');
+          renderizarCartaoDinheiro();
+          carregarTudo(false);
+        } else {
+          showToast(data.message || 'Erro ao confirmar em lote.', 'error');
+        }
+      } catch (err) {
+        showToast('Erro de conexão ao confirmar em lote.', 'error');
+      }
+    }
+
     function renderizarCartaoDinheiro() {
       const todosElegiveis = (state.pedidos || []).filter(pedidoElegivelCartaoDinheiro);
+      const pendentesGerais = todosElegiveis.filter(p => p.prestacao_status !== 'confirmado_cozinha');
+      const informadosMotoboyGerais = todosElegiveis.filter(p => p.prestacao_status === 'informado_motoboy');
 
-      // Atualizar badge na barra lateral
+      // Atualizar badge na barra lateral (destaca pendentes ou total)
       const badgeNav = document.getElementById('badgeNavCartaoDinheiro');
       if (badgeNav) {
         if (todosElegiveis.length > 0) {
-          badgeNav.textContent = todosElegiveis.length;
+          badgeNav.textContent = pendentesGerais.length > 0 ? pendentesGerais.length : '✓';
           badgeNav.style.display = 'inline-block';
+          if (informadosMotoboyGerais.length > 0) {
+            badgeNav.style.background = '#f59e0b';
+            badgeNav.style.color = '#000';
+          } else if (pendentesGerais.length === 0) {
+            badgeNav.style.background = '#10b981';
+            badgeNav.style.color = '#fff';
+          } else {
+            badgeNav.style.background = '';
+            badgeNav.style.color = '';
+          }
         } else {
           badgeNav.style.display = 'none';
         }
@@ -3485,6 +3569,8 @@
       let valorCartao = 0;
       let qtdDinheiro = 0;
       let valorDinheiro = 0;
+      let qtdConfirmadosCozinha = 0;
+      let valorPendenteCozinha = 0;
 
       basePorMotoboy.forEach(p => {
         const val = Number(p.pagamento?.valor_cobrar || p.valor_pedido || 0);
@@ -3497,6 +3583,12 @@
         } else if (p.pagamento?.metodo === 'DINHEIRO') {
           qtdDinheiro++;
           valorDinheiro += val;
+        }
+
+        if (p.prestacao_status === 'confirmado_cozinha') {
+          qtdConfirmadosCozinha++;
+        } else {
+          valorPendenteCozinha += val;
         }
       });
 
@@ -3511,7 +3603,7 @@
       const elValorGeral = document.getElementById('kpiCDValorGeral');
 
       if (elTotalPedidos) elTotalPedidos.textContent = basePorMotoboy.length;
-      if (elSubPedidos) elSubPedidos.textContent = `${qtdEmRota} em rota • ${qtdEntregues} entregues`;
+      if (elSubPedidos) elSubPedidos.textContent = `${qtdConfirmadosCozinha}/${basePorMotoboy.length} confirmados na cozinha`;
       if (elValorCartao) elValorCartao.textContent = `R$ ${valorCartao.toFixed(2).replace('.', ',')}`;
       if (elQtdCartao) elQtdCartao.textContent = `(${qtdCartao} ${qtdCartao === 1 ? 'pedido' : 'pedidos'})`;
       if (elValorDinheiro) elValorDinheiro.textContent = `R$ ${valorDinheiro.toFixed(2).replace('.', ',')}`;
@@ -3536,7 +3628,10 @@
                 qtdCartao: 0,
                 cartao: 0,
                 qtdDinheiro: 0,
-                dinheiro: 0
+                dinheiro: 0,
+                qtdConfirmados: 0,
+                qtdInformadosMotoboy: 0,
+                idsPendentes: []
               };
             }
             const v = Number(p.pagamento?.valor_cobrar || p.valor_pedido || 0);
@@ -3549,6 +3644,14 @@
               porMb[mId].qtdDinheiro++;
               porMb[mId].dinheiro += v;
             }
+            if (p.prestacao_status === 'confirmado_cozinha') {
+              porMb[mId].qtdConfirmados++;
+            } else {
+              porMb[mId].idsPendentes.push(p.id);
+              if (p.prestacao_status === 'informado_motoboy') {
+                porMb[mId].qtdInformadosMotoboy++;
+              }
+            }
           });
 
           panelResumoMb.style.display = 'flex';
@@ -3556,8 +3659,43 @@
             const isSpeed = m.grupo === 'SPEED';
             const isSelected = String(filtroMb) === String(m.id);
             const totalMb = (m.cartao + m.dinheiro).toFixed(2).replace('.', ',');
+            const todosConfirmados = m.idsPendentes.length === 0;
+            const idsStr = m.idsPendentes.join(',');
+
+            let rodapeConferenciaHtml = '';
+            if (todosConfirmados) {
+              rodapeConferenciaHtml = `
+                <div style="background: rgba(16, 185, 129, 0.14); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: var(--radius-sm); padding: 9px 12px; display: flex; align-items: center; justify-content: center; gap: 6px; color: #34d399; font-size: 12px; font-weight: 800;">
+                  ${SVG_ICONS.check}
+                  <span>Pago & Maquininha Confirmados na Cozinha (${m.qtd}/${m.qtd})</span>
+                </div>
+              `;
+            } else if (m.qtdInformadosMotoboy > 0) {
+              rodapeConferenciaHtml = `
+                <div style="display: flex; flex-direction: column; gap: 6px;" onclick="event.stopPropagation()">
+                  <div style="background: rgba(245, 158, 11, 0.16); border: 1px solid rgba(245, 158, 11, 0.5); border-radius: var(--radius-sm); padding: 6px 10px; font-size: 11px; font-weight: 700; color: #fbbf24; display: flex; align-items: center; justify-content: space-between;">
+                    <span>🔔 Motoboy informou entrega (${m.qtdInformadosMotoboy})</span>
+                    <span>Conferir Maquininha!</span>
+                  </div>
+                  <button type="button" class="btn btn-gold btn-sm" style="width: 100%; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 6px;" onclick="confirmarPrestacaoLoteCozinha(${m.id}, '${escapeHtml(m.nome)}', '${idsStr}')">
+                    ${SVG_ICONS.check}
+                    <span>Confirmar Recebido + Maquininha na Cozinha (${m.idsPendentes.length})</span>
+                  </button>
+                </div>
+              `;
+            } else {
+              rodapeConferenciaHtml = `
+                <div onclick="event.stopPropagation()">
+                  <button type="button" class="btn btn-secondary btn-sm" style="width: 100%; font-weight: 700; border-color: rgba(16, 185, 129, 0.4); color: #34d399; display: inline-flex; align-items: center; justify-content: center; gap: 6px;" onclick="confirmarPrestacaoLoteCozinha(${m.id}, '${escapeHtml(m.nome)}', '${idsStr}')">
+                    ${SVG_ICONS.check}
+                    <span>Marcar Todos Pago + Maquininha na Cozinha (${m.idsPendentes.length})</span>
+                  </button>
+                </div>
+              `;
+            }
+
             return `
-              <div class="card card-elevated cd-motoboy-card ${isSelected ? 'active-filter' : ''}" onclick="selecionarMotoboyCardCD('${m.id}')" style="display: flex; flex-direction: column; gap: 12px; border-top: 3px solid ${isSpeed ? '#f59e0b' : '#3b82f6'};">
+              <div class="card card-elevated cd-motoboy-card ${isSelected ? 'active-filter' : ''}" onclick="selecionarMotoboyCardCD('${m.id}')" style="display: flex; flex-direction: column; gap: 12px; border-top: 3px solid ${todosConfirmados ? '#10b981' : (isSpeed ? '#f59e0b' : '#3b82f6')};">
                 <div style="display: flex; align-items: center; justify-content: space-between;">
                   <div style="display: flex; align-items: center; gap: 10px;">
                     <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--bg-surface); border: 1px solid var(--border-medium); display: flex; align-items: center; justify-content: center; color: var(--accent-primary);">
@@ -3568,12 +3706,12 @@
                         <strong style="font-size: 15px; color: var(--text-primary);">${escapeHtml(m.nome)}</strong>
                         <span class="badge-grupo-pedido ${isSpeed ? 'badge-grupo-speed' : 'badge-grupo-veloz'}">${isSpeed ? 'SPEED' : 'VELOZ'}</span>
                       </div>
-                      <span style="font-size: 12px; color: var(--text-muted);">${m.qtd} ${m.qtd === 1 ? 'pedido retirado' : 'pedidos retirados'}</span>
+                      <span style="font-size: 12px; color: var(--text-muted);">${m.qtdConfirmados}/${m.qtd} ${m.qtd === 1 ? 'confirmado na cozinha' : 'confirmados na cozinha'}</span>
                     </div>
                   </div>
                   <div style="text-align: right;">
                     <span style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; display: block;">Total a Conferir</span>
-                    <strong style="font-size: 20px; font-weight: 800; color: var(--brand-gold-light);">R$ ${totalMb}</strong>
+                    <strong style="font-size: 20px; font-weight: 800; color: ${todosConfirmados ? '#34d399' : 'var(--brand-gold-light)'};">R$ ${totalMb}</strong>
                   </div>
                 </div>
 
@@ -3593,6 +3731,8 @@
                     <strong style="font-size: 14px; color: var(--text-primary); display: block; margin-top: 2px;">R$ ${m.dinheiro.toFixed(2).replace('.', ',')}</strong>
                   </div>
                 </div>
+
+                ${rodapeConferenciaHtml}
               </div>
             `;
           }).join('');
@@ -3649,7 +3789,7 @@
               <th>Cliente & Endereço</th>
               <th>Modalidade de Cobrança</th>
               <th style="text-align: right;">Valor a Cobrar</th>
-              <th style="text-align: right;">Ação</th>
+              <th style="text-align: right;">Conferência da Cozinha (Pago & Maquininha)</th>
             </tr>
           </thead>
           <tbody>
@@ -3662,9 +3802,54 @@
               const valorCobrar = Number(p.pagamento?.valor_cobrar || p.valor_pedido || 0);
               const grupoMb = (p.motoboy?.grupo || p.grupo || 'VELOZ').toUpperCase();
               const isSpeed = grupoMb === 'SPEED';
+              const prestStatus = p.prestacao_status || 'pendente';
+
+              let acaoConferenciaHtml = '';
+              if (prestStatus === 'confirmado_cozinha') {
+                acaoConferenciaHtml = `
+                  <div style="display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-sm" style="background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.45); font-weight: 800; display: inline-flex; align-items: center; gap: 6px;" onclick="atualizarPrestacaoPedidoCozinha(${p.id}, '${escapeHtml(p.numero_pedido)}', 'reabrir_cozinha')" title="Confirmado pela Cozinha! Clique se precisar desfazer">
+                      ${SVG_ICONS.check}
+                      <span>${isDinheiro ? 'Pago (Dinheiro na Cozinha)' : 'Pago & Maquininha na Cozinha'}</span>
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="abrirDetalhesPedido(${p.id})" title="Ver comanda">
+                      <span>Detalhes</span>
+                    </button>
+                  </div>
+                `;
+              } else if (prestStatus === 'informado_motoboy') {
+                acaoConferenciaHtml = `
+                  <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+                    <span style="font-size: 11px; font-weight: 800; color: #fbbf24; background: rgba(245, 158, 11, 0.16); border: 1px solid rgba(245, 158, 11, 0.45); padding: 2px 8px; border-radius: 999px;">
+                      🔔 Motoboy marcou: ${isDinheiro ? 'Pago / Dinheiro Entregue' : 'Pago + Maquininha Entregue'}
+                    </span>
+                    <div style="display: inline-flex; align-items: center; gap: 6px;">
+                      <button type="button" class="btn btn-gold btn-sm" style="font-weight: 800; display: inline-flex; align-items: center; gap: 5px;" onclick="atualizarPrestacaoPedidoCozinha(${p.id}, '${escapeHtml(p.numero_pedido)}', 'confirmar_cozinha')">
+                        ${SVG_ICONS.check}
+                        <span>${isDinheiro ? 'Confirmar Recebido na Cozinha' : 'Confirmar Pago + Maquininha OK'}</span>
+                      </button>
+                      <button class="btn btn-secondary btn-sm" onclick="abrirDetalhesPedido(${p.id})">
+                        <span>Detalhes</span>
+                      </button>
+                    </div>
+                  </div>
+                `;
+              } else {
+                acaoConferenciaHtml = `
+                  <div style="display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-secondary btn-sm" style="border-color: rgba(245, 158, 11, 0.45); color: var(--brand-gold-light); font-weight: 800; display: inline-flex; align-items: center; gap: 5px;" onclick="atualizarPrestacaoPedidoCozinha(${p.id}, '${escapeHtml(p.numero_pedido)}', 'confirmar_cozinha')">
+                      ${SVG_ICONS.check}
+                      <span>${isDinheiro ? 'Marcar Pago (Dinheiro)' : 'Marcar Pago + Maquininha'}</span>
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="abrirDetalhesPedido(${p.id})">
+                      <span>Detalhes</span>
+                    </button>
+                  </div>
+                `;
+              }
 
               return `
-                <tr onclick="abrirDetalhesPedido(${p.id})" style="cursor: pointer;">
+                <tr onclick="abrirDetalhesPedido(${p.id})" style="cursor: pointer; ${prestStatus === 'confirmado_cozinha' ? 'opacity: 0.82;' : (prestStatus === 'informado_motoboy' ? 'background: rgba(245, 158, 11, 0.06);' : '')}">
                   <td style="white-space: nowrap;">
                     <div style="display: flex; align-items: center; gap: 10px;">
                       <strong class="order-number">#${escapeHtml(p.numero_pedido)}</strong>
@@ -3693,7 +3878,7 @@
                   </td>
                   <td>
                     <div style="font-weight: 700; color: var(--text-primary); font-size: 13px;">${escapeHtml(p.cliente)}</div>
-                    <div style="font-size: 12px; color: var(--text-muted); max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;" title="${escapeHtml(p.endereco)} — ${escapeHtml(p.bairro || '')}">
+                    <div style="font-size: 12px; color: var(--text-muted); max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;" title="${escapeHtml(p.endereco)} — ${escapeHtml(p.bairro || '')}">
                       ${escapeHtml(p.endereco)}${p.bairro ? ' — ' + escapeHtml(p.bairro) : ''}
                     </div>
                   </td>
@@ -3702,17 +3887,20 @@
                       ${pillSvg}
                       <span>${escapeHtml(p.pagamento?.rotulo || 'Cartão / Dinheiro')}</span>
                     </span>
+                    ${!isDinheiro ? `
+                      <div style="font-size: 10px; font-weight: 700; margin-top: 4px; color: ${prestStatus === 'confirmado_cozinha' ? '#34d399' : '#60a5fa'};">
+                        ${prestStatus === 'confirmado_cozinha' ? '✓ Maquininha devolvida na cozinha' : '⚠️ Conferir devolução da maquininha'}
+                      </div>
+                    ` : ''}
                   </td>
                   <td style="text-align: right; white-space: nowrap;">
-                    <strong style="font-size: 16px; font-weight: 800; color: var(--brand-gold-light); display: block;">
+                    <strong style="font-size: 16px; font-weight: 800; color: ${prestStatus === 'confirmado_cozinha' ? '#34d399' : 'var(--brand-gold-light)'}; display: block;">
                       ${valorCobrar > 0 ? 'R$ ' + valorCobrar.toFixed(2).replace('.', ',') : 'Ver comanda'}
                     </strong>
                     <span style="font-size: 11px; color: var(--text-muted);">Repasse: R$ ${Number(p.taxa_entrega || 0).toFixed(2).replace('.', ',')}</span>
                   </td>
                   <td style="text-align: right; white-space: nowrap;" onclick="event.stopPropagation()">
-                    <button class="btn btn-secondary btn-sm" onclick="abrirDetalhesPedido(${p.id})">
-                      <span>Detalhes &gt;</span>
-                    </button>
+                    ${acaoConferenciaHtml}
                   </td>
                 </tr>
               `;

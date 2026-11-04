@@ -257,6 +257,7 @@ async function listarTodosPedidos(req, res) {
              p.cliente, p.endereco, p.bairro, p.taxa_entrega, p.telefone_cliente,
              p.localizador,
              p.texto_bruto, p.data_inicio, p.data_fim, p.criado_em,
+             p.prestacao_status, p.prestacao_maquininha, p.prestacao_atualizado_em,
              m.id as motoboy_id, m.nome as motoboy_nome, m.telefone as motoboy_telefone, m.grupo as motoboy_grupo,
              CASE 
                WHEN (p.status = 'em_rota' OR (p.status = 'em_entrega' AND p.motoboy_id IS NOT NULL)) AND p.data_inicio IS NOT NULL THEN
@@ -357,6 +358,9 @@ async function listarTodosPedidos(req, res) {
           } : null,
           pagamento: parsedOrder.pagamento,
           valor_pedido: Number(Number(valorPedidoReal || 0).toFixed(2)),
+          prestacao_status: p.prestacao_status || 'pendente',
+          prestacao_maquininha: Number(p.prestacao_maquininha || 0) === 1,
+          prestacao_atualizado_em: p.prestacao_atualizado_em || null,
           total_pontos_gps: Number(p.total_pontos_gps || 0)
         };
       })
@@ -534,27 +538,23 @@ async function obterFechamentoEntregas(req, res) {
       ORDER BY p.data_fim DESC
     `, params);
 
-    // Buscar pagamentos já confirmados pela administração para os motoboys neste período específico
+    // Buscar pagamentos já confirmados pela administração sincronizados com o turno operacional (virada às 02:00 AM BRT)
     let pagamentosConfirmados = [];
-    const dTurno = new Date(Date.now() - (3 * 3600000) - (2 * 3600000));
-    const hojeDataIso = dTurno.toISOString().split('T')[0];
-    const ontemDataIso = new Date(dTurno.getTime() - 86400000).toISOString().split('T')[0];
+    const dataTurnoHoje = inicioTurnoHoje.substring(0, 10);
+    const dataTurnoOntem = inicioTurnoOntem.substring(0, 10);
     
     let sqlPag = `SELECT motoboy_id, periodo, data_referencia, status, confirmado_em, valor FROM pagamentos_motoboys WHERE status = 'confirmado'`;
     const paramsPag = [];
 
-    if (periodo === 'hoje') {
-      sqlPag += ` AND (data_referencia = ? OR (periodo = 'hoje' AND DATE(confirmado_em) = ?))`;
-      paramsPag.push(hojeDataIso, hojeDataIso);
-    } else if (periodo === 'ontem') {
-      sqlPag += ` AND (data_referencia = ? OR (periodo = 'ontem' AND DATE(confirmado_em) = ?))`;
-      paramsPag.push(ontemDataIso, ontemDataIso);
-    } else if (periodo === 'personalizado' && req.query.data_inicio) {
-      sqlPag += ` AND data_referencia >= ? AND data_referencia <= ?`;
-      paramsPag.push(req.query.data_inicio, req.query.data_fim || req.query.data_inicio);
-    } else if (periodo && periodo !== 'todos') {
-      sqlPag += ` AND periodo = ?`;
-      paramsPag.push(periodo);
+    if (periodo === 'ontem') {
+      // No filtro 'ontem', exibe como pago se foi confirmado para a referência do turno de ontem
+      sqlPag += ` AND ((data_referencia = ? AND confirmado_em >= ?) OR (periodo = 'ontem' AND data_referencia = ?))`;
+      paramsPag.push(dataTurnoOntem, inicioTurnoOntem, dataTurnoOntem);
+    } else {
+      // Regra de ouro: o botão de Pago no painel de fechamento reseta rigorosamente junto com o turno (02:00 AM BRT).
+      // Pagamentos de turnos anteriores (ex: pagos na sexta-feira) NUNCA travam o botão em um novo turno (ex: quarta-feira).
+      sqlPag += ` AND confirmado_em >= ? AND data_referencia = ?`;
+      paramsPag.push(inicioTurnoHoje, dataTurnoHoje);
     }
 
     try {
@@ -1142,12 +1142,16 @@ async function confirmarPagamentoMotoboy(req, res) {
     }
     const db = getDb();
 
-    // Determina a data de referência exata (horário de Brasília)
+    // Determina a data de referência exata sincronizada com o turno operacional (virada às 02:00 AM BRT)
+    const { inicioTurnoHoje, inicioTurnoOntem } = obterLimitesTurnoOperacional();
+    const dataTurnoHoje = inicioTurnoHoje.substring(0, 10);
+    const dataTurnoOntem = inicioTurnoOntem.substring(0, 10);
+
     let dataRef = data_referencia;
-    if (!dataRef || dataRef === 'hoje') {
-      dataRef = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
-    } else if (dataRef === 'ontem' || periodo === 'ontem') {
-      dataRef = new Date(Date.now() - 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    if (periodo === 'ontem' || dataRef === 'ontem') {
+      dataRef = dataTurnoOntem;
+    } else if (!dataRef || dataRef === 'hoje') {
+      dataRef = dataTurnoHoje;
     }
 
     const motoboyIdNum = Number(motoboy_id);
@@ -1156,12 +1160,19 @@ async function confirmarPagamentoMotoboy(req, res) {
       return res.json(404, { success: false, message: 'Entregador não encontrado ou não cadastrado.' });
     }
 
-    // Suporte a estorno / reversão de pagamento
+    // Suporte a estorno / reversão de pagamento (limpa qualquer confirmação do turno para destravar imediatamente)
     if (acao === 'estornar' || acao === 'remover') {
-      await db.execute(`
-        DELETE FROM pagamentos_motoboys 
-        WHERE motoboy_id = ? AND (data_referencia = ? OR (periodo = ? AND DATE(confirmado_em) = ?))
-      `, [motoboyIdNum, dataRef, String(periodo), dataRef]);
+      if (periodo === 'ontem') {
+        await db.execute(`
+          DELETE FROM pagamentos_motoboys 
+          WHERE motoboy_id = ? AND (data_referencia = ? OR periodo = 'ontem')
+        `, [motoboyIdNum, dataTurnoOntem]);
+      } else {
+        await db.execute(`
+          DELETE FROM pagamentos_motoboys 
+          WHERE motoboy_id = ? AND (confirmado_em >= ? OR data_referencia = ?)
+        `, [motoboyIdNum, inicioTurnoHoje, dataRef]);
+      }
 
       memoryCache.clear();
 
@@ -1173,11 +1184,18 @@ async function confirmarPagamentoMotoboy(req, res) {
       });
     }
 
-    // Confirmação com limpeza prévia para idempotência absoluta (evita registros duplicados)
-    await db.execute(`
-      DELETE FROM pagamentos_motoboys 
-      WHERE motoboy_id = ? AND (data_referencia = ? OR (periodo = ? AND DATE(confirmado_em) = ?))
-    `, [motoboyIdNum, dataRef, String(periodo), dataRef]);
+    // Confirmação com limpeza prévia no turno para idempotência absoluta
+    if (periodo === 'ontem') {
+      await db.execute(`
+        DELETE FROM pagamentos_motoboys 
+        WHERE motoboy_id = ? AND (data_referencia = ? OR periodo = 'ontem')
+      `, [motoboyIdNum, dataTurnoOntem]);
+    } else {
+      await db.execute(`
+        DELETE FROM pagamentos_motoboys 
+        WHERE motoboy_id = ? AND (confirmado_em >= ? OR data_referencia = ?)
+      `, [motoboyIdNum, inicioTurnoHoje, dataRef]);
+    }
 
     await db.execute(`
       INSERT INTO pagamentos_motoboys (motoboy_id, periodo, data_referencia, valor, status, confirmado_em)
@@ -1286,6 +1304,128 @@ async function excluirMotoboyAdmin(req, res) {
   }
 }
 
+/**
+ * Atualização de Prestação de Contas (Cartão e Dinheiro + Maquininha na Cozinha)
+ * POST /api/pedidos/prestacao-contas
+ * Body: { pedido_id, pedido_ids, motoboy_id, acao: 'informar_motoboy' | 'confirmar_cozinha' | 'confirmar_lote_cozinha' | 'reabrir_cozinha' }
+ * Regra: O motoboy pode sinalizar ('informar_motoboy'), mas SOMENTE a cozinha confirma o recebido definitivo ('confirmar_cozinha').
+ */
+async function atualizarPrestacaoContasPedido(req, res) {
+  try {
+    const { pedido_id, id, pedido_ids, motoboy_id, acao = 'confirmar_cozinha' } = req.body || {};
+    const db = getDb();
+
+    // Confirmação em lote pela cozinha (todos os pedidos pendentes/informados de um entregador)
+    if (acao === 'confirmar_lote_cozinha') {
+      const idsValidos = Array.isArray(pedido_ids)
+        ? pedido_ids.map(n => Number(n)).filter(n => !isNaN(n) && n > 0)
+        : [];
+      if (idsValidos.length === 0) {
+        return res.json(400, { success: false, message: 'Nenhum pedido informado para confirmação em lote.' });
+      }
+      const placeholders = idsValidos.map(() => '?').join(', ');
+      await db.execute(
+        `UPDATE pedidos 
+         SET prestacao_status = 'confirmado_cozinha', 
+             prestacao_maquininha = 1, 
+             prestacao_atualizado_em = DATETIME('now', '-3 hours')
+         WHERE id IN (${placeholders})`,
+        idsValidos
+      );
+      memoryCache.clear();
+      return res.json(200, {
+        success: true,
+        message: `${idsValidos.length} pedido(s) confirmado(s) como Pago e Maquininha na Cozinha!`,
+        prestacao_status: 'confirmado_cozinha',
+        prestacao_maquininha: true,
+        pedido_ids: idsValidos
+      });
+    }
+
+    const targetId = Number(pedido_id || id);
+    if (!targetId || isNaN(targetId)) {
+      return res.json(400, { success: false, message: 'ID do pedido é obrigatório.' });
+    }
+
+    const pedido = await db.queryOne(
+      'SELECT id, numero_pedido, motoboy_id, status, prestacao_status, prestacao_maquininha FROM pedidos WHERE id = ?',
+      [targetId]
+    );
+    if (!pedido) {
+      return res.json(404, { success: false, message: 'Pedido não encontrado.' });
+    }
+
+    if (acao === 'informar_motoboy') {
+      if (pedido.prestacao_status === 'confirmado_cozinha') {
+        return res.json(200, {
+          success: true,
+          message: 'A cozinha já confirmou o recebimento deste pedido e da maquininha!',
+          pedido_id: targetId,
+          prestacao_status: 'confirmado_cozinha',
+          prestacao_maquininha: true
+        });
+      }
+
+      await db.execute(
+        `UPDATE pedidos 
+         SET prestacao_status = 'informado_motoboy', 
+             prestacao_maquininha = 1, 
+             prestacao_atualizado_em = DATETIME('now', '-3 hours')
+         WHERE id = ?`,
+        [targetId]
+      );
+      memoryCache.clear();
+      return res.json(200, {
+        success: true,
+        message: `Pedido #${pedido.numero_pedido}: entrega de pagamento e maquininha informada! Aguarde a confirmação do painel da cozinha.`,
+        pedido_id: targetId,
+        prestacao_status: 'informado_motoboy',
+        prestacao_maquininha: true
+      });
+    }
+
+    if (acao === 'reabrir_cozinha' || acao === 'estornar') {
+      await db.execute(
+        `UPDATE pedidos 
+         SET prestacao_status = 'pendente', 
+             prestacao_maquininha = 0, 
+             prestacao_atualizado_em = DATETIME('now', '-3 hours')
+         WHERE id = ?`,
+        [targetId]
+      );
+      memoryCache.clear();
+      return res.json(200, {
+        success: true,
+        message: `Conferência do pedido #${pedido.numero_pedido} reaberta como Pendente.`,
+        pedido_id: targetId,
+        prestacao_status: 'pendente',
+        prestacao_maquininha: false
+      });
+    }
+
+    // Padrão: confirmar_cozinha (palavra final da cozinha)
+    await db.execute(
+      `UPDATE pedidos 
+       SET prestacao_status = 'confirmado_cozinha', 
+           prestacao_maquininha = 1, 
+           prestacao_atualizado_em = DATETIME('now', '-3 hours')
+       WHERE id = ?`,
+      [targetId]
+    );
+    memoryCache.clear();
+    return res.json(200, {
+      success: true,
+      message: `Pedido #${pedido.numero_pedido} confirmado como Pago e Maquininha na Cozinha!`,
+      pedido_id: targetId,
+      prestacao_status: 'confirmado_cozinha',
+      prestacao_maquininha: true
+    });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar prestação de contas do pedido:', error);
+    return res.json(500, { success: false, message: 'Erro ao atualizar conferência do pedido.', error: error.message });
+  }
+}
+
 module.exports = {
   getPosicoesMapa,
   getDashboardStats,
@@ -1305,6 +1445,7 @@ module.exports = {
   aprovarMotoboy,
   recusarMotoboy,
   excluirMotoboyAdmin,
-  alterarTaxaPedido
+  alterarTaxaPedido,
+  atualizarPrestacaoContasPedido
 };
 

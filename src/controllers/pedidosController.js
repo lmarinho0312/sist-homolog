@@ -1000,51 +1000,66 @@ async function listarPedidosMotoboy(req, res) {
 
     const db = getDb();
     await expirarPedidosPendentesDiasAnteriores(db);
+    const { inicioTurnoHoje } = obterLimitesTurnoOperacional();
 
-    const pedidos = await db.query(
-      `SELECT p.id, p.numero_pedido, p.status, p.origem, p.grupo, p.cliente, p.endereco, p.bairro, p.taxa_entrega, p.telefone_cliente, p.localizador, p.texto_bruto, p.data_inicio,
+    const todosDoTurno = await db.query(
+      `SELECT p.id, p.numero_pedido, p.status, p.origem, p.grupo, p.cliente, p.endereco, p.bairro, p.taxa_entrega, p.telefone_cliente, p.localizador, p.texto_bruto, p.data_inicio, p.data_fim, p.criado_em,
+              p.prestacao_status, p.prestacao_maquininha, p.prestacao_atualizado_em,
               m.grupo as motoboy_grupo,
               ROUND((julianday(DATETIME('now', '-3 hours')) - julianday(p.data_inicio)) * 1440) as minutos_em_rota
        FROM pedidos p 
        LEFT JOIN motoboys m ON p.motoboy_id = m.id
-       WHERE p.motoboy_id = ? AND p.status = 'em_rota' 
-       ORDER BY p.data_inicio DESC`,
-      [Number(motoboy_id)]
+       WHERE p.motoboy_id = ? AND (p.status = 'em_rota' OR (p.status = 'entregue' AND p.criado_em >= ?))
+       ORDER BY p.data_inicio DESC, p.id DESC`,
+      [Number(motoboy_id), inicioTurnoHoje]
     );
-    const grupoMotoboy = (pedidos[0] && pedidos[0].motoboy_grupo) ? String(pedidos[0].motoboy_grupo).toUpperCase() : 'VELOZ';
+    const grupoMotoboy = (todosDoTurno[0] && todosDoTurno[0].motoboy_grupo) ? String(todosDoTurno[0].motoboy_grupo).toUpperCase() : 'VELOZ';
+
+    const processados = todosDoTurno.map(p => {
+      const repassePadrao = obterTaxaRepasse(p.bairro, p.endereco, p.texto_bruto, grupoMotoboy);
+      const taxaSalva = (p.taxa_entrega !== null && p.taxa_entrega !== undefined && !isNaN(Number(p.taxa_entrega))) ? Number(p.taxa_entrega) : null;
+      const repasse = (taxaSalva !== null && taxaSalva > 0) ? taxaSalva : repassePadrao;
+      const bairroNome = obterNomeBairroCanonica(p.bairro, p.endereco, p.texto_bruto) || p.bairro;
+      let telCentral = p.telefone_cliente;
+      let locPin = p.localizador;
+
+      if (p.origem === '99FOOD' && p.texto_bruto) {
+        try {
+          const rawObj = JSON.parse(p.texto_bruto);
+          const addr = rawObj.data?.order_info?.receive_address || rawObj.data?.receive_address || {};
+          if (addr.virtual_phone_number) telCentral = addr.virtual_phone_number;
+          if (addr.locator) locPin = addr.locator;
+        } catch (e) {}
+      } else if (p.origem === 'IFOOD' && !telCentral) {
+        telCentral = '08007053040';
+      }
+
+      const parsedOrder = extrairItensEPagamentoPedido(p.origem, p.texto_bruto, p.id);
+      const valorPedidoReal = parsedOrder.total_pedido_real !== null
+        ? parsedOrder.total_pedido_real
+        : (parsedOrder.subtotal_real !== null ? parsedOrder.subtotal_real : 0);
+
+      const { telefone_cliente, ...pAtivoSemTel } = p;
+      return {
+        ...pAtivoSemTel,
+        bairro: bairroNome,
+        taxa_repasse: repasse,
+        taxa_entrega: repasse,
+        telefone_central: telCentral || null,
+        localizador: locPin || p.localizador || null,
+        pagamento: parsedOrder.pagamento,
+        valor_pedido: Number(Number(valorPedidoReal || 0).toFixed(2)),
+        prestacao_status: p.prestacao_status || 'pendente',
+        prestacao_maquininha: Number(p.prestacao_maquininha || 0) === 1,
+        prestacao_atualizado_em: p.prestacao_atualizado_em || null,
+        minutos_em_rota: Math.max(0, Math.round(Number(p.minutos_em_rota || 0)))
+      };
+    });
 
     const resultado = {
       success: true,
-      pedidos: pedidos.map(p => {
-        const repassePadrao = obterTaxaRepasse(p.bairro, p.endereco, p.texto_bruto, grupoMotoboy);
-        const taxaSalva = (p.taxa_entrega !== null && p.taxa_entrega !== undefined && !isNaN(Number(p.taxa_entrega))) ? Number(p.taxa_entrega) : null;
-        const repasse = (taxaSalva !== null && taxaSalva > 0) ? taxaSalva : repassePadrao;
-        const bairroNome = obterNomeBairroCanonica(p.bairro, p.endereco, p.texto_bruto) || p.bairro;
-        let telCentral = p.telefone_cliente;
-        let locPin = p.localizador;
-
-        if (p.origem === '99FOOD' && p.texto_bruto) {
-          try {
-            const rawObj = JSON.parse(p.texto_bruto);
-            const addr = rawObj.data?.order_info?.receive_address || rawObj.data?.receive_address || {};
-            if (addr.virtual_phone_number) telCentral = addr.virtual_phone_number;
-            if (addr.locator) locPin = addr.locator;
-          } catch (e) {}
-        } else if (p.origem === 'IFOOD' && !telCentral) {
-          telCentral = '08007053040';
-        }
-
-        const { telefone_cliente, ...pAtivoSemTel } = p;
-        return {
-          ...pAtivoSemTel,
-          bairro: bairroNome,
-          taxa_repasse: repasse,
-          taxa_entrega: repasse, // Reflete taxa oficial do grupo ou alterada pela cozinha
-          telefone_central: telCentral || null,
-          localizador: locPin || p.localizador || null,
-          minutos_em_rota: Math.max(0, Math.round(Number(p.minutos_em_rota || 0)))
-        };
-      })
+      pedidos: processados.filter(p => p.status === 'em_rota'),
+      acertos_cartao_dinheiro: processados.filter(p => p.pagamento && p.pagamento.is_cartao_ou_dinheiro === true)
     };
 
     memoryCache.set(cacheKey, resultado, 8000);
@@ -1209,6 +1224,9 @@ async function obterDetalhesPedido(req, res) {
           total: Number(total.toFixed(2))
         },
         pagamento: parsedOrder.pagamento,
+        prestacao_status: p.prestacao_status || 'pendente',
+        prestacao_maquininha: Number(p.prestacao_maquininha || 0) === 1,
+        prestacao_atualizado_em: p.prestacao_atualizado_em || null,
         itens: itens,
         observacoes: p.texto_bruto || 'Sem observações especiais.',
         data_inicio: p.data_inicio,
@@ -1230,7 +1248,7 @@ async function obterDetalhesPedido(req, res) {
  */
 async function obterRendimentosMotoboy(req, res) {
   try {
-    const { motoboy_id, periodo = 'hoje' } = req.query || {};
+    const { motoboy_id, periodo = 'hoje', data_inicio, data_fim } = req.query || {};
 
     if (!motoboy_id) {
       return res.json(400, { success: false, message: 'motoboy_id é obrigatório.' });
@@ -1266,6 +1284,26 @@ async function obterRendimentosMotoboy(req, res) {
         dataFiltro = `AND p.criado_em >= ?`;
         params.push(inicioTurnoMes);
         break;
+      case 'personalizado': {
+        let dtIni = String(data_inicio || '').trim();
+        let dtFim = String(data_fim || '').trim();
+        if (dtIni && dtFim) {
+          if (dtIni > dtFim) {
+            const temp = dtIni;
+            dtIni = dtFim;
+            dtFim = temp;
+          }
+          dataFiltro = `AND DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em)) BETWEEN ? AND ?`;
+          params.push(dtIni, dtFim);
+        } else if (dtIni) {
+          dataFiltro = `AND DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em)) >= ?`;
+          params.push(dtIni);
+        } else if (dtFim) {
+          dataFiltro = `AND DATE(COALESCE(p.data_fim, p.data_inicio, p.criado_em)) <= ?`;
+          params.push(dtFim);
+        }
+        break;
+      }
       case 'todos':
       default:
         dataFiltro = '';
@@ -1316,23 +1354,20 @@ async function obterRendimentosMotoboy(req, res) {
 
     const totalEntregas = entregasProcessadas.length;
 
-    // Verificar se a administração já confirmou o pagamento para este período ou data
+    // Verificar se a administração já confirmou o pagamento sincronizado com o turno operacional (02:00 AM BRT)
     let statusPagamento = { confirmado: false, status: 'pendente' };
-    const hojeDataIso = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
-    const ontemDataIso = new Date(Date.now() - 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    const dataTurnoHoje = inicioTurnoHoje.substring(0, 10);
+    const dataTurnoOntem = inicioTurnoOntem.substring(0, 10);
 
     let sqlPagMot = `SELECT id, periodo, valor, status, confirmado_em FROM pagamentos_motoboys WHERE motoboy_id = ? AND status = 'confirmado'`;
     const paramsPagMot = [motoboyIdNum];
 
-    if (periodo === 'hoje') {
-      sqlPagMot += ` AND (data_referencia = ? OR (periodo = 'hoje' AND DATE(confirmado_em) = ?))`;
-      paramsPagMot.push(hojeDataIso, hojeDataIso);
-    } else if (periodo === 'ontem') {
-      sqlPagMot += ` AND (data_referencia = ? OR (periodo = 'ontem' AND DATE(confirmado_em) = ?))`;
-      paramsPagMot.push(ontemDataIso, ontemDataIso);
-    } else if (periodo && periodo !== 'todos') {
-      sqlPagMot += ` AND periodo = ?`;
-      paramsPagMot.push(periodo);
+    if (periodo === 'ontem') {
+      sqlPagMot += ` AND ((data_referencia = ? AND confirmado_em >= ?) OR (periodo = 'ontem' AND data_referencia = ?))`;
+      paramsPagMot.push(dataTurnoOntem, inicioTurnoOntem, dataTurnoOntem);
+    } else {
+      sqlPagMot += ` AND confirmado_em >= ? AND data_referencia = ?`;
+      paramsPagMot.push(inicioTurnoHoje, dataTurnoHoje);
     }
     sqlPagMot += ` ORDER BY id DESC LIMIT 1`;
 

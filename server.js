@@ -87,6 +87,8 @@ registerRoute('POST', '/api/admin/pedidos/limpar-pendentes-antigos', adminContro
 registerRoute('POST', '/api/admin/pedidos/atribuir', adminController.atribuirPedidoMotoboy);
 registerRoute('POST', '/api/admin/pedidos/alterar-taxa', adminController.alterarTaxaPedido);
 registerRoute('POST', '/api/pedidos/alterar-taxa', adminController.alterarTaxaPedido);
+registerRoute('POST', '/api/admin/pedidos/prestacao-contas', adminController.atualizarPrestacaoContasPedido);
+registerRoute('POST', '/api/pedidos/prestacao-contas', adminController.atualizarPrestacaoContasPedido);
 registerRoute('POST', '/api/admin/pedidos/descartar', adminController.descartarPedido);
 registerRoute('DELETE', '/api/pedidos/descartar', adminController.descartarPedido);
 
