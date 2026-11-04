@@ -4,6 +4,9 @@ const { obterTaxaRepasse, obterNomeBairroCanonica } = require('../utils/rateReso
 const memoryCache = require('../utils/memoryCache');
 const { extrairItensEPagamentoPedido } = require('../utils/orderParser');
 
+// Início do monitoramento permanente de Cartão e Dinheiro (pendências não zeram na virada do turno)
+const PRESTACAO_DATA_INICIO = process.env.PRESTACAO_DATA_INICIO || '2026-11-03 02:00:00';
+
 /**
  * Extrai telefone e código localizador / PIN do texto da comanda
  */
@@ -1009,9 +1012,13 @@ async function listarPedidosMotoboy(req, res) {
               ROUND((julianday(DATETIME('now', '-3 hours')) - julianday(p.data_inicio)) * 1440) as minutos_em_rota
        FROM pedidos p 
        LEFT JOIN motoboys m ON p.motoboy_id = m.id
-       WHERE p.motoboy_id = ? AND (p.status = 'em_rota' OR (p.status = 'entregue' AND p.criado_em >= ?))
+       WHERE p.motoboy_id = ? AND (
+         p.status = 'em_rota'
+         OR (p.status = 'entregue' AND p.criado_em >= ?)
+         OR (p.status = 'entregue' AND p.criado_em >= ? AND COALESCE(p.prestacao_status, 'pendente') IN ('pendente', 'informado_motoboy'))
+       )
        ORDER BY p.data_inicio DESC, p.id DESC`,
-      [Number(motoboy_id), inicioTurnoHoje]
+      [Number(motoboy_id), inicioTurnoHoje, PRESTACAO_DATA_INICIO]
     );
     const grupoMotoboy = (todosDoTurno[0] && todosDoTurno[0].motoboy_grupo) ? String(todosDoTurno[0].motoboy_grupo).toUpperCase() : 'VELOZ';
 
@@ -1052,6 +1059,8 @@ async function listarPedidosMotoboy(req, res) {
         prestacao_status: p.prestacao_status || 'pendente',
         prestacao_maquininha: Number(p.prestacao_maquininha || 0) === 1,
         prestacao_atualizado_em: p.prestacao_atualizado_em || null,
+        entrega_contabilizada: p.status === 'entregue',
+        de_turno_anterior: String(p.criado_em || '') < inicioTurnoHoje,
         minutos_em_rota: Math.max(0, Math.round(Number(p.minutos_em_rota || 0)))
       };
     });
@@ -1059,7 +1068,11 @@ async function listarPedidosMotoboy(req, res) {
     const resultado = {
       success: true,
       pedidos: processados.filter(p => p.status === 'em_rota'),
-      acertos_cartao_dinheiro: processados.filter(p => p.pagamento && p.pagamento.is_cartao_ou_dinheiro === true)
+      acertos_cartao_dinheiro: processados.filter(p =>
+        p.pagamento && p.pagamento.is_cartao_ou_dinheiro === true &&
+        (p.pagamento.metodo === 'CARTAO' || p.pagamento.metodo === 'DINHEIRO') &&
+        p.prestacao_status !== 'nao_aplicavel'
+      )
     };
 
     memoryCache.set(cacheKey, resultado, 8000);

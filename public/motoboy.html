@@ -685,8 +685,8 @@
             </span>
             <span class="status-badge badge-retirada" id="badgeTotalAcertosCD">0</span>
           </div>
-          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">
-            Informe abaixo quando entregar o dinheiro ou a maquininha na cozinha. A cozinha confirmará o recebimento no painel.
+          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
+            Informe abaixo quando entregar o dinheiro ou a maquininha na cozinha. <strong style="color: #34d399;">Suas entregas e taxas já são contabilizadas normalmente nos seus ganhos</strong> assim que você finaliza a entrega.
           </p>
           <div id="containerAcertosCartaoDinheiro" style="display: flex; flex-direction: column; gap: 10px;">
             <!-- Renderizado via JavaScript -->
@@ -1577,7 +1577,13 @@
         const isDinheiro = p.pagamento?.metodo === 'DINHEIRO';
         const valorCobrar = Number(p.pagamento?.valor_cobrar || p.valor_pedido || 0);
         const valorFmt = valorCobrar > 0 ? `R$ ${valorCobrar.toFixed(2).replace('.', ',')}` : 'Ver comanda';
+        const taxaRepasse = Number(p.taxa_entrega || 10).toFixed(2).replace('.', ',');
         const prestStatus = p.prestacao_status || 'pendente';
+        const isEntregue = String(p.status || '').toLowerCase() === 'entregue';
+        const dataRef = String(p.data_inicio || p.criado_em || '');
+        const dataCurta = (dataRef.length >= 16 && dataRef.includes('-'))
+          ? `${dataRef.substring(8, 10)}/${dataRef.substring(5, 7)} às ${dataRef.substring(11, 16)}`
+          : '';
 
         let statusBlocoHtml = '';
         if (prestStatus === 'confirmado_cozinha') {
@@ -1600,25 +1606,34 @@
           `;
         }
 
+        const pillContabilizadaHtml = isEntregue
+          ? `<div style="margin-top: 6px; padding: 5px 9px; border-radius: 8px; background: rgba(16, 185, 129, 0.11); border: 1px dashed rgba(16, 185, 129, 0.35); color: #34d399; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+               <span>✅ Entrega já contabilizada nos seus ganhos</span>
+               <strong>+R$ ${taxaRepasse}</strong>
+             </div>`
+          : '';
+
         return `
           <div class="card card-elevated" style="padding: 14px; border-left: 4px solid ${prestStatus === 'confirmado_cozinha' ? '#10b981' : (isDinheiro ? '#22c55e' : '#3b82f6')};">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
               <div>
-                <div style="display: flex; align-items: center; gap: 6px;">
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                   <strong style="font-size: 15px; color: var(--text-primary);">#${escapeHtml(p.numero_pedido)}</strong>
                   <span style="font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: ${isDinheiro ? 'rgba(34, 197, 94, 0.15)' : 'rgba(59, 130, 246, 0.15)'}; color: ${isDinheiro ? '#4ade80' : '#60a5fa'};">
                     ${isDinheiro ? '💵 Dinheiro' : '💳 Cartão / Maquininha'}
                   </span>
+                  ${p.de_turno_anterior && prestStatus !== 'confirmado_cozinha' ? `<span style="font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 999px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35);">Turno anterior</span>` : ''}
                 </div>
                 <div style="font-size: 12px; color: var(--text-secondary); margin-top: 3px;">
-                  ${escapeHtml(p.cliente || 'Cliente')} • <span style="color: var(--text-muted);">${p.status === 'entregue' ? 'Entregue' : 'Em Rota'}</span>
+                  ${escapeHtml(p.cliente || 'Cliente')} • <span style="color: var(--text-muted);">${isEntregue ? 'Entregue' : 'Em Rota'}${dataCurta ? ' • ' + escapeHtml(dataCurta) : ''}</span>
                 </div>
               </div>
-              <div style="text-align: right;">
-                <span style="font-size: 10px; color: var(--text-muted); display: block;">Valor a Prestar Contas</span>
+              <div style="text-align: right; flex-shrink: 0;">
+                <span style="font-size: 10px; color: var(--text-muted); display: block;">Valor Pedido</span>
                 <strong style="font-size: 16px; font-weight: 800; color: var(--brand-gold-light);">${valorFmt}</strong>
               </div>
             </div>
+            ${pillContabilizadaHtml}
             ${statusBlocoHtml}
           </div>
         `;

@@ -89,6 +89,7 @@ registerRoute('POST', '/api/admin/pedidos/alterar-taxa', adminController.alterar
 registerRoute('POST', '/api/pedidos/alterar-taxa', adminController.alterarTaxaPedido);
 registerRoute('POST', '/api/admin/pedidos/prestacao-contas', adminController.atualizarPrestacaoContasPedido);
 registerRoute('POST', '/api/pedidos/prestacao-contas', adminController.atualizarPrestacaoContasPedido);
+registerRoute('GET', '/api/admin/cartao-dinheiro', adminController.listarCartaoDinheiro);
 registerRoute('POST', '/api/admin/pedidos/descartar', adminController.descartarPedido);
 registerRoute('DELETE', '/api/pedidos/descartar', adminController.descartarPedido);
 

@@ -1426,7 +1426,205 @@ async function atualizarPrestacaoContasPedido(req, res) {
   }
 }
 
+/**
+ * Data de início do monitoramento permanente de Cartão e Dinheiro.
+ * Pedidos anteriores a esta data (antes da funcionalidade existir) não entram como pendência.
+ */
+const PRESTACAO_DATA_INICIO = process.env.PRESTACAO_DATA_INICIO || '2026-11-03 02:00:00';
+
+function pedidoEhCartaoOuDinheiro(pagamento) {
+  return Boolean(
+    pagamento &&
+    pagamento.is_cartao_ou_dinheiro === true &&
+    (pagamento.metodo === 'CARTAO' || pagamento.metodo === 'DINHEIRO')
+  );
+}
+
+/**
+ * Monitoramento PERMANENTE de Cartão e Dinheiro (NÃO zera na virada do turno das 02:00).
+ * GET /api/admin/cartao-dinheiro?filtro=abertos|hoje|ontem|semana|mes|personalizado|todos&data_inicio=&data_fim=
+ * - 'abertos': todas as pendências (dinheiro/maquininha ainda não confirmados pela cozinha), de QUALQUER dia.
+ * - demais filtros: histórico do período (pendentes + confirmados).
+ * Sempre retorna também a lista de abertos (para o contador da barra lateral), usando uma ÚNICA consulta.
+ * Independente da contabilização da entrega: o status de entrega/taxa do motoboy não é alterado aqui.
+ */
+async function listarCartaoDinheiro(req, res) {
+  try {
+    const { filtro = 'abertos', data_inicio, data_fim } = req.query || {};
+    const filtroNorm = String(filtro || 'abertos').toLowerCase();
+    const cacheKey = `cartao_dinheiro_${filtroNorm}_${data_inicio || ''}_${data_fim || ''}`;
+    const cached = memoryCache.get(cacheKey);
+    if (cached) {
+      return res.json(200, cached);
+    }
+
+    const db = getDb();
+    const { inicioTurnoHoje, inicioTurnoOntem, inicioTurnoSemana, inicioTurnoMes } = obterLimitesTurnoOperacional();
+
+    const condAbertos = `COALESCE(p.prestacao_status, 'pendente') IN ('pendente', 'informado_motoboy')`;
+    let condPeriodo = '';
+    const paramsPeriodo = [];
+    switch (filtroNorm) {
+      case 'hoje':
+        condPeriodo = `p.criado_em >= ?`;
+        paramsPeriodo.push(inicioTurnoHoje);
+        break;
+      case 'ontem':
+        condPeriodo = `(p.criado_em >= ? AND p.criado_em < ?)`;
+        paramsPeriodo.push(inicioTurnoOntem, inicioTurnoHoje);
+        break;
+      case 'semana':
+        condPeriodo = `p.criado_em >= ?`;
+        paramsPeriodo.push(inicioTurnoSemana);
+        break;
+      case 'mes':
+        condPeriodo = `p.criado_em >= ?`;
+        paramsPeriodo.push(inicioTurnoMes);
+        break;
+      case 'personalizado': {
+        let dtIni = String(data_inicio || '').trim();
+        let dtFim = String(data_fim || '').trim();
+        if (dtIni && dtFim && dtIni > dtFim) { const t = dtIni; dtIni = dtFim; dtFim = t; }
+        if (dtIni && dtFim) {
+          condPeriodo = `DATE(p.criado_em) BETWEEN ? AND ?`;
+          paramsPeriodo.push(dtIni, dtFim);
+        } else if (dtIni) {
+          condPeriodo = `DATE(p.criado_em) >= ?`;
+          paramsPeriodo.push(dtIni);
+        } else if (dtFim) {
+          condPeriodo = `DATE(p.criado_em) <= ?`;
+          paramsPeriodo.push(dtFim);
+        } else {
+          condPeriodo = '1 = 1';
+        }
+        break;
+      }
+      case 'todos':
+        condPeriodo = '1 = 1';
+        break;
+      case 'abertos':
+      default:
+        condPeriodo = '';
+        break;
+    }
+
+    const condFinal = condPeriodo ? `(${condAbertos} OR ${condPeriodo})` : condAbertos;
+    const rows = await db.query(`
+      SELECT p.id, p.numero_pedido, p.status, p.origem, p.grupo, p.cliente, p.endereco, p.bairro,
+             p.taxa_entrega, p.texto_bruto, p.data_inicio, p.data_fim, p.criado_em,
+             p.prestacao_status, p.prestacao_maquininha, p.prestacao_atualizado_em,
+             m.id as motoboy_id, m.nome as motoboy_nome, m.telefone as motoboy_telefone, m.grupo as motoboy_grupo
+      FROM pedidos p
+      LEFT JOIN motoboys m ON p.motoboy_id = m.id
+      WHERE p.motoboy_id IS NOT NULL
+        AND p.status IN ('em_rota', 'em_entrega', 'entregue')
+        AND p.criado_em >= ?
+        AND COALESCE(p.prestacao_status, 'pendente') != 'nao_aplicavel'
+        AND ${condFinal}
+      ORDER BY p.criado_em DESC, p.id DESC
+    `, [PRESTACAO_DATA_INICIO, ...paramsPeriodo]);
+
+    const naoAplicaveis = [];
+    const elegiveis = [];
+    for (const p of rows) {
+      const parsed = extrairItensEPagamentoPedido(p.origem, p.texto_bruto, p.id);
+      if (!pedidoEhCartaoOuDinheiro(parsed.pagamento)) {
+        // Pagamento online/Pix: marca como não aplicável para nunca mais ser relido (economia de leituras no Turso)
+        if (p.status === 'entregue') naoAplicaveis.push(p.id);
+        continue;
+      }
+      const grupoEfetivo = (p.grupo === 'SPEED' || p.motoboy_grupo === 'SPEED') ? 'SPEED' : 'VELOZ';
+      const taxaSalva = (p.taxa_entrega !== null && p.taxa_entrega !== undefined && !isNaN(Number(p.taxa_entrega))) ? Number(p.taxa_entrega) : null;
+      const repasse = (taxaSalva !== null && taxaSalva > 0) ? taxaSalva : obterTaxaRepasse(p.bairro, p.endereco, p.texto_bruto, grupoEfetivo);
+      const valorPedidoReal = parsed.total_pedido_real !== null
+        ? parsed.total_pedido_real
+        : (parsed.subtotal_real !== null ? parsed.subtotal_real : 0);
+      const prestStatus = p.prestacao_status || 'pendente';
+      elegiveis.push({
+        id: p.id,
+        numero_pedido: p.numero_pedido,
+        status: p.status,
+        origem: p.origem || 'MANUAL',
+        grupo: p.grupo || null,
+        cliente: p.cliente || 'Cliente',
+        endereco: p.endereco || '',
+        bairro: obterNomeBairroCanonica(p.bairro, p.endereco, p.texto_bruto) || p.bairro,
+        taxa_entrega: repasse,
+        data_inicio: p.data_inicio,
+        data_fim: p.data_fim,
+        criado_em: p.criado_em,
+        motoboy: { id: p.motoboy_id, nome: p.motoboy_nome, telefone: p.motoboy_telefone, grupo: p.motoboy_grupo || 'VELOZ' },
+        pagamento: parsed.pagamento,
+        valor_pedido: Number(Number(valorPedidoReal || 0).toFixed(2)),
+        prestacao_status: prestStatus,
+        prestacao_maquininha: Number(p.prestacao_maquininha || 0) === 1,
+        prestacao_atualizado_em: p.prestacao_atualizado_em || null,
+        em_aberto: prestStatus !== 'confirmado_cozinha',
+        entrega_contabilizada: p.status === 'entregue',
+        de_turno_anterior: String(p.criado_em || '') < inicioTurnoHoje
+      });
+    }
+
+    if (naoAplicaveis.length > 0) {
+      try {
+        for (let i = 0; i < naoAplicaveis.length; i += 200) {
+          const lote = naoAplicaveis.slice(i, i + 200);
+          await db.execute(
+            `UPDATE pedidos SET prestacao_status = 'nao_aplicavel'
+             WHERE id IN (${lote.map(() => '?').join(', ')})
+               AND COALESCE(prestacao_status, 'pendente') = 'pendente'`,
+            lote
+          );
+        }
+      } catch (e) {
+        console.warn('⚠️ Falha ao marcar pedidos online como não aplicáveis (não crítico):', e.message);
+      }
+    }
+
+    const abertos = elegiveis.filter(p => p.em_aberto);
+    const lista = filtroNorm === 'abertos' || !condPeriodo
+      ? abertos
+      : elegiveis.filter(p => {
+          // Mantém somente os do período (os abertos de fora do período vieram apenas para o contador)
+          const c = String(p.criado_em || '');
+          switch (filtroNorm) {
+            case 'hoje': return c >= inicioTurnoHoje;
+            case 'ontem': return c >= inicioTurnoOntem && c < inicioTurnoHoje;
+            case 'semana': return c >= inicioTurnoSemana;
+            case 'mes': return c >= inicioTurnoMes;
+            case 'personalizado': {
+              let dtIni = String(data_inicio || '').trim();
+              let dtFim = String(data_fim || '').trim();
+              if (dtIni && dtFim && dtIni > dtFim) { const t = dtIni; dtIni = dtFim; dtFim = t; }
+              const d = c.substring(0, 10);
+              if (dtIni && d < dtIni) return false;
+              if (dtFim && d > dtFim) return false;
+              return true;
+            }
+            default: return true;
+          }
+        });
+
+    const responseData = {
+      success: true,
+      filtro: filtroNorm,
+      monitoramento_desde: PRESTACAO_DATA_INICIO,
+      total_abertos: abertos.length,
+      total_informados_motoboy: abertos.filter(p => p.prestacao_status === 'informado_motoboy').length,
+      pedidos: lista
+    };
+
+    memoryCache.set(cacheKey, responseData, 8000);
+    return res.json(200, responseData);
+  } catch (error) {
+    console.error('❌ Erro ao listar monitoramento de Cartão e Dinheiro:', error);
+    return res.json(500, { success: false, message: 'Erro ao listar Cartão e Dinheiro.', error: error.message });
+  }
+}
+
 module.exports = {
+  listarCartaoDinheiro,
+  PRESTACAO_DATA_INICIO,
   getPosicoesMapa,
   getDashboardStats,
   listarTodosPedidos,
