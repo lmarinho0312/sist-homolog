@@ -228,12 +228,142 @@
 
     /* As visões com muito conteúdo vertical (Fechamento, Entregadores, Histórico) devem expandir livremente para scroll natural da página inteira */
     #view-fechamento.active,
+    #view-cartao_dinheiro.active,
     #view-motoboys.active,
     #view-historico.active {
       flex: 0 0 auto !important;
       min-height: min-content !important;
       height: auto !important;
       padding-bottom: 70px !important;
+    }
+
+    /* Variantes Semânticas Extras para KPIs Cartão e Dinheiro */
+    .stat-box.stat-cartao {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.09) 0%, var(--bg-card) 60%);
+      border-left: 3px solid #3b82f6;
+    }
+    .stat-cartao .stat-icon-wrap {
+      background: rgba(59, 130, 246, 0.16);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.28);
+    }
+    .stat-box.stat-ouro {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.11) 0%, var(--bg-card) 60%);
+      border-left: 3px solid var(--brand-gold);
+    }
+    .stat-ouro .stat-icon-wrap {
+      background: rgba(245, 158, 11, 0.18);
+      color: var(--brand-gold-light);
+      border: 1px solid rgba(245, 158, 11, 0.32);
+    }
+
+    /* Cards de Conferência por Entregador (Aba Cartão e Dinheiro) */
+    .cd-motoboy-card {
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      position: relative;
+    }
+    .cd-motoboy-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(245, 158, 11, 0.45);
+      box-shadow: var(--shadow-md);
+    }
+    .cd-motoboy-card.active-filter {
+      border-color: var(--brand-gold) !important;
+      box-shadow: 0 0 18px rgba(245, 158, 11, 0.22);
+      background: linear-gradient(180deg, rgba(245, 158, 11, 0.07) 0%, var(--bg-surface-elevated) 100%);
+    }
+
+    /* Tabela Analítica Premium */
+    .cd-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 13px;
+    }
+    .cd-table thead th {
+      padding: 12px 14px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 2px solid var(--border-subtle);
+      background: rgba(255, 255, 255, 0.015);
+    }
+    .cd-table tbody tr {
+      transition: background var(--transition-fast);
+    }
+    .cd-table tbody tr:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .cd-table tbody td {
+      padding: 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      vertical-align: middle;
+    }
+    .cd-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Badges de Pagamento (Cartão / Dinheiro / Online) */
+    .pgto-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 11px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+    }
+    .pgto-pill-cartao {
+      background: rgba(59, 130, 246, 0.14);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.35);
+    }
+    .pgto-pill-dinheiro {
+      background: rgba(34, 197, 94, 0.14);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+    .pgto-pill-online {
+      background: rgba(148, 163, 184, 0.12);
+      color: #cbd5e1;
+      border: 1px solid rgba(148, 163, 184, 0.28);
+    }
+
+    /* Item de Comanda no Drawer */
+    .dtl-item-row {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      transition: border-color var(--transition-fast);
+    }
+    .dtl-item-row:hover {
+      border-color: var(--border-medium);
+    }
+    .dtl-item-qtd {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 26px;
+      height: 22px;
+      padding: 0 6px;
+      border-radius: 5px;
+      background: rgba(245, 158, 11, 0.16);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: var(--brand-gold-light);
+      font-size: 12px;
+      font-weight: 800;
+      flex-shrink: 0;
     }
 
     /* MAP TILE DARK THEME (Zero Watermark) */
@@ -1360,95 +1490,131 @@
            VISÃO 7: CARTÃO E DINHEIRO (APENAS PEDIDOS RETIRADOS COM PGTO CARTÃO OU DINHEIRO)
            ==================================================================== -->
       <section class="view-section" id="view-cartao_dinheiro">
-        <div class="section-toolbar" style="flex-wrap: wrap; gap: 12px;">
+        <!-- BARRA DE TÍTULO E FILTROS OPERACIONAIS -->
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; flex-wrap: wrap; gap: 12px;">
           <div>
-            <h2 class="section-title" style="display: flex; align-items: center; gap: 8px;">
-              <i data-lucide="credit-card" style="color: var(--brand-gold); width: 22px; height: 22px;"></i>
-              <span>Conferência: Cartão e Dinheiro (Pedidos Retirados)</span>
+            <h2 class="text-title" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="credit-card" style="color: var(--accent-primary);"></i>
+              <span>Cartão e Dinheiro — Conferência de Entregas</span>
             </h2>
-            <p class="section-subtitle">Exibe exclusivamente os pedidos que <strong>já foram retirados por um entregador</strong> e cuja forma de pagamento é <strong>Cartão ou Dinheiro</strong> na entrega.</p>
+            <p class="text-subtitle">
+              Exibe exclusivamente os pedidos <strong style="color: var(--brand-gold-light);">retirados pelos entregadores</strong> com cobrança presencial em <strong style="color: #60a5fa;">Cartão</strong> ou <strong style="color: #34d399;">Dinheiro</strong>.
+            </p>
           </div>
-          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <div style="display: inline-flex; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 3px; gap: 4px;">
-              <button type="button" class="btn btn-sm cd-tipo-pill active" id="btnCDTipoTodos" onclick="filtrarTipoCartaoDinheiro('TODOS')" style="background: var(--accent-primary); color: #0b0d12; font-weight: 800; padding: 5px 12px;">Todos</button>
-              <button type="button" class="btn btn-sm cd-tipo-pill" id="btnCDTipoCartao" onclick="filtrarTipoCartaoDinheiro('CARTAO')" style="background: transparent; color: var(--text-secondary); font-weight: 700; padding: 5px 12px;">💳 Só Cartão</button>
-              <button type="button" class="btn btn-sm cd-tipo-pill" id="btnCDTipoDinheiro" onclick="filtrarTipoCartaoDinheiro('DINHEIRO')" style="background: transparent; color: var(--text-secondary); font-weight: 700; padding: 5px 12px;">💵 Só Dinheiro</button>
+
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <!-- Filtro por Modalidade (Pills do Design System) -->
+            <div style="display: flex; gap: 4px; background: var(--bg-surface); padding: 4px; border-radius: var(--radius-full); border: 1px solid var(--border-subtle);">
+              <button type="button" class="filter-pill active" id="btnCDTipoTodos" onclick="filtrarTipoCartaoDinheiro('TODOS')">Todos</button>
+              <button type="button" class="filter-pill" id="btnCDTipoCartao" onclick="filtrarTipoCartaoDinheiro('CARTAO')">Cartão (Maquininha)</button>
+              <button type="button" class="filter-pill" id="btnCDTipoDinheiro" onclick="filtrarTipoCartaoDinheiro('DINHEIRO')">Dinheiro (Espécie)</button>
             </div>
-            <select id="selectMotoboyCartaoDinheiro" class="form-select" onchange="renderizarCartaoDinheiro()" style="min-width: 190px; padding: 7px 12px; font-size: 13px; font-weight: 700; background: var(--bg-surface-elevated); color: var(--text-primary); border: 1px solid var(--border-subtle); border-radius: var(--radius-md);">
+
+            <!-- Seletor por Entregador -->
+            <select id="selectMotoboyCartaoDinheiro" class="form-select" style="padding: 7px 12px; font-size: 12px; font-weight: 700; width: auto; min-width: 195px; height: 36px;" onchange="renderizarCartaoDinheiro()">
               <option value="todos">Todos os Entregadores</option>
             </select>
-            <div class="search-box" style="min-width: 220px;">
-              <i data-lucide="search" style="width: 15px; height: 15px; color: var(--text-muted);"></i>
-              <input type="text" id="inputBuscaCartaoDinheiro" placeholder="Buscar #pedido, cliente, motoboy..." oninput="renderizarCartaoDinheiro()">
+
+            <!-- Busca Padrão do Design System -->
+            <div class="search-box" style="width: 250px;">
+              <span class="search-icon"><i data-lucide="search" style="width: 15px; height: 15px;"></i></span>
+              <input type="text" id="inputBuscaCartaoDinheiro" class="form-input" style="padding: 7px 12px 7px 34px; font-size: 12px; height: 36px;" placeholder="Buscar #pedido, cliente, bairro..." oninput="renderizarCartaoDinheiro()">
+            </div>
+
+            <button class="btn btn-secondary btn-sm" style="height: 36px;" onclick="carregarTudo(true)" title="Atualizar conferência agora">
+              <i data-lucide="refresh-cw"></i>
+              <span>Atualizar</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 4 KPI CARDS (PADRÃO OFICIAL .stats-container + .stat-box) -->
+        <div class="stats-container" style="margin-bottom: 4px;">
+          <!-- 1. Pedidos Retirados -->
+          <div class="stat-box stat-rota">
+            <div class="stat-icon-wrap">
+              <i data-lucide="shopping-bag"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">Pedidos Retirados</span>
+              <div class="stat-value">
+                <span id="kpiCDTotalPedidos">0</span>
+                <span class="stat-sub" id="kpiCDSubPedidos">0 em rota • 0 entregues</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Total em Cartão -->
+          <div class="stat-box stat-cartao">
+            <div class="stat-icon-wrap">
+              <i data-lucide="credit-card"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">Total em Cartão</span>
+              <div class="stat-value">
+                <span id="kpiCDValorCartao" style="color: #60a5fa;">R$ 0,00</span>
+                <span class="stat-sub" id="kpiCDQtdCartao">0 pedidos</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Total em Dinheiro -->
+          <div class="stat-box stat-entregues">
+            <div class="stat-icon-wrap">
+              <i data-lucide="banknote"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">Total em Dinheiro</span>
+              <div class="stat-value">
+                <span id="kpiCDValorDinheiro" style="color: #34d399;">R$ 0,00</span>
+                <span class="stat-sub" id="kpiCDQtdDinheiro">0 pedidos</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Soma Geral a Conferir -->
+          <div class="stat-box stat-ouro">
+            <div class="stat-icon-wrap">
+              <i data-lucide="wallet"></i>
+            </div>
+            <div class="stat-info">
+              <span class="stat-label">Total a Prestar Contas</span>
+              <div class="stat-value">
+                <span id="kpiCDValorGeral" style="color: var(--brand-gold-light);">R$ 0,00</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- KPIs de Conferência Cartão e Dinheiro -->
-        <div class="stats-container" style="margin-bottom: 18px;">
-          <div class="stat-card">
-            <div class="stat-header">
-              <span class="stat-label">Pedidos Retirados (Cartão/Dinheiro)</span>
-              <div class="stat-icon-box" style="background: rgba(245, 158, 11, 0.14); color: #fbbf24;">
-                <i data-lucide="shopping-bag" style="width: 18px; height: 18px;"></i>
-              </div>
+        <!-- PAINEL 1: RESUMO DE PRESTAÇÃO DE CONTAS POR ENTREGADOR -->
+        <div class="panel-card" id="panelCDResumoMotoboys" style="display: none;">
+          <div class="panel-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="users" style="width: 16px; height: 16px; color: var(--brand-gold);"></i>
+              <span class="panel-title">Prestação de Contas por Entregador</span>
             </div>
-            <div class="stat-value" id="kpiCDTotalPedidos">0</div>
-            <div class="stat-footer">
-              <span class="stat-subtext" id="kpiCDSubPedidos">0 em rota • 0 entregues</span>
-            </div>
+            <span id="lblCDHintMotoboy" style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Clique em um entregador para filtrar seus pedidos</span>
           </div>
-
-          <div class="stat-card">
-            <div class="stat-header">
-              <span class="stat-label">Total em Cartão (Maquininha)</span>
-              <div class="stat-icon-box" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa;">
-                <i data-lucide="credit-card" style="width: 18px; height: 18px;"></i>
-              </div>
-            </div>
-            <div class="stat-value" style="color: #60a5fa;" id="kpiCDValorCartao">R$ 0,00</div>
-            <div class="stat-footer">
-              <span class="stat-subtext" id="kpiCDQtdCartao">0 pedidos no cartão</span>
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-header">
-              <span class="stat-label">Total em Dinheiro (Espécie)</span>
-              <div class="stat-icon-box" style="background: rgba(34, 197, 94, 0.15); color: #4ade80;">
-                <i data-lucide="banknote" style="width: 18px; height: 18px;"></i>
-              </div>
-            </div>
-            <div class="stat-value" style="color: #4ade80;" id="kpiCDValorDinheiro">R$ 0,00</div>
-            <div class="stat-footer">
-              <span class="stat-subtext" id="kpiCDQtdDinheiro">0 pedidos em dinheiro</span>
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-header">
-              <span class="stat-label">Total Geral a Prestar Contas</span>
-              <div class="stat-icon-box" style="background: rgba(245, 158, 11, 0.18); color: var(--brand-gold-light);">
-                <i data-lucide="wallet" style="width: 18px; height: 18px;"></i>
-              </div>
-            </div>
-            <div class="stat-value" style="color: var(--brand-gold-light);" id="kpiCDValorGeral">R$ 0,00</div>
-            <div class="stat-footer">
-              <span class="stat-subtext">Soma de Cartão + Dinheiro retirados</span>
-            </div>
+          <div id="containerCDResumoMotoboys" style="padding: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px;">
+            <!-- Renderizado via JS -->
           </div>
         </div>
 
-        <!-- Resumo por Entregador (Agrupado) -->
-        <div id="containerCDResumoMotoboys" style="display: none; margin-bottom: 18px;"></div>
-
-        <!-- Lista / Tabela de Pedidos Retirados em Cartão ou Dinheiro -->
+        <!-- PAINEL 2: DETALHAMENTO DOS PEDIDOS RETIRADOS (CARTÃO E DINHEIRO) -->
         <div class="panel-card" style="margin-bottom: 24px;">
-          <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
-            <span class="panel-title">Pedidos Retirados com Cobrança em Cartão ou Dinheiro</span>
-            <span id="lblCDContadorFiltro" style="font-size: 12px; color: var(--text-muted); font-weight: 700;">0 pedidos listados</span>
+          <div class="panel-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="clipboard-check" style="width: 16px; height: 16px; color: var(--brand-gold);"></i>
+              <span class="panel-title">Pedidos Retirados com Cobrança na Entrega</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <button type="button" id="btnCDLimparFiltroMb" class="btn btn-secondary btn-sm" style="display: none; padding: 4px 10px; font-size: 11px;" onclick="document.getElementById('selectMotoboyCartaoDinheiro').value='todos'; renderizarCartaoDinheiro();">
+                Mostrar Todos os Entregadores
+              </button>
+              <span id="lblCDContadorFiltro" class="status-badge badge-retirada">0 pedidos</span>
+            </div>
           </div>
-          <div id="containerCartaoDinheiroLista" style="padding: 16px; overflow-x: auto;">
+          <div id="containerCartaoDinheiroLista" style="padding: 0; overflow-x: auto;">
             <div class="empty-state">
               <div class="empty-state-title">Carregando pedidos...</div>
             </div>
@@ -1551,26 +1717,39 @@
           </div>
         </div>
 
-        <!-- ITENS DA COMANDA -->
-        <div class="card">
-          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
-            <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Itens da Comanda</span>
-            <span id="dtlPagamentoBadge" style="font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 6px; background: rgba(148, 163, 184, 0.15); color: var(--text-secondary); border: 1px solid rgba(148, 163, 184, 0.3);">--</span>
-          </div>
-          <div id="dtlItensLista" style="display: flex; flex-direction: column; gap: 10px;">
-            <!-- Itens -->
+        <!-- ITENS DA COMANDA & RESUMO FINANCEIRO -->
+        <div class="card card-elevated">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border-subtle); flex-wrap: wrap;">
+            <span style="font-size: 12px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">Itens da Comanda</span>
+            <span id="dtlPagamentoBadge" class="pgto-pill pgto-pill-online">--</span>
           </div>
 
-          <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="font-size: 13px; color: var(--text-muted);">Taxa de entrega: <strong id="dtlTaxaValor" style="color: var(--text-primary);">R$ 0,00</strong></span>
-              <button class="btn btn-secondary btn-sm" id="btnEditarTaxaDtl" style="padding: 2px 7px; font-size: 11px; border-color: rgba(245, 158, 11, 0.4); color: var(--brand-gold-light);" onclick="alterarTaxaPedidoAtualPrompt()" title="Alterar valor da taxa de repasse">
-                ✏️ Alterar
-              </button>
+          <div id="dtlItensLista" style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Itens renderizados via JS -->
+          </div>
+
+          <!-- Resumo Financeiro Estruturado -->
+          <div style="margin-top: 16px; padding: 12px 14px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-muted);">
+              <span>Subtotal dos itens</span>
+              <strong id="dtlSubtotalValor" style="color: var(--text-secondary);">R$ 0,00</strong>
             </div>
-            <div style="text-align: right;">
-              <span style="font-size: 11px; color: var(--text-muted); display: block;">Total do Pedido</span>
-              <strong style="font-size: 18px; color: var(--brand-gold-light);" id="dtlTotalValor">R$ 0,00</strong>
+            <div id="dtlDescontoRow" style="display: none; justify-content: space-between; align-items: center; font-size: 12px; color: #34d399;">
+              <span>Desconto promocional / cupom</span>
+              <strong id="dtlDescontoValor">- R$ 0,00</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-muted);">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span>Taxa de entrega (Repasse)</span>
+                <button class="btn btn-secondary btn-sm" id="btnEditarTaxaDtl" style="padding: 2px 8px; font-size: 11px; border-color: rgba(245, 158, 11, 0.4); color: var(--brand-gold-light);" onclick="alterarTaxaPedidoAtualPrompt()" title="Alterar valor da taxa de repasse">
+                  Alterar
+                </button>
+              </div>
+              <strong id="dtlTaxaValor" style="color: var(--text-primary);">R$ 0,00</strong>
+            </div>
+            <div style="padding-top: 8px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: baseline;">
+              <span style="font-size: 12px; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em;">Total do Pedido</span>
+              <strong style="font-size: 20px; font-weight: 800; color: var(--brand-gold-light);" id="dtlTotalValor">R$ 0,00</strong>
             </div>
           </div>
         </div>
@@ -3206,6 +3385,12 @@
     // =========================================================================
     state.filtroTipoCartaoDinheiro = 'TODOS';
 
+    const SVG_PGTO = {
+      creditCard: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>',
+      banknote: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>',
+      smartphone: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>'
+    };
+
     function filtrarTipoCartaoDinheiro(tipo) {
       state.filtroTipoCartaoDinheiro = tipo;
       const mapBtns = {
@@ -3216,18 +3401,16 @@
       Object.keys(mapBtns).forEach(k => {
         const b = mapBtns[k];
         if (!b) return;
-        if (k === tipo) {
-          b.classList.add('active');
-          b.style.background = 'var(--accent-primary)';
-          b.style.color = '#0b0d12';
-          b.style.fontWeight = '800';
-        } else {
-          b.classList.remove('active');
-          b.style.background = 'transparent';
-          b.style.color = 'var(--text-secondary)';
-          b.style.fontWeight = '700';
-        }
+        if (k === tipo) b.classList.add('active');
+        else b.classList.remove('active');
       });
+      renderizarCartaoDinheiro();
+    }
+
+    function selecionarMotoboyCardCD(motoboyId) {
+      const sel = document.getElementById('selectMotoboyCartaoDinheiro');
+      if (!sel) return;
+      sel.value = String(sel.value) === String(motoboyId) ? 'todos' : String(motoboyId);
       renderizarCartaoDinheiro();
     }
 
@@ -3285,13 +3468,17 @@
         selMotoboy.innerHTML = opcoesHtml.join('');
       }
 
-      // Filtrar por entregador selecionado (para KPIs e lista)
       const filtroMb = selMotoboy ? selMotoboy.value : 'todos';
+      const btnLimparMb = document.getElementById('btnCDLimparFiltroMb');
+      if (btnLimparMb) {
+        btnLimparMb.style.display = filtroMb !== 'todos' ? 'inline-flex' : 'none';
+      }
+
       const basePorMotoboy = filtroMb === 'todos'
         ? todosElegiveis
         : todosElegiveis.filter(p => p.motoboy && String(p.motoboy.id) === String(filtroMb));
 
-      // Calcular KPIs sobre a base filtrada pelo entregador
+      // Calcular KPIs sobre a base filtrada
       let qtdEmRota = 0;
       let qtdEntregues = 0;
       let qtdCartao = 0;
@@ -3326,10 +3513,94 @@
       if (elTotalPedidos) elTotalPedidos.textContent = basePorMotoboy.length;
       if (elSubPedidos) elSubPedidos.textContent = `${qtdEmRota} em rota • ${qtdEntregues} entregues`;
       if (elValorCartao) elValorCartao.textContent = `R$ ${valorCartao.toFixed(2).replace('.', ',')}`;
-      if (elQtdCartao) elQtdCartao.textContent = `${qtdCartao} ${qtdCartao === 1 ? 'pedido no cartão' : 'pedidos no cartão'}`;
+      if (elQtdCartao) elQtdCartao.textContent = `(${qtdCartao} ${qtdCartao === 1 ? 'pedido' : 'pedidos'})`;
       if (elValorDinheiro) elValorDinheiro.textContent = `R$ ${valorDinheiro.toFixed(2).replace('.', ',')}`;
-      if (elQtdDinheiro) elQtdDinheiro.textContent = `${qtdDinheiro} ${qtdDinheiro === 1 ? 'pedido em dinheiro' : 'pedidos em dinheiro'}`;
+      if (elQtdDinheiro) elQtdDinheiro.textContent = `(${qtdDinheiro} ${qtdDinheiro === 1 ? 'pedido' : 'pedidos'})`;
       if (elValorGeral) elValorGeral.textContent = `R$ ${valorGeral.toFixed(2).replace('.', ',')}`;
+
+      // Renderizar Painel 1: Cards de Prestação de Contas por Entregador (no padrão de Fechamento)
+      const panelResumoMb = document.getElementById('panelCDResumoMotoboys');
+      const boxResumoMb = document.getElementById('containerCDResumoMotoboys');
+      if (panelResumoMb && boxResumoMb) {
+        if (todosElegiveis.length > 0) {
+          const porMb = {};
+          todosElegiveis.forEach(p => {
+            const mId = p.motoboy.id;
+            if (!porMb[mId]) {
+              porMb[mId] = {
+                id: mId,
+                nome: p.motoboy.nome,
+                telefone: p.motoboy.telefone || '',
+                grupo: (p.motoboy.grupo || p.grupo || 'VELOZ').toUpperCase(),
+                qtd: 0,
+                qtdCartao: 0,
+                cartao: 0,
+                qtdDinheiro: 0,
+                dinheiro: 0
+              };
+            }
+            const v = Number(p.pagamento?.valor_cobrar || p.valor_pedido || 0);
+            porMb[mId].qtd++;
+            if (p.pagamento?.metodo === 'CARTAO') {
+              porMb[mId].qtdCartao++;
+              porMb[mId].cartao += v;
+            }
+            if (p.pagamento?.metodo === 'DINHEIRO') {
+              porMb[mId].qtdDinheiro++;
+              porMb[mId].dinheiro += v;
+            }
+          });
+
+          panelResumoMb.style.display = 'flex';
+          boxResumoMb.innerHTML = Object.values(porMb).map(m => {
+            const isSpeed = m.grupo === 'SPEED';
+            const isSelected = String(filtroMb) === String(m.id);
+            const totalMb = (m.cartao + m.dinheiro).toFixed(2).replace('.', ',');
+            return `
+              <div class="card card-elevated cd-motoboy-card ${isSelected ? 'active-filter' : ''}" onclick="selecionarMotoboyCardCD('${m.id}')" style="display: flex; flex-direction: column; gap: 12px; border-top: 3px solid ${isSpeed ? '#f59e0b' : '#3b82f6'};">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--bg-surface); border: 1px solid var(--border-medium); display: flex; align-items: center; justify-content: center; color: var(--accent-primary);">
+                      ${SVG_ICONS.bike}
+                    </div>
+                    <div>
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <strong style="font-size: 15px; color: var(--text-primary);">${escapeHtml(m.nome)}</strong>
+                        <span class="badge-grupo-pedido ${isSpeed ? 'badge-grupo-speed' : 'badge-grupo-veloz'}">${isSpeed ? 'SPEED' : 'VELOZ'}</span>
+                      </div>
+                      <span style="font-size: 12px; color: var(--text-muted);">${m.qtd} ${m.qtd === 1 ? 'pedido retirado' : 'pedidos retirados'}</span>
+                    </div>
+                  </div>
+                  <div style="text-align: right;">
+                    <span style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; display: block;">Total a Conferir</span>
+                    <strong style="font-size: 20px; font-weight: 800; color: var(--brand-gold-light);">R$ ${totalMb}</strong>
+                  </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                  <div style="background: var(--bg-surface); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: var(--radius-sm); padding: 8px 10px;">
+                    <div style="font-size: 11px; color: #60a5fa; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                      ${SVG_PGTO.creditCard}
+                      <span>Cartão (${m.qtdCartao})</span>
+                    </div>
+                    <strong style="font-size: 14px; color: var(--text-primary); display: block; margin-top: 2px;">R$ ${m.cartao.toFixed(2).replace('.', ',')}</strong>
+                  </div>
+                  <div style="background: var(--bg-surface); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: var(--radius-sm); padding: 8px 10px;">
+                    <div style="font-size: 11px; color: #4ade80; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                      ${SVG_PGTO.banknote}
+                      <span>Dinheiro (${m.qtdDinheiro})</span>
+                    </div>
+                    <strong style="font-size: 14px; color: var(--text-primary); display: block; margin-top: 2px;">R$ ${m.dinheiro.toFixed(2).replace('.', ',')}</strong>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('');
+        } else {
+          panelResumoMb.style.display = 'none';
+          boxResumoMb.innerHTML = '';
+        }
+      }
 
       // Aplicar filtro de tipo (TODOS | CARTAO | DINHEIRO) e busca textual
       const termoBusca = normalizarTexto(document.getElementById('inputBuscaCartaoDinheiro')?.value || '');
@@ -3347,47 +3618,7 @@
 
       const lblCount = document.getElementById('lblCDContadorFiltro');
       if (lblCount) {
-        lblCount.textContent = `${listaFinal.length} ${listaFinal.length === 1 ? 'pedido listado' : 'pedidos listados'}`;
-      }
-
-      // Renderizar cards de resumo rápido por entregador quando todos os entregadores estão selecionados
-      const boxResumoMb = document.getElementById('containerCDResumoMotoboys');
-      if (boxResumoMb) {
-        if (filtroMb === 'todos' && todosElegiveis.length > 0) {
-          const porMb = {};
-          todosElegiveis.forEach(p => {
-            const mId = p.motoboy.id;
-            if (!porMb[mId]) {
-              porMb[mId] = { id: mId, nome: p.motoboy.nome, grupo: p.motoboy.grupo || 'VELOZ', qtd: 0, cartao: 0, dinheiro: 0 };
-            }
-            const v = Number(p.pagamento?.valor_cobrar || p.valor_pedido || 0);
-            porMb[mId].qtd++;
-            if (p.pagamento?.metodo === 'CARTAO') porMb[mId].cartao += v;
-            if (p.pagamento?.metodo === 'DINHEIRO') porMb[mId].dinheiro += v;
-          });
-          const cardsMb = Object.values(porMb).map(m => `
-            <div onclick="document.getElementById('selectMotoboyCartaoDinheiro').value='${m.id}'; renderizarCartaoDinheiro();" style="cursor: pointer; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 210px; transition: border-color 0.2s;" onmouseover="this.style.borderColor='var(--brand-gold)'" onmouseout="this.style.borderColor='var(--border-subtle)'">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <strong style="font-size: 13px; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
-                  ${SVG_ICONS.bike} <span>${escapeHtml(m.nome)}</span>
-                </strong>
-                <span style="font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; background: rgba(245, 158, 11, 0.15); color: var(--brand-gold-light);">${m.qtd} ${m.qtd === 1 ? 'pedido' : 'pedidos'}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.05);">
-                <span>💳 R$ ${m.cartao.toFixed(2).replace('.', ',')}</span>
-                <span>💵 R$ ${m.dinheiro.toFixed(2).replace('.', ',')}</span>
-                <strong style="color: var(--brand-gold-light);">Total: R$ ${(m.cartao + m.dinheiro).toFixed(2).replace('.', ',')}</strong>
-              </div>
-            </div>
-          `).join('');
-          boxResumoMb.style.display = 'flex';
-          boxResumoMb.style.flexWrap = 'wrap';
-          boxResumoMb.style.gap = '10px';
-          boxResumoMb.innerHTML = cardsMb;
-        } else {
-          boxResumoMb.style.display = 'none';
-          boxResumoMb.innerHTML = '';
-        }
+        lblCount.textContent = `${listaFinal.length} ${listaFinal.length === 1 ? 'pedido' : 'pedidos'}`;
       }
 
       const container = document.getElementById('containerCartaoDinheiroLista');
@@ -3395,26 +3626,30 @@
 
       if (listaFinal.length === 0) {
         container.innerHTML = `
-          <div class="empty-state" style="padding: 36px 20px;">
-            <div class="empty-state-icon" style="display: flex; justify-content: center; color: var(--text-muted); margin-bottom: 8px;">${SVG_ICONS.bike}</div>
-            <div class="empty-state-title">Nenhum pedido retirado em Cartão ou Dinheiro</div>
-            <div class="empty-state-desc">Assim que um entregador retirar um pedido com pagamento em Cartão ou Dinheiro na entrega, ele aparecerá automaticamente aqui.</div>
+          <div class="empty-state" style="padding: 48px 20px;">
+            <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; color: var(--brand-gold-light);">
+              ${SVG_PGTO.creditCard}
+            </div>
+            <div class="empty-state-title" style="font-size: 16px;">Nenhum pedido retirado em Cartão ou Dinheiro</div>
+            <div class="empty-state-desc" style="max-width: 480px; margin: 6px auto 0;">
+              Somente pedidos que <strong>já saíram com um entregador</strong> e possuem cobrança presencial em <strong>Cartão ou Dinheiro</strong> são listados nesta conferência.
+            </div>
           </div>
         `;
         return;
       }
 
       container.innerHTML = `
-        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <table class="cd-table">
           <thead>
-            <tr style="border-bottom: 1px solid var(--border-subtle); text-align: left; color: var(--text-muted); font-size: 11px; text-transform: uppercase;">
-              <th style="padding: 10px 8px;">Pedido / Origem</th>
-              <th style="padding: 10px 8px;">Status / Retirada</th>
-              <th style="padding: 10px 8px;">Entregador (Retirou)</th>
-              <th style="padding: 10px 8px;">Cliente / Destino</th>
-              <th style="padding: 10px 8px;">Forma de Pagamento</th>
-              <th style="padding: 10px 8px; text-align: right;">Valor do Pedido</th>
-              <th style="padding: 10px 8px; text-align: center;">Ações</th>
+            <tr>
+              <th>Pedido & Canal</th>
+              <th>Status & Retirada</th>
+              <th>Entregador Responsável</th>
+              <th>Cliente & Endereço</th>
+              <th>Modalidade de Cobrança</th>
+              <th style="text-align: right;">Valor a Cobrar</th>
+              <th style="text-align: right;">Ação</th>
             </tr>
           </thead>
           <tbody>
@@ -3422,53 +3657,61 @@
               const badgeStatus = obterBadgeStatus(p.status);
               const horaRetirada = p.data_inicio ? p.data_inicio.substring(11, 16) : (p.criado_em ? p.criado_em.substring(11, 16) : '--:--');
               const isDinheiro = p.pagamento?.metodo === 'DINHEIRO';
-              const pgBg = isDinheiro ? 'rgba(34, 197, 94, 0.15)' : 'rgba(59, 130, 246, 0.15)';
-              const pgColor = isDinheiro ? '#4ade80' : '#60a5fa';
-              const pgBorder = isDinheiro ? 'rgba(34, 197, 94, 0.4)' : 'rgba(59, 130, 246, 0.4)';
-              const pgIcon = isDinheiro ? '💵' : '💳';
+              const pillClass = isDinheiro ? 'pgto-pill pgto-pill-dinheiro' : 'pgto-pill pgto-pill-cartao';
+              const pillSvg = isDinheiro ? SVG_PGTO.banknote : SVG_PGTO.creditCard;
               const valorCobrar = Number(p.pagamento?.valor_cobrar || p.valor_pedido || 0);
-              const grupoMb = p.motoboy?.grupo || p.grupo || 'VELOZ';
+              const grupoMb = (p.motoboy?.grupo || p.grupo || 'VELOZ').toUpperCase();
+              const isSpeed = grupoMb === 'SPEED';
 
               return `
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.025)'" onmouseout="this.style.background='transparent'">
-                  <td style="padding: 12px 8px; white-space: nowrap;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                      <strong style="font-size: 14px; color: var(--text-primary);">#${escapeHtml(p.numero_pedido)}</strong>
+                <tr onclick="abrirDetalhesPedido(${p.id})" style="cursor: pointer;">
+                  <td style="white-space: nowrap;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <strong class="order-number">#${escapeHtml(p.numero_pedido)}</strong>
                       ${renderizarOrigemBadge(p.origem)}
                     </div>
                   </td>
-                  <td style="padding: 12px 8px; white-space: nowrap;">
+                  <td style="white-space: nowrap;">
                     <span class="status-badge ${badgeStatus.classe}">${badgeStatus.label}</span>
-                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">Retirado às ${horaRetirada}</div>
-                  </td>
-                  <td style="padding: 12px 8px;">
-                    <div style="font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
-                      ${SVG_ICONS.bike}
-                      <span>${escapeHtml(p.motoboy ? p.motoboy.nome : '--')}</span>
-                      <span style="font-size: 10px; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,0.07); color: var(--text-secondary);">${escapeHtml(grupoMb)}</span>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; display: flex; align-items: center; gap: 4px;">
+                      ${SVG_ICONS.clock}
+                      <span>Retirado às ${horaRetirada}</span>
                     </div>
                   </td>
-                  <td style="padding: 12px 8px;">
-                    <div style="font-weight: 700; color: var(--text-primary);">${escapeHtml(p.cliente)}</div>
-                    <div style="font-size: 11px; color: var(--text-muted); max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(p.endereco)} — ${escapeHtml(p.bairro || '')}">
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <div style="width: 30px; height: 30px; border-radius: 50%; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: center; color: var(--accent-primary); flex-shrink: 0;">
+                        ${SVG_ICONS.bike}
+                      </div>
+                      <div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                          <strong style="color: var(--text-primary); font-size: 13px;">${escapeHtml(p.motoboy ? p.motoboy.nome : '--')}</strong>
+                          <span class="badge-grupo-pedido ${isSpeed ? 'badge-grupo-speed' : 'badge-grupo-veloz'}">${isSpeed ? 'SPEED' : 'VELOZ'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div style="font-weight: 700; color: var(--text-primary); font-size: 13px;">${escapeHtml(p.cliente)}</div>
+                    <div style="font-size: 12px; color: var(--text-muted); max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;" title="${escapeHtml(p.endereco)} — ${escapeHtml(p.bairro || '')}">
                       ${escapeHtml(p.endereco)}${p.bairro ? ' — ' + escapeHtml(p.bairro) : ''}
                     </div>
                   </td>
-                  <td style="padding: 12px 8px;">
-                    <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800; background: ${pgBg}; color: ${pgColor}; border: 1px solid ${pgBorder};">
-                      <span>${pgIcon}</span>
+                  <td>
+                    <span class="${pillClass}">
+                      ${pillSvg}
                       <span>${escapeHtml(p.pagamento?.rotulo || 'Cartão / Dinheiro')}</span>
                     </span>
                   </td>
-                  <td style="padding: 12px 8px; text-align: right; white-space: nowrap;">
-                    <strong style="font-size: 15px; color: var(--brand-gold-light);">
+                  <td style="text-align: right; white-space: nowrap;">
+                    <strong style="font-size: 16px; font-weight: 800; color: var(--brand-gold-light); display: block;">
                       ${valorCobrar > 0 ? 'R$ ' + valorCobrar.toFixed(2).replace('.', ',') : 'Ver comanda'}
                     </strong>
-                    <div style="font-size: 11px; color: var(--text-muted);">Taxa: R$ ${Number(p.taxa_entrega || 0).toFixed(2).replace('.', ',')}</div>
+                    <span style="font-size: 11px; color: var(--text-muted);">Repasse: R$ ${Number(p.taxa_entrega || 0).toFixed(2).replace('.', ',')}</span>
                   </td>
-                  <td style="padding: 12px 8px; text-align: center; white-space: nowrap;">
+                  <td style="text-align: right; white-space: nowrap;" onclick="event.stopPropagation()">
                     <button class="btn btn-secondary btn-sm" onclick="abrirDetalhesPedido(${p.id})">
-                      Ver Detalhes
+                      <span>Detalhes &gt;</span>
                     </button>
                   </td>
                 </tr>
@@ -3517,37 +3760,66 @@
           }
           document.getElementById('dtlClienteEndereco').innerHTML = `${SVG_ICONS.mapPin} <span>${escapeHtml(p.cliente.endereco)}${p.cliente.bairro ? ' — ' + escapeHtml(p.cliente.bairro) : ''}</span>`;
 
-          // Itens
+          // Itens da Comanda (Visual Premium Estruturado)
           const itensContainer = document.getElementById('dtlItensLista');
-          itensContainer.innerHTML = p.itens.map(it => `
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; font-size: 13px;">
-              <div>
-                <strong style="color: var(--text-primary);">${it.qtd}x ${escapeHtml(it.nome)}</strong>
-                ${it.obs ? `<div style="font-size: 11px; color: var(--brand-gold);">${escapeHtml(it.obs)}</div>` : ''}
+          itensContainer.innerHTML = p.itens.map(it => {
+            const qtd = Number(it.qtd || 1);
+            const precoUnit = Number(it.preco || 0);
+            const precoTotalItem = precoUnit * qtd;
+            return `
+              <div class="dtl-item-row">
+                <div style="display: flex; align-items: flex-start; gap: 10px; flex: 1;">
+                  <span class="dtl-item-qtd">${qtd}x</span>
+                  <div style="flex: 1;">
+                    <strong style="color: var(--text-primary); font-size: 13px; line-height: 1.35; display: block;">${escapeHtml(it.nome)}</strong>
+                    ${it.obs ? `<div style="font-size: 11px; color: var(--brand-gold-light); margin-top: 3px; line-height: 1.4;">${escapeHtml(it.obs)}</div>` : ''}
+                  </div>
+                </div>
+                <div style="text-align: right; white-space: nowrap;">
+                  <strong style="color: var(--text-primary); font-size: 13px; font-weight: 800; display: block;">
+                    ${precoTotalItem > 0 ? `R$ ${precoTotalItem.toFixed(2).replace('.', ',')}` : 'Incluso'}
+                  </strong>
+                  ${(qtd > 1 && precoUnit > 0) ? `<span style="font-size: 10px; color: var(--text-muted);">R$ ${precoUnit.toFixed(2).replace('.', ',')} cada</span>` : ''}
+                </div>
               </div>
-              <span style="color: var(--text-secondary); font-weight: 600;">${it.preco > 0 ? `R$ ${(it.preco * it.qtd).toFixed(2).replace('.', ',')}` : 'Incluso'}</span>
-            </div>
-          `).join('');
+            `;
+          }).join('');
 
-          document.getElementById('dtlTaxaValor').textContent = `R$ ${Number(p.financeiro.taxa_entrega || 0).toFixed(2).replace('.', ',')}`;
-          document.getElementById('dtlTotalValor').textContent = `R$ ${Number(p.financeiro.total || 0).toFixed(2).replace('.', ',')}`;
+          const subtotalNum = Number(p.financeiro?.subtotal || 0);
+          const descontoNum = Number(p.financeiro?.desconto || 0);
+          const taxaNum = Number(p.financeiro?.taxa_entrega || 0);
+          const totalNum = Number(p.financeiro?.total || 0);
+
+          const elSub = document.getElementById('dtlSubtotalValor');
+          if (elSub) elSub.textContent = `R$ ${subtotalNum.toFixed(2).replace('.', ',')}`;
+
+          const elDescRow = document.getElementById('dtlDescontoRow');
+          const elDescVal = document.getElementById('dtlDescontoValor');
+          if (elDescRow && elDescVal) {
+            if (descontoNum > 0) {
+              elDescRow.style.display = 'flex';
+              elDescVal.textContent = `- R$ ${descontoNum.toFixed(2).replace('.', ',')}`;
+            } else {
+              elDescRow.style.display = 'none';
+            }
+          }
+
+          document.getElementById('dtlTaxaValor').textContent = `R$ ${taxaNum.toFixed(2).replace('.', ',')}`;
+          document.getElementById('dtlTotalValor').textContent = `R$ ${totalNum.toFixed(2).replace('.', ',')}`;
 
           const elPgto = document.getElementById('dtlPagamentoBadge');
           if (elPgto) {
             const pg = p.pagamento || {};
-            elPgto.textContent = pg.rotulo || 'Não informado';
+            const rotulo = pg.rotulo || 'Não informado';
             if (pg.metodo === 'DINHEIRO') {
-              elPgto.style.background = 'rgba(34, 197, 94, 0.16)';
-              elPgto.style.color = '#4ade80';
-              elPgto.style.borderColor = 'rgba(34, 197, 94, 0.4)';
+              elPgto.className = 'pgto-pill pgto-pill-dinheiro';
+              elPgto.innerHTML = `${SVG_PGTO.banknote} <span>${escapeHtml(rotulo)}</span>`;
             } else if (pg.metodo === 'CARTAO') {
-              elPgto.style.background = 'rgba(59, 130, 246, 0.16)';
-              elPgto.style.color = '#60a5fa';
-              elPgto.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+              elPgto.className = 'pgto-pill pgto-pill-cartao';
+              elPgto.innerHTML = `${SVG_PGTO.creditCard} <span>${escapeHtml(rotulo)}</span>`;
             } else {
-              elPgto.style.background = 'rgba(148, 163, 184, 0.15)';
-              elPgto.style.color = '#cbd5e1';
-              elPgto.style.borderColor = 'rgba(148, 163, 184, 0.3)';
+              elPgto.className = 'pgto-pill pgto-pill-online';
+              elPgto.innerHTML = `${SVG_PGTO.smartphone} <span>${escapeHtml(rotulo)}</span>`;
             }
           }
 
