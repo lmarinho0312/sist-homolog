@@ -2,6 +2,7 @@ const config = require('../config/env');
 const { getDb } = require('../database/db');
 const { obterTaxaRepasse, obterNomeBairroCanonica } = require('../utils/rateResolver');
 const memoryCache = require('../utils/memoryCache');
+const { extrairItensEPagamentoPedido } = require('../utils/orderParser');
 
 /**
  * Extrai telefone e código localizador / PIN do texto da comanda
@@ -1136,74 +1137,31 @@ async function obterDetalhesPedido(req, res) {
       `SELECT p.*, m.nome as motoboy_nome, m.telefone as motoboy_telefone, m.latitude as motoboy_lat, m.longitude as motoboy_lng, m.grupo as motoboy_grupo
        FROM pedidos p
        LEFT JOIN motoboys m ON p.motoboy_id = m.id
-       WHERE p.id = ? OR p.numero_pedido = ?`,
-      [Number(pedidoId) || 0, String(pedidoId).trim()]
+       WHERE p.id = ? OR p.numero_pedido = ? ORDER BY CASE WHEN p.id = ? THEN 0 ELSE 1 END ASC, p.id DESC LIMIT 1`,
+      [Number(pedidoId) || 0, String(pedidoId).trim(), Number(pedidoId) || 0]
     );
 
     if (!p) {
       return res.json(404, { success: false, message: 'Pedido não encontrado.' });
     }
 
-    // Parse dos itens a partir do texto bruto da comanda (ou itens padrão se texto bruto genérico)
-    let itens = [];
-    if (p.texto_bruto && String(p.texto_bruto).trim().startsWith('{')) {
-      try {
-        const parsedRaw = JSON.parse(p.texto_bruto);
-        const rawItems = parsedRaw.items || parsedRaw.data?.order_info?.products || [];
-        if (Array.isArray(rawItems) && rawItems.length > 0) {
-          itens = rawItems.map(it => {
-            const opts = Array.isArray(it.options) && it.options.length > 0
-              ? it.options.map(o => `${o.quantity && o.quantity > 1 ? o.quantity + 'x ' : ''}${o.name}`).join(', ')
-              : '';
-            const obsParts = [opts, it.observation || it.observations || ''].filter(Boolean);
-            return {
-              nome: it.name || it.item_name || 'Item',
-              qtd: Number(it.quantity || it.amount || 1),
-              preco: Number(it.unit_price || it.unitPrice || it.price || 0),
-              obs: obsParts.join(' | ') || undefined
-            };
-          });
-        }
-      } catch (e) {}
-    }
-    if (p.texto_bruto && p.texto_bruto.includes('\n')) {
-      const lines = p.texto_bruto.split('\n');
-      lines.forEach(l => {
-        const trimmed = l.trim();
-        if (trimmed && (trimmed.match(/^\d+x/i) || trimmed.match(/^-/))) {
-          itens.push({
-            nome: trimmed.replace(/^\d+x\s*/i, '').replace(/^-+\s*/, ''),
-            qtd: 1,
-            preco: 0.0
-          });
-        }
-      });
-    }
-
-    if (itens.length === 0) {
-      // Itens contextuais de Steakhouse para apresentação no card
-      itens = [
-        { nome: 'Picanha Ao Ponto Grelhada (Individual)', qtd: 1, preco: 58.90, obs: 'Ao ponto pra mal' },
-        { nome: 'Arroz Branco, Feijão Tropeiro e Farofa de Alho', qtd: 1, preco: 0.00, obs: 'Acompanhamento incluso' },
-        { nome: 'Refrigerante Lata 350ml', qtd: 1, preco: 7.50, obs: 'Bem gelado' }
-      ];
-    }
+    // Parse unificado dos itens reais, valores reais e forma de pagamento (99Food, iFood, CardapioWeb e Texto)
+    const parsedOrder = extrairItensEPagamentoPedido(p.origem, p.texto_bruto, p.id);
+    const itens = parsedOrder.itens.length > 0 ? parsedOrder.itens : [
+      { nome: 'Pedido #' + p.numero_pedido + ' (' + (p.origem || 'Balcão') + ')', qtd: 1, preco: 0.0, obs: 'Consulte a comanda original abaixo' }
+    ];
 
     const grupoEfetivo = (p.grupo === 'SPEED' || p.motoboy_grupo === 'SPEED') ? 'SPEED' : 'VELOZ';
     const taxaSalva = (p.taxa_entrega !== null && p.taxa_entrega !== undefined && !isNaN(Number(p.taxa_entrega))) ? Number(p.taxa_entrega) : null;
     const taxaCalculada = obterTaxaRepasse(p.bairro, p.endereco, p.texto_bruto, grupoEfetivo);
     const taxa = (taxaSalva !== null && taxaSalva > 0) ? taxaSalva : taxaCalculada;
     const bairroFormatado = obterNomeBairroCanonica(p.bairro, p.endereco, p.texto_bruto) || p.bairro;
-    const subtotal = itens.reduce((acc, it) => acc + (it.preco * it.qtd), 0);
-    const total = subtotal + taxa;
+    const subtotalItens = itens.reduce((acc, it) => acc + (Number(it.preco || 0) * Number(it.qtd || 1)), 0);
+    const subtotal = parsedOrder.subtotal_real !== null ? parsedOrder.subtotal_real : subtotalItens;
+    const total = parsedOrder.total_pedido_real !== null ? parsedOrder.total_pedido_real : (subtotal + taxa);
 
-    // Buscar últimos pontos de GPS da rota
     // Otimização Turso: não consulta pedido_rotas (evita Full Table Scan em cada clique de detalhes)
     const pontosRota = [];
-    if (false) await db.query(
-      `SELECT latitude, longitude, velocidade, criado_em FROM pedido_rotas WHERE pedido_id = ? ORDER BY id ASC`,
-      [p.id]
-    );
 
     let telReal = p.telefone_cliente || null;
     let telVirtual = null;
@@ -1245,10 +1203,12 @@ async function obterDetalhesPedido(req, res) {
         } : null,
         financeiro: {
           subtotal: Number(subtotal.toFixed(2)),
+          desconto: Number((parsedOrder.desconto_real || 0).toFixed(2)),
           taxa_entrega: taxa,
           taxa_repasse: taxa,
           total: Number(total.toFixed(2))
         },
+        pagamento: parsedOrder.pagamento,
         itens: itens,
         observacoes: p.texto_bruto || 'Sem observações especiais.',
         data_inicio: p.data_inicio,

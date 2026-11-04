@@ -3,6 +3,7 @@ const { getPosicoesMotoboys } = require('../services/traccarService');
 const { expirarPedidosPendentesDiasAnteriores, obterLimitesTurnoOperacional } = require('./pedidosController');
 const { obterTaxaRepasse, obterNomeBairroCanonica } = require('../utils/rateResolver');
 const memoryCache = require('../utils/memoryCache');
+const { extrairItensEPagamentoPedido } = require('../utils/orderParser');
 
 /**
  * Helper compartilhado: lê a lista de motoboys 1 única vez a cada 8s e serve
@@ -326,6 +327,10 @@ async function listarTodosPedidos(req, res) {
         const bairroFormatado = obterNomeBairroCanonica(p.bairro, p.endereco, p.texto_bruto) || p.bairro;
         const taxaSalva = (p.taxa_entrega !== null && p.taxa_entrega !== undefined && !isNaN(Number(p.taxa_entrega))) ? Number(p.taxa_entrega) : null;
         const repasseFinal = (taxaSalva !== null && taxaSalva > 0) ? taxaSalva : repasse;
+        const parsedOrder = extrairItensEPagamentoPedido(p.origem, p.texto_bruto, p.id);
+        const valorPedidoReal = parsedOrder.total_pedido_real !== null
+          ? parsedOrder.total_pedido_real
+          : (parsedOrder.subtotal_real !== null ? parsedOrder.subtotal_real : 0);
         return {
           id: p.id,
           numero_pedido: p.numero_pedido,
@@ -350,6 +355,8 @@ async function listarTodosPedidos(req, res) {
             telefone: p.motoboy_telefone,
             grupo: p.motoboy_grupo || 'VELOZ'
           } : null,
+          pagamento: parsedOrder.pagamento,
+          valor_pedido: Number(Number(valorPedidoReal || 0).toFixed(2)),
           total_pontos_gps: Number(p.total_pontos_gps || 0)
         };
       })
