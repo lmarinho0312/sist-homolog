@@ -2,8 +2,13 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Ao Ponto Carnes — Painel Operacional da Cozinha</title>
+  <meta name="theme-color" content="#0f0f0f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Cozinha Ao Ponto">
+  <link rel="manifest" href="/manifest-admin.json">
   <link rel="apple-touch-icon" href="/assets/icon-512.png">
   <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png">
   <link rel="icon" type="image/png" sizes="512x512" href="/assets/icon-512.png">
@@ -913,6 +918,437 @@
       color: var(--brand-gold) !important;
     }
 
+    /* ========================================================================
+       RESPONSIVIDADE MOBILE COMPLETA — PAINEL OPERACIONAL DA COZINHA
+       ======================================================================== */
+    .mobile-menu-btn {
+      display: none;
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.72);
+      backdrop-filter: blur(4px);
+      z-index: 2400;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+    .sidebar-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Seletor de Colunas do Kanban no Mobile */
+    .kanban-mobile-tabs {
+      display: none;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 4px;
+      gap: 4px;
+    }
+    .kanban-mob-tab {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 800;
+      padding: 9px 6px;
+      border-radius: 9px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all var(--transition-fast);
+    }
+    .kanban-mob-tab.active {
+      background: linear-gradient(135deg, var(--brand-gold-light), var(--brand-gold));
+      color: #111;
+      box-shadow: 0 3px 10px rgba(245, 158, 11, 0.25);
+    }
+    .kanban-mob-count {
+      min-width: 20px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 900;
+      background: rgba(255, 255, 255, 0.14);
+      color: var(--text-primary);
+    }
+    .kanban-mob-tab.active .kanban-mob-count {
+      background: rgba(0, 0, 0, 0.78);
+      color: #fbbf24;
+    }
+
+    /* Barra de Navegação Inferior Fixa para Celular */
+    .mobile-bottom-nav {
+      display: none;
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 1900;
+      background: rgba(18, 20, 26, 0.96);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-top: 1px solid var(--border-subtle);
+      padding: 6px 8px calc(env(safe-area-inset-bottom, 6px) + 6px);
+      justify-content: space-around;
+      align-items: center;
+      gap: 2px;
+    }
+    .mob-nav-btn {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      padding: 6px 4px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      position: relative;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mob-nav-btn svg,
+    .mob-nav-btn i {
+      width: 19px;
+      height: 19px;
+    }
+    .mob-nav-btn.active {
+      color: var(--brand-gold-light);
+      background: rgba(245, 158, 11, 0.12);
+      font-weight: 800;
+    }
+    .mob-nav-badge {
+      position: absolute;
+      top: 2px;
+      right: calc(50% - 20px);
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      border-radius: 999px;
+      background: #ef4444;
+      color: #fff;
+      font-size: 9px;
+      font-weight: 900;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border: 1.5px solid #12141a;
+    }
+
+    @media (max-width: 1024px) {
+      .stats-container {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .dashboard-split-grid {
+        grid-template-columns: 1fr;
+      }
+      #mapDashboard {
+        min-height: 320px;
+      }
+    }
+
+    @media (max-width: 860px) {
+      body {
+        height: 100dvh;
+        overflow: hidden;
+      }
+      .mobile-menu-btn {
+        display: inline-flex;
+      }
+      .sidebar-backdrop {
+        display: block;
+      }
+      .mobile-bottom-nav {
+        display: flex;
+      }
+      .app-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 275px;
+        max-width: 84vw;
+        height: 100dvh;
+        z-index: 2500;
+        transform: translateX(-104%);
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85);
+      }
+      .app-sidebar.mobile-open {
+        transform: translateX(0);
+      }
+      .app-main {
+        width: 100vw;
+        height: 100dvh;
+      }
+      .app-header {
+        padding: max(env(safe-area-inset-top, 10px), 10px) 14px 10px;
+        gap: 10px;
+      }
+      .header-greeting-title {
+        font-size: 15px;
+      }
+      .header-greeting-sub,
+      .role-badge,
+      .header-divider,
+      .app-header > .header-actions > .btn-logout {
+        display: none !important;
+      }
+      .header-actions {
+        gap: 8px;
+      }
+      .header-actions-group {
+        display: flex;
+        gap: 6px;
+      }
+      .header-actions-group .btn span {
+        display: none;
+      }
+      .header-actions-group .btn {
+        padding: 7px 9px;
+      }
+      .live-clock-badge {
+        display: none;
+      }
+
+      .app-body {
+        padding: 14px 12px calc(env(safe-area-inset-bottom, 16px) + 84px);
+      }
+
+      /* KPIs 2x2 compactos no celular */
+      .stats-container {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      .stat-box {
+        padding: 12px 12px;
+        gap: 10px;
+      }
+      .stat-icon-wrap {
+        width: 36px;
+        height: 36px;
+      }
+      .stat-label {
+        font-size: 11px;
+      }
+      .stat-value {
+        font-size: 18px;
+      }
+      .stat-sub {
+        font-size: 10px;
+      }
+
+      /* Kanban Mobile com Abas (Balcão | Em Rota | Entregues) */
+      #view-pedidos > div:first-child {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 10px;
+      }
+      #view-pedidos > div:first-child > div:last-child {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch !important;
+      }
+      #view-pedidos .search-box {
+        width: 100% !important;
+      }
+      .kanban-mobile-tabs {
+        display: flex;
+      }
+      .kanban-board {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .kanban-col {
+        display: none;
+        max-height: none;
+      }
+      .kanban-col.mob-col-active {
+        display: flex;
+      }
+
+      /* Mapa & Rotas Mobile */
+      .mapa-fullscreen-bar {
+        padding: 10px 12px;
+        gap: 8px;
+      }
+      .mapa-content-grid {
+        grid-template-columns: 1fr;
+        min-height: 0;
+      }
+      #mapFullscreen {
+        min-height: 340px !important;
+        height: 46dvh;
+      }
+      .mapa-sidebar {
+        max-height: 320px;
+      }
+
+      /* Motoboys Mobile */
+      #gridMotoboys,
+      #gridMotoboysPendentes {
+        grid-template-columns: 1fr !important;
+      }
+      #barFiltrosGrupoMotoboys {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      /* Histórico Mobile */
+      #view-historico > div:first-child {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 10px;
+      }
+      #view-historico .search-box {
+        width: 100% !important;
+      }
+
+      /* Cartão e Dinheiro Mobile: transforma linhas da tabela em Cards Responsivos */
+      .cd-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+      }
+      .cd-toolbar-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .cd-segment {
+        width: 100%;
+      }
+      .cd-seg-btn {
+        flex: 1;
+        justify-content: center;
+        padding: 9px 8px;
+        font-size: 12px;
+      }
+      .cd-toolbar-right {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .cd-type-pills {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .cd-type-pill {
+        text-align: center;
+        padding: 7px 6px;
+      }
+      .cd-select,
+      #view-cartao_dinheiro .search-box {
+        width: 100% !important;
+      }
+      .cd-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .cd-kpi {
+        padding: 12px;
+        gap: 10px;
+      }
+      .cd-kpi-icon {
+        width: 34px;
+        height: 34px;
+      }
+      .cd-kpi-value {
+        font-size: 18px;
+      }
+      .cd-mb-grid {
+        padding: 12px;
+        grid-template-columns: 1fr;
+      }
+      .cd-list-head {
+        display: none !important;
+      }
+      .cd-row {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+        min-width: 0 !important;
+        padding: 14px 14px 14px 16px !important;
+      }
+      .cd-acoes {
+        align-items: stretch !important;
+        padding-top: 8px;
+        border-top: 1px dashed var(--border-subtle);
+      }
+      .cd-chip {
+        justify-content: center;
+      }
+      .cd-acoes-btns {
+        display: flex;
+        width: 100%;
+      }
+      .cd-btn-confirmar {
+        flex: 1;
+        justify-content: center;
+        padding: 10px 12px;
+      }
+
+      /* Fechamento Mobile */
+      #containerFechamentoMotoboys {
+        grid-template-columns: 1fr !important;
+        padding: 12px !important;
+      }
+
+      /* Drawer de Detalhes do Pedido Mobile (100% da tela) */
+      .drawer-panel {
+        width: 100vw !important;
+        max-width: 100vw !important;
+      }
+      .drawer-header,
+      .drawer-body,
+      .drawer-footer {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+      .drawer-footer {
+        flex-wrap: wrap;
+        padding-bottom: calc(env(safe-area-inset-bottom, 12px) + 12px);
+      }
+
+      /* Modais Responsivos */
+      .modal-confirm-box {
+        width: 94vw !important;
+        max-width: 94vw !important;
+        padding: 18px 16px !important;
+      }
+      #formNovoPedidoManual > div[style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+      }
+    }
+
     @media print {
       body, html {
         background: #ffffff !important;
@@ -920,7 +1356,8 @@
       }
       .app-sidebar, .app-header, .drawer-backdrop, .modal-confirm-overlay, .toast-container,
       #adminAuthOverlay, #motoboysLockScreen, .btn, .search-box, .filter-pill, .grupo-fech-pill,
-      #boxPeriodoPersonalizado, .stats-container, #containerFechamentoMotoboys {
+      #boxPeriodoPersonalizado, .stats-container, #containerFechamentoMotoboys,
+      .mobile-bottom-nav, .sidebar-backdrop, .mobile-menu-btn, .kanban-mobile-tabs {
         display: none !important;
       }
     }
@@ -958,9 +1395,10 @@
   </div>
 
   <!-- ========================================================================
-       SIDEBAR LATERAL (IDENTIDADE AO PONTO CARNES)
+       SIDEBAR LATERAL (IDENTIDADE AO PONTO CARNES) + BACKDROP MOBILE
        ======================================================================== -->
-  <aside class="app-sidebar">
+  <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="fecharMenuMobile()"></div>
+  <aside class="app-sidebar" id="appSidebar">
     <div class="sidebar-brand">
       <img src="/assets/logo-dark-theme.png" alt="Ao Ponto Carnes" class="brand-logo-img" onerror="this.src='/assets/logo.png'">
     </div>
@@ -1026,9 +1464,14 @@
   <main class="app-main">
     <!-- HEADER -->
     <header class="app-header">
-      <div>
-        <h1 class="header-greeting-title" id="greetingText">Bom dia, Equipe!</h1>
-        <p class="header-greeting-sub">Aqui está o resumo operacional das entregas de hoje.</p>
+      <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+        <button type="button" class="mobile-menu-btn" onclick="alternarMenuMobile()" title="Abrir menu completo">
+          <i data-lucide="menu"></i>
+        </button>
+        <div style="min-width: 0;">
+          <h1 class="header-greeting-title" id="greetingText">Bom dia, Equipe!</h1>
+          <p class="header-greeting-sub">Aqui está o resumo operacional das entregas de hoje.</p>
+        </div>
       </div>
 
       <div class="header-actions">
@@ -1226,9 +1669,25 @@
           </div>
         </div>
 
+        <!-- Seletor de Colunas Mobile (Balcão | Em Rota | Entregues) -->
+        <div class="kanban-mobile-tabs" role="tablist">
+          <button type="button" class="kanban-mob-tab active" id="kTabMob_aguardando" onclick="selecionarColunaKanbanMobile('aguardando')">
+            <span>Balcão</span>
+            <span class="kanban-mob-count" id="countKanbanMobAguardando">0</span>
+          </button>
+          <button type="button" class="kanban-mob-tab" id="kTabMob_rota" onclick="selecionarColunaKanbanMobile('rota')">
+            <span>Em Rota</span>
+            <span class="kanban-mob-count" id="countKanbanMobRota">0</span>
+          </button>
+          <button type="button" class="kanban-mob-tab" id="kTabMob_entregue" onclick="selecionarColunaKanbanMobile('entregue')">
+            <span>Entregues</span>
+            <span class="kanban-mob-count" id="countKanbanMobEntregues">0</span>
+          </button>
+        </div>
+
         <div class="kanban-board">
           <!-- Coluna 1: No Balcão (Aguardando Retirada) -->
-          <div class="kanban-col">
+          <div class="kanban-col mob-col-active" id="kColWrap_aguardando">
             <div class="kanban-col-header" style="border-top: 3px solid #3b82f6;">
               <div style="display: flex; align-items: center; gap: 8px;">
                 <i data-lucide="package" style="width: 16px; height: 16px; color: #60a5fa;"></i>
@@ -1242,7 +1701,7 @@
           </div>
 
           <!-- Coluna 2: Em Rota de Entrega -->
-          <div class="kanban-col">
+          <div class="kanban-col" id="kColWrap_rota">
             <div class="kanban-col-header" style="border-top: 3px solid var(--brand-gold);">
               <div style="display: flex; align-items: center; gap: 8px;">
                 <i data-lucide="bike" style="width: 16px; height: 16px; color: var(--accent-primary);"></i>
@@ -1256,7 +1715,7 @@
           </div>
 
           <!-- Coluna 3: Entregues Hoje -->
-          <div class="kanban-col">
+          <div class="kanban-col" id="kColWrap_entregue">
             <div class="kanban-col-header" style="border-top: 3px solid #10b981;">
               <div style="display: flex; align-items: center; gap: 8px;">
                 <i data-lucide="check-circle" style="width: 16px; height: 16px; color: #34d399;"></i>
@@ -1727,6 +2186,34 @@
 
     </div>
   </main>
+
+  <!-- ========================================================================
+       BARRA DE NAVEGAÇÃO INFERIOR MOBILE
+       ======================================================================== -->
+  <nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="Navegação Mobile da Cozinha">
+    <button type="button" class="mob-nav-btn" id="mobNav-pedidos" onclick="alternarVisao('pedidos')">
+      <i data-lucide="clipboard-list"></i>
+      <span>Pedidos</span>
+      <span class="mob-nav-badge" id="mobBadgePedidos">0</span>
+    </button>
+    <button type="button" class="mob-nav-btn" id="mobNav-cartao_dinheiro" onclick="alternarVisao('cartao_dinheiro')">
+      <i data-lucide="banknote"></i>
+      <span>Cartão/$</span>
+      <span class="mob-nav-badge" id="mobBadgeCartaoDinheiro">0</span>
+    </button>
+    <button type="button" class="mob-nav-btn" id="mobNav-entregas" onclick="alternarVisao('entregas')">
+      <i data-lucide="map-pin"></i>
+      <span>Mapa</span>
+    </button>
+    <button type="button" class="mob-nav-btn" id="mobNav-fechamento" onclick="alternarVisao('fechamento')">
+      <i data-lucide="wallet"></i>
+      <span>Fechamento</span>
+    </button>
+    <button type="button" class="mob-nav-btn" id="mobNav-menu" onclick="alternarMenuMobile()">
+      <i data-lucide="menu"></i>
+      <span>Menu</span>
+    </button>
+  </nav>
 
   <!-- ========================================================================
        DRAWER / MODAL DE DETALHES DO PEDIDO
@@ -2445,9 +2932,35 @@
       );
     }
 
+    // Funções de controle de Menu Lateral e Kanban no Mobile
+    function alternarMenuMobile() {
+      const sb = document.getElementById('appSidebar');
+      const bd = document.getElementById('sidebarBackdrop');
+      if (!sb || !bd) return;
+      const aberto = sb.classList.toggle('mobile-open');
+      bd.classList.toggle('active', aberto);
+    }
+
+    function fecharMenuMobile() {
+      const sb = document.getElementById('appSidebar');
+      const bd = document.getElementById('sidebarBackdrop');
+      if (sb) sb.classList.remove('mobile-open');
+      if (bd) bd.classList.remove('active');
+    }
+
+    function selecionarColunaKanbanMobile(col) {
+      ['aguardando', 'rota', 'entregue'].forEach(c => {
+        const tab = document.getElementById('kTabMob_' + c);
+        const wrap = document.getElementById('kColWrap_' + c);
+        if (tab) tab.classList.toggle('active', c === col);
+        if (wrap) wrap.classList.toggle('mobile-col-active', c === col);
+      });
+    }
+
     // Alternar visões da sidebar (Layout estável e sem glitch)
     function alternarVisao(visao) {
       state.visaoAtual = visao;
+      fecharMenuMobile();
 
       try {
         localStorage.setItem('adminActiveView', visao);
@@ -2457,6 +2970,16 @@
       document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
       const activeNav = document.getElementById('nav-' + visao);
       if (activeNav) activeNav.classList.add('active');
+
+      // Atualizar barra inferior mobile
+      document.querySelectorAll('.mob-nav-btn').forEach(el => el.classList.remove('active'));
+      const activeMobNav = document.getElementById('mobNav-' + visao);
+      if (activeMobNav) {
+        activeMobNav.classList.add('active');
+      } else {
+        const mobMenuBtn = document.getElementById('mobNav-menu');
+        if (mobMenuBtn) mobMenuBtn.classList.add('active');
+      }
 
       // Alternar seções ativas de forma limpa (sem forçar flex-direction: row)
       ['inicio', 'pedidos', 'entregas', 'motoboys', 'historico', 'cartao_dinheiro', 'fechamento'].forEach(v => {
@@ -3745,6 +4268,18 @@
           badgeNav.style.color = '#fff';
         } else {
           badgeNav.style.display = 'none';
+        }
+      }
+
+      const mobBadgeCD = document.getElementById('mobBadgeCartaoDinheiro');
+      if (mobBadgeCD) {
+        if (totalAbertosGlobal > 0) {
+          mobBadgeCD.textContent = totalAbertosGlobal;
+          mobBadgeCD.style.display = 'inline-flex';
+          mobBadgeCD.style.background = totalInformadosGlobal > 0 ? '#f59e0b' : '#ef4444';
+          mobBadgeCD.style.color = totalInformadosGlobal > 0 ? '#000' : '#fff';
+        } else {
+          mobBadgeCD.style.display = 'none';
         }
       }
 
