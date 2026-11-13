@@ -1,23 +1,41 @@
 const crypto = require('crypto');
 const env = require('../config/env');
+const { getDb } = require('../database/db');
 
 const BASE_URL = env.FOOD99_API_URL || 'https://openapi.99food.com';
 
-let cachedToken = null;
-let cachedTokenExpiresAt = 0;
+// Cache de auth_token por loja (app_shop_id -> { token, expiresAt })
+const tokenCacheByShop = new Map();
 
 /**
- * Obtém ou atualiza automaticamente o auth_token da loja na 99Food
+ * Obtém ou atualiza automaticamente o auth_token da loja na 99Food.
+ * Suporta múltiplas lojas (Ao Ponto Carnes, Burgers e Comidas Brasileiras) via customAppShopId.
  */
-async function getAuthToken(forceRefresh = false) {
+async function getAuthToken(forceRefresh = false, customAppShopId = null) {
   const now = Date.now();
-  if (!forceRefresh && cachedToken && cachedTokenExpiresAt > now + 30000) {
-    return cachedToken;
+  let appShopId = String(customAppShopId || env.FOOD99_APP_SHOP_ID || '').trim();
+
+  // Se nenhuma loja foi informada e a variável de ambiente está vazia, tenta descobrir a primeira loja autorizada
+  if (!appShopId) {
+    try {
+      const shops = await getAuthorizedShops(false);
+      if (shops && Array.isArray(shops.shop_list) && shops.shop_list.length > 0) {
+        appShopId = String(shops.shop_list[0].app_shop_id || '').trim();
+      }
+    } catch (_) {}
+  }
+
+  if (!appShopId) {
+    throw new Error('app_shop_id da 99Food não configurado nem identificado no pedido.');
+  }
+
+  const cached = tokenCacheByShop.get(appShopId);
+  if (!forceRefresh && cached && cached.token && cached.expiresAt > now + 30000) {
+    return cached.token;
   }
 
   const appId = env.FOOD99_APP_ID;
   const appSecret = env.FOOD99_APP_SECRET;
-  const appShopId = env.FOOD99_APP_SHOP_ID;
 
   const getUrl = `${BASE_URL}/v1/auth/authtoken/get?app_id=${encodeURIComponent(appId)}&app_secret=${encodeURIComponent(appSecret)}&app_shop_id=${encodeURIComponent(appShopId)}`;
   const refreshUrl = `${BASE_URL}/v1/auth/authtoken/refresh?app_id=${encodeURIComponent(appId)}&app_secret=${encodeURIComponent(appSecret)}&app_shop_id=${encodeURIComponent(appShopId)}`;
@@ -28,23 +46,24 @@ async function getAuthToken(forceRefresh = false) {
 
   // Se retornou 10102 (The store authorization information has expired), faz o refresh primeiro
   if (data.errno === 10102 || forceRefresh) {
-    console.log(`🔄 [99Food] Token expirado ou refresh forçado. Executando authtoken/refresh...`);
+    console.log(`🔄 [99Food] Token expirado ou refresh forçado (${appShopId}). Executando authtoken/refresh...`);
     await fetch(refreshUrl);
     res = await fetch(getUrl);
     data = await res.json();
   }
 
   if (data.errno !== 0 || !data.data?.auth_token) {
-    throw new Error(`Falha ao obter auth_token da 99Food (${data.errno}): ${data.errmsg || 'Erro desconhecido'}`);
+    throw new Error(`Falha ao obter auth_token da 99Food para loja ${appShopId} (${data.errno}): ${data.errmsg || 'Erro desconhecido'}`);
   }
 
-  cachedToken = data.data.auth_token;
-  cachedTokenExpiresAt = data.data.token_expiration_time 
-    ? data.data.token_expiration_time * 1000 
+  const token = data.data.auth_token;
+  const expiresAt = data.data.token_expiration_time
+    ? data.data.token_expiration_time * 1000
     : now + (180 * 1000);
 
-  console.log(`✅ [99Food] Token ativo! Expira em: ${new Date(cachedTokenExpiresAt).toISOString()}`);
-  return cachedToken;
+  tokenCacheByShop.set(appShopId, { token, expiresAt });
+  console.log(`✅ [99Food] Token ativo para loja ${appShopId}! Expira em: ${new Date(expiresAt).toISOString()}`);
+  return token;
 }
 
 /**
@@ -72,10 +91,10 @@ function verifyWebhookSignature(rawBody, headerSign, appSecret = env.FOOD99_APP_
 }
 
 /**
- * Wrapper de requisição HTTP para a API da 99Food com tratamento e renovação automática de token
+ * Wrapper de requisição HTTP para a API da 99Food com tratamento e renovação automática de token por loja
  */
-async function ninetyNineRequest(endpoint, body = {}, method = 'POST') {
-  let token = await getAuthToken();
+async function ninetyNineRequest(endpoint, body = {}, method = 'POST', customAppShopId = null) {
+  let token = await getAuthToken(false, customAppShopId);
   const execute = async (authToken) => {
     let url = `${BASE_URL}${endpoint}`;
     let options = {
@@ -101,7 +120,8 @@ async function ninetyNineRequest(endpoint, body = {}, method = 'POST') {
     const text = await res.text();
     let json;
     try {
-      json = JSON.parse(text);
+      const safeText = text.replace(/"(order_id|app_id|shop_id|event_id)":\s*(\d{15,})/g, '"$1":"$2"');
+      json = JSON.parse(safeText);
     } catch (e) {
       json = { raw: text };
     }
@@ -114,13 +134,16 @@ async function ninetyNineRequest(endpoint, body = {}, method = 'POST') {
   // Se token expirou ou inválido (10100 ou 10102), força renovação e tenta novamente
   if (response.data?.errno === 10100 || response.data?.errno === 10102) {
     console.warn(`⚠️ [99Food API] Token expirado (${response.data.errno}). Renovando e repetindo chamada...`);
-    token = await getAuthToken(true);
+    token = await getAuthToken(true, customAppShopId);
     response = await execute(token);
   }
 
   if (!response.ok || (response.data.errno !== undefined && response.data.errno !== 0)) {
     const errorMsg = response.data.errmsg || response.data.message || `Erro HTTP ${response.status}`;
-    throw new Error(`Erro na API 99Food (${response.data.errno || response.status}): ${errorMsg}`);
+    const err = new Error(`Erro na API 99Food (${response.data.errno || response.status}): ${errorMsg}`);
+    err.errno = response.data?.errno;
+    err.status = response.status;
+    throw err;
   }
 
   return response.data;
@@ -129,48 +152,49 @@ async function ninetyNineRequest(endpoint, body = {}, method = 'POST') {
 /**
  * Consulta detalhes completos de um pedido (GET /v1/order/order/detail)
  */
-async function getOrderDetails(orderId) {
-  return ninetyNineRequest('/v1/order/order/detail', { order_id: String(orderId) }, 'GET');
+async function getOrderDetails(orderId, customAppShopId = null) {
+  return ninetyNineRequest('/v1/order/order/detail', { order_id: String(orderId) }, 'GET', customAppShopId);
 }
 
 /**
  * Confirma recebimento do pedido (POST /v1/order/order/confirm)
  */
-async function confirmOrder(orderId) {
+async function confirmOrder(orderId, customAppShopId = null) {
   return ninetyNineRequest('/v1/order/order/confirm', {
     order_id: String(orderId)
-  });
+  }, 'POST', customAppShopId);
 }
 
 /**
  * Notifica que o pedido está pronto para entrega (POST /v1/order/order/ready)
  */
-async function orderReady(orderId) {
+async function orderReady(orderId, customAppShopId = null) {
   return ninetyNineRequest('/v1/order/order/ready', {
     order_id: String(orderId)
-  });
+  }, 'POST', customAppShopId);
 }
 
 /**
  * Despacha o pedido com entrega própria da loja (POST /v1/order/selfdelivery/dispatch)
  */
-async function dispatchOrder(orderId, courier = {}) {
+async function dispatchOrder(orderId, courier = {}, customAppShopId = null) {
   const nowSec = Math.floor(Date.now() / 1000);
+  const cleanPhone = String(courier.phone || '21966770779').replace(/\D/g, '') || '21966770779';
   return ninetyNineRequest('/v1/order/selfdelivery/dispatch', {
     order_id: String(orderId),
     courier_info: {
-      courier_id: courier.id || 'courier_01',
+      courier_id: String(courier.id || 'courier_01'),
       courier_name: courier.name || 'Entregador SistRastreamento',
       courier_first_name: courier.firstName || 'Entregador',
       courier_last_name: courier.lastName || 'Rastreador',
       courier_phone_code: '+55',
-      courier_phone: courier.phone || '21966770779'
+      courier_phone: cleanPhone
     },
     limit_time: {
       pickup_time: nowSec,
       delivery_time: nowSec + 1800
     }
-  });
+  }, 'POST', customAppShopId);
 }
 
 /**
@@ -181,12 +205,12 @@ async function dispatchOrder(orderId, courier = {}) {
  * 1030 - Store too busy to prepare order (Loja muito ocupada)
  * 1080 - Other reason (Outro motivo)
  */
-async function cancelOrder(orderId, reasonId = 1010, reasonText = 'Item esgotado') {
+async function cancelOrder(orderId, reasonId = 1010, reasonText = 'Item esgotado', customAppShopId = null) {
   return ninetyNineRequest('/v1/order/order/cancel', {
     order_id: String(orderId),
     reason_id: Number(reasonId),
     reason: String(reasonText)
-  });
+  }, 'POST', customAppShopId);
 }
 
 /**
@@ -209,8 +233,6 @@ async function getStoreAuthorizationPageUrl(appId = env.FOOD99_APP_ID) {
 
 let cachedShops = null;
 let cachedShopsExpiresAt = 0;
-
-const { getDb } = require('../database/db');
 
 /**
  * Consulta a lista de lojas vinculadas ao aplicativo na 99Food
@@ -246,7 +268,9 @@ async function getAuthorizedShops(force = false) {
   
   try {
     const res = await fetch(`${BASE_URL}/v1/shop/list?${q}`);
-    const data = await res.json();
+    const text = await res.text();
+    const safeText = text.replace(/"(order_id|app_id|shop_id|event_id)":\s*(\d{15,})/g, '"$1":"$2"');
+    const data = JSON.parse(safeText);
 
     if (data.errno === 0 && data.data) {
       cachedShops = data.data;

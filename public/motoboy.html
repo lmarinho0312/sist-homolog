@@ -890,6 +890,13 @@
     </div>
   </div>
 
+  <!-- MODAL DE VISUALIZAÇÃO DE PEDIDO DO BALCÃO (SEM RETIRAR E SEM DESPACHAR) -->
+  <div class="modal-confirm-overlay" id="modalVisualizarBalcao" style="display: none; padding: 14px; overflow-y: auto;" onclick="fecharVisualizacaoPedidoBalcao(event)">
+    <div id="conteudoVisualizarBalcao" style="width: 100%; max-width: 440px; margin: auto;" onclick="event.stopPropagation()">
+      <!-- Renderizado via JavaScript com o mesmo layout de entrega ativa, porém apenas para consulta de endereço e mapa -->
+    </div>
+  </div>
+
   <!-- TOAST CONTAINER -->
   <div class="toast-container" id="toastContainer"></div>
 
@@ -1848,8 +1855,12 @@
               </div>
             ` : ''}
 
-            <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px;">
-              <button class="btn btn-gold btn-sm" onclick="retirarPedidoBalcao(${p.id}, '${p.numero_pedido}')" style="width: 100%; padding: 10px 14px; font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px; display: flex; gap: 8px;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="abrirVisualizacaoPedidoBalcao(${p.id})" style="flex: 1; padding: 10px 10px; font-weight: 800; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; border-color: rgba(59, 130, 246, 0.45); background: rgba(59, 130, 246, 0.12); color: #60a5fa;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                <span>VISUALIZAR</span>
+              </button>
+              <button type="button" class="btn btn-gold btn-sm" onclick="retirarPedidoBalcao(${p.id}, '${p.numero_pedido}')" style="flex: 1.25; padding: 10px 12px; font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 6px;">
                 <span>RETIRAR PEDIDO</span>
                 <span style="font-size: 14px;">➔</span>
               </button>
@@ -1857,6 +1868,92 @@
           </div>
         `;
       }).join('');
+    }
+
+    // AÇÃO: VISUALIZAR PEDIDO NO BALCÃO (SEM RETIRAR E SEM DESPACHAR)
+    function abrirVisualizacaoPedidoBalcao(pedidoId) {
+      const p = (state.pedidosBalcao || []).find(item => Number(item.id) === Number(pedidoId));
+      if (!p) {
+        showToast('Pedido não encontrado no balcão.', 'error');
+        return;
+      }
+
+      const modal = document.getElementById('modalVisualizarBalcao');
+      const container = document.getElementById('conteudoVisualizarBalcao');
+      if (!modal || !container) return;
+
+      const enderecoCompleto = `${p.endereco || ''}${p.bairro ? ' — ' + p.bairro : ''}`;
+
+      container.innerHTML = `
+        <div class="hero-active-card" style="margin: 0; border: 1.5px solid rgba(59, 130, 246, 0.45); box-shadow: 0 20px 50px rgba(0,0,0,0.85);">
+          <!-- Faixa superior indicando modo somente visualização -->
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; margin-bottom: 14px; border-radius: var(--radius-md); background: rgba(59, 130, 246, 0.14); border: 1px solid rgba(59, 130, 246, 0.35);">
+            <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.04em;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              <span>Visualização (Pedido no Balcão)</span>
+            </span>
+            <button type="button" onclick="fecharVisualizacaoPedidoBalcao()" style="background: rgba(255,255,255,0.08); border: none; color: var(--text-primary); width: 28px; height: 28px; border-radius: 50%; font-size: 14px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;">✕</button>
+          </div>
+
+          <!-- Topo do Card -->
+          <div class="hero-card-header">
+            <div>
+              ${renderizarOrigemBadge(p.origem)}
+              <div class="hero-order-id" style="margin-top: 4px;">#${escapeHtml(p.numero_pedido)}</div>
+            </div>
+            <div style="text-align: right;">
+              <span class="status-badge badge-retirada">NO BALCÃO</span>
+              <div class="hero-eta-badge" style="margin-top: 4px; display: inline-flex; align-items: center; gap: 4px;">${SVG_ICONS.clock} ${Number(p.minutos_aguardando || 0)} min</div>
+            </div>
+          </div>
+
+          <!-- Cliente -->
+          <div class="hero-client-name" style="display: flex; align-items: center; gap: 6px;">
+            ${SVG_ICONS.user}
+            <span>${escapeHtml(p.cliente || 'Cliente')}</span>
+          </div>
+
+          <!-- Endereço Completo em Destaque Absoluto -->
+          <div class="hero-address-block">
+            <div class="hero-address-label" style="display: flex; align-items: center; gap: 6px;">
+              ${SVG_ICONS.mapPin} <span>ENDEREÇO COMPLETO DE ENTREGA</span>
+            </div>
+            <div class="hero-address-main">${escapeHtml(p.endereco || 'Endereço não informado')}</div>
+            <div class="hero-address-bairro">${escapeHtml(p.bairro ? p.bairro + ' • Teresópolis' : 'Teresópolis/RJ')}</div>
+          </div>
+
+          <!-- BOTÃO VER ROTA NO GPS PADRÃO / GOOGLE MAPS -->
+          <button type="button" class="btn-ver-rota-master" style="margin-top: 12px;" onclick="abrirRotaNativa('${encodeURIComponent(enderecoCompleto)}')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+            </svg>
+            <span>VER ROTA NO MAPA</span>
+          </button>
+
+          <div style="margin-top: 12px; padding: 8px 12px; border-radius: 8px; background: rgba(255,255,255,0.04); border: 1px dashed rgba(255,255,255,0.14); font-size: 11px; color: var(--text-muted); text-align: center; line-height: 1.4;">
+            ℹ️ Você está apenas <strong>visualizando</strong> o endereço e a rota. O pedido continua disponível no balcão e <strong>não foi retirado nem despachado</strong>.
+          </div>
+
+          <!-- Ações do Rodapé da Visualização -->
+          <div style="margin-top: 14px; display: flex; gap: 8px;">
+            <button type="button" class="btn btn-secondary" style="flex: 1; padding: 12px 10px; font-weight: 800; font-size: 13px;" onclick="fecharVisualizacaoPedidoBalcao()">
+              <span>← Voltar</span>
+            </button>
+            <button type="button" class="btn btn-gold" style="flex: 1.35; padding: 12px 12px; font-weight: 800; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;" onclick="fecharVisualizacaoPedidoBalcao(); retirarPedidoBalcao(${p.id}, '${escapeHtml(p.numero_pedido)}')">
+              <span>RETIRAR PEDIDO</span>
+              <span>➔</span>
+            </button>
+          </div>
+        </div>
+      `;
+
+      modal.style.display = 'flex';
+    }
+
+    function fecharVisualizacaoPedidoBalcao(event) {
+      if (event && event.target && event.target.id !== 'modalVisualizarBalcao') return;
+      const modal = document.getElementById('modalVisualizarBalcao');
+      if (modal) modal.style.display = 'none';
     }
 
     // AÇÃO: RETIRAR PEDIDO NO BALCÃO

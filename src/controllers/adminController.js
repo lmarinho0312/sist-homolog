@@ -4,6 +4,7 @@ const { expirarPedidosPendentesDiasAnteriores, obterLimitesTurnoOperacional } = 
 const { obterTaxaRepasse, obterNomeBairroCanonica } = require('../utils/rateResolver');
 const memoryCache = require('../utils/memoryCache');
 const { extrairItensEPagamentoPedido } = require('../utils/orderParser');
+const { despacharPedidoPlataformaSeguro } = require('../services/platformDispatchService');
 
 /**
  * Helper compartilhado: lê a lista de motoboys 1 única vez a cada 8s e serve
@@ -1084,10 +1085,16 @@ async function atribuirPedidoMotoboy(req, res) {
 
     memoryCache.clear();
 
+    let dispatchInfo = null;
+    if (statusFinal === 'em_rota') {
+      dispatchInfo = await despacharPedidoPlataformaSeguro(pedidoAtualizado, motoboy);
+    }
+
     return res.json(200, {
       success: true,
       message: `Pedido #${pedido.numero_pedido} atribuído com sucesso a ${motoboy.nome} (${grupoFinal})!`,
-      pedido: pedidoAtualizado
+      pedido: pedidoAtualizado,
+      dispatch_plataforma: dispatchInfo
     });
   } catch (error) {
     console.error('❌ Erro ao atribuir pedido a entregador:', error);

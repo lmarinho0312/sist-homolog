@@ -200,26 +200,39 @@ async function requestHandler(req, res) {
   const pathname = parsedUrl.pathname.length > 1 ? parsedUrl.pathname.replace(/\/+$/, '') : parsedUrl.pathname;
   req.query = Object.fromEntries(parsedUrl.searchParams);
 
-  // Parsear body se não existir ou se não tiver sido parseado pela Vercel
-  if (!req.body || (typeof req.body === 'object' && Object.keys(req.body).length === 0)) {
+  // Parsear body preservando inteiros de 64 bits (19 dígitos da 99Food) ANTES do getter req.body da Vercel
+  const bodyDesc = Object.getOwnPropertyDescriptor(req, 'body');
+  const hasPreParsedPlainBody = bodyDesc && Object.prototype.hasOwnProperty.call(bodyDesc, 'value') && bodyDesc.value && typeof bodyDesc.value === 'object' && Object.keys(bodyDesc.value).length > 0;
+
+  if (!hasPreParsedPlainBody && (req.method === 'POST' || req.method === 'PUT' || req.method === 'DELETE')) {
     await new Promise((resolve) => {
       let bodyData = '';
-      req.on('data', chunk => { bodyData += chunk; });
-      req.on('end', () => {
-        try { 
-          if (bodyData) {
-            req.rawBody = bodyData;
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        if (bodyData) {
+          req.rawBody = bodyData;
+          try {
             const safeData = bodyData.replace(/"(order_id|app_id|shop_id|event_id)":\s*(\d{15,})/g, '"$1":"$2"');
-            req.body = JSON.parse(safeData); 
+            Object.defineProperty(req, 'body', { value: JSON.parse(safeData), writable: true, configurable: true, enumerable: true });
+          } catch (e) {
+            try {
+              Object.defineProperty(req, 'body', { value: JSON.parse(bodyData), writable: true, configurable: true, enumerable: true });
+            } catch (err) {}
           }
-        } catch (e) {
-          try { req.body = JSON.parse(bodyData); } catch (err) {}
         }
         resolve();
-      });
+      };
+
       if (req.readableEnded || req.complete) {
-        resolve();
+        return finish();
       }
+
+      const safetyTimer = setTimeout(finish, 2000);
+      req.on('data', chunk => { bodyData += chunk; });
+      req.on('end', () => { clearTimeout(safetyTimer); finish(); });
+      req.on('error', () => { clearTimeout(safetyTimer); finish(); });
     });
   }
 

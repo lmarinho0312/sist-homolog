@@ -3,6 +3,7 @@ const { getDb } = require('../database/db');
 const { obterTaxaRepasse, obterNomeBairroCanonica } = require('../utils/rateResolver');
 const memoryCache = require('../utils/memoryCache');
 const { extrairItensEPagamentoPedido } = require('../utils/orderParser');
+const { despacharPedidoPlataformaSeguro } = require('../services/platformDispatchService');
 
 // Início do monitoramento permanente de Cartão e Dinheiro (pendências não zeram na virada do turno)
 const PRESTACAO_DATA_INICIO = process.env.PRESTACAO_DATA_INICIO || '2026-11-03 02:00:00';
@@ -711,7 +712,7 @@ async function assumirPedido(req, res) {
     const db = getDb();
 
     // 1. Obter motoboy e seu grupo oficial
-    const motoboy = await  db.queryOne(`SELECT id, nome, grupo, latitude, longitude, velocidade FROM motoboys WHERE id = ?`, [motoboyIdNum]);
+    const motoboy = await db.queryOne(`SELECT id, nome, telefone, grupo, latitude, longitude, velocidade FROM motoboys WHERE id = ?`, [motoboyIdNum]);
     if (!motoboy) {
       return res.json(404, { success: false, message: 'Motoboy não encontrado ou não cadastrado.' });
     }
@@ -719,7 +720,7 @@ async function assumirPedido(req, res) {
     const grupoMotoboy = (motoboy.grupo && String(motoboy.grupo).toUpperCase() === 'VELOZ') ? 'VELOZ' : 'SPEED';
 
     // 2. Obter pedido atual
-    const pedidoAtual = await db.queryOne(`SELECT id, numero_pedido, cliente, endereco, bairro, texto_bruto, grupo, status, motoboy_id FROM pedidos WHERE id = ?`, [pedidoIdNum]);
+    const pedidoAtual = await db.queryOne(`SELECT id, numero_pedido, cliente, endereco, bairro, taxa_entrega, texto_bruto, grupo, status, motoboy_id FROM pedidos WHERE id = ?`, [pedidoIdNum]);
 
     if (!pedidoAtual) {
       return res.json(404, { success: false, message: 'Pedido não encontrado.' });
@@ -773,10 +774,16 @@ async function assumirPedido(req, res) {
 
     const pedidoAtualizado = await db.queryOne(`SELECT * FROM pedidos WHERE id = ?`, [pedidoIdNum]);
 
+    // 5. Despacho automático via API nas plataformas (APENAS iFood e 99Food; CardápioWeb e Manual são ignorados).
+    // Se a cozinha já tiver despachado o pedido antes na plataforma para proteger o ranqueamento,
+    // a chamada trata de forma transparente e nunca trava nem bloqueia a retirada pelo entregador.
+    const dispatchInfo = await despacharPedidoPlataformaSeguro(pedidoAtualizado, motoboy);
+
     return res.json(200, {
       success: true,
       message: `Pedido #${pedidoAtualizado.numero_pedido} retirado com sucesso! Boa rota!`,
-      pedido: pedidoAtualizado
+      pedido: pedidoAtualizado,
+      dispatch_plataforma: dispatchInfo
     });
   } catch (error) {
     console.error('❌ Erro ao assumir pedido:', error);
@@ -1137,10 +1144,20 @@ async function atualizarStatusPedido(req, res) {
 
     memoryCache.clear();
 
+    let dispatchInfo = null;
+    if (status === 'em_rota') {
+      dispatchInfo = await despacharPedidoPlataformaSeguro(pedidoAtualizado, {
+        id: pedidoAtualizado.motoboy_id,
+        nome: pedidoAtualizado.motoboy_nome,
+        telefone: pedidoAtualizado.motoboy_telefone
+      });
+    }
+
     return res.json(200, {
       success: true,
       message: `Status do pedido #${pedidoAtualizado.numero_pedido} alterado para "${status}".`,
-      pedido: pedidoAtualizado
+      pedido: pedidoAtualizado,
+      dispatch_plataforma: dispatchInfo
     });
   } catch (error) {
     console.error('❌ Erro ao atualizar status do pedido:', error);
