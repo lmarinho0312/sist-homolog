@@ -897,6 +897,29 @@
     </div>
   </div>
 
+  <!-- MODAL DE CONFIRMAÇÃO DE RETIRADA REAL DO BALCÃO (EVITA DESPACHO POR ENGANO) -->
+  <div class="modal-confirm-overlay" id="modalConfirmarRetiradaBalcao" style="display: none; padding: 14px;" onclick="fecharConfirmacaoRetiradaBalcao(event)">
+    <div class="modal-confirm-box" style="max-width: 400px; text-align: left;" onclick="event.stopPropagation()">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+        <span style="font-size: 11px; font-weight: 800; color: var(--brand-gold-light); text-transform: uppercase; letter-spacing: 0.05em;">Confirmar Retirada Real</span>
+        <button type="button" onclick="fecharConfirmacaoRetiradaBalcao()" style="background: rgba(255,255,255,0.08); border: none; color: var(--text-primary); width: 28px; height: 28px; border-radius: 50%; font-size: 14px; font-weight: 800; cursor: pointer;">✕</button>
+      </div>
+      <h3 style="font-size: 18px; font-weight: 800; margin: 0 0 6px 0; color: var(--text-primary);" id="tituloConfirmarRetiradaBalcao">Retirar Pedido #--?</h3>
+      <div id="resumoEnderecoConfirmarRetirada" style="font-size: 13px; color: var(--text-secondary); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; margin-bottom: 10px; line-height: 1.4;"></div>
+      <div style="font-size: 12px; color: #fde68a; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; padding: 9px 10px; margin-bottom: 12px; line-height: 1.4;">
+        ⚠️ <strong>Atenção:</strong> Ao confirmar, o pedido será <strong>DESPACHADO IMEDIATAMENTE</strong> no iFood / 99Food. Só confirme se você realmente vai levar o pedido agora!
+      </div>
+      <button type="button" id="btnApenasVisualizarNoModal" class="btn btn-secondary" style="width: 100%; margin-bottom: 10px; padding: 10px; font-size: 12px; font-weight: 800; border-color: rgba(59, 130, 246, 0.45); background: rgba(59, 130, 246, 0.14); color: #60a5fa; display: flex; align-items: center; justify-content: center; gap: 6px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span>APENAS VISUALIZAR ENDEREÇO E ROTA</span>
+      </button>
+      <div style="display: flex; gap: 8px;">
+        <button type="button" class="btn btn-secondary" style="flex: 1; padding: 12px 10px; font-weight: 800;" onclick="fecharConfirmacaoRetiradaBalcao()">Cancelar</button>
+        <button type="button" class="btn btn-gold" style="flex: 1.4; padding: 12px 10px; font-weight: 800;" id="btnConfirmarRetiradaReal" onclick="confirmarRetiradaPedidoBalcao()">SIM, RETIRAR AGORA ➔</button>
+      </div>
+    </div>
+  </div>
+
   <!-- TOAST CONTAINER -->
   <div class="toast-container" id="toastContainer"></div>
 
@@ -1939,7 +1962,7 @@
             <button type="button" class="btn btn-secondary" style="flex: 1; padding: 12px 10px; font-weight: 800; font-size: 13px;" onclick="fecharVisualizacaoPedidoBalcao()">
               <span>← Voltar</span>
             </button>
-            <button type="button" class="btn btn-gold" style="flex: 1.35; padding: 12px 12px; font-weight: 800; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;" onclick="fecharVisualizacaoPedidoBalcao(); retirarPedidoBalcao(${p.id}, '${escapeHtml(p.numero_pedido)}')">
+            <button type="button" class="btn btn-gold" style="flex: 1.35; padding: 12px 12px; font-weight: 800; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;" onclick="fecharVisualizacaoPedidoBalcao(); executarRetiradaPedidoBalcao(${p.id}, '${escapeHtml(p.numero_pedido)}')">
               <span>RETIRAR PEDIDO</span>
               <span>➔</span>
             </button>
@@ -1956,15 +1979,57 @@
       if (modal) modal.style.display = 'none';
     }
 
-    // AÇÃO: RETIRAR PEDIDO NO BALCÃO
-    async function retirarPedidoBalcao(pedidoId, numero) {
+    // AÇÃO: RETIRAR PEDIDO NO BALCÃO (COM CONFIRMAÇÃO ANTI-DESPACHO ACIDENTAL)
+    function retirarPedidoBalcao(pedidoId, numero) {
+      const p = (state.pedidosBalcao || []).find(item => Number(item.id) === Number(pedidoId));
+      state.pedidoParaRetirar = { id: pedidoId, numero: numero || (p ? p.numero_pedido : '') };
+
+      const modal = document.getElementById('modalConfirmarRetiradaBalcao');
+      const titulo = document.getElementById('tituloConfirmarRetiradaBalcao');
+      const resumo = document.getElementById('resumoEnderecoConfirmarRetirada');
+      const btnVis = document.getElementById('btnApenasVisualizarNoModal');
+      if (!modal) {
+        return executarRetiradaPedidoBalcao(pedidoId, numero);
+      }
+
+      if (titulo) titulo.textContent = `Retirar Pedido #${state.pedidoParaRetirar.numero}?`;
+      if (resumo) {
+        resumo.innerHTML = p
+          ? `<strong>${escapeHtml(p.cliente || 'Cliente')}</strong><br>${escapeHtml(p.endereco || '')}${p.bairro ? ' — <strong>' + escapeHtml(p.bairro) + '</strong>' : ''}`
+          : `Pedido #${escapeHtml(String(state.pedidoParaRetirar.numero))}`;
+      }
+      if (btnVis) {
+        btnVis.onclick = () => {
+          fecharConfirmacaoRetiradaBalcao();
+          abrirVisualizacaoPedidoBalcao(pedidoId);
+        };
+      }
+      modal.style.display = 'flex';
+    }
+
+    function fecharConfirmacaoRetiradaBalcao(event) {
+      if (event && event.target && event.target.id !== 'modalConfirmarRetiradaBalcao') return;
+      const modal = document.getElementById('modalConfirmarRetiradaBalcao');
+      if (modal) modal.style.display = 'none';
+      state.pedidoParaRetirar = null;
+    }
+
+    async function confirmarRetiradaPedidoBalcao() {
+      if (!state.pedidoParaRetirar) return;
+      const { id, numero } = state.pedidoParaRetirar;
+      fecharConfirmacaoRetiradaBalcao();
+      await executarRetiradaPedidoBalcao(id, numero);
+    }
+
+    async function executarRetiradaPedidoBalcao(pedidoId, numero) {
       try {
         const res = await fetch('/api/pedidos/retirar', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             pedido_id: pedidoId,
-            motoboy_id: state.motoboy.id
+            motoboy_id: state.motoboy.id,
+            confirmado: true
           })
         });
 

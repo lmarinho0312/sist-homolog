@@ -64,7 +64,13 @@ const TABELA_REGRAS = [
     canonical: 'Bairro de Fátima',
     taxaVeloz: 11.00,
     taxaSpeed: 11.00,
-    aliases: ['bairro de fatima', 'b. fatima', 'b fatima', 'fatima']
+    aliases: ['bairro de fatima', 'b. fatima', 'b fatima', 'fatima', 'nossa sra de fatima', 'nossa sra . de fatima', 'nossa sra. de fatima', 'nossa senhora de fatima']
+  },
+  {
+    canonical: 'Parque do Ingá',
+    taxaVeloz: 12.00,
+    taxaSpeed: 12.00,
+    aliases: ['parque do inga', 'parque inga', 'parque enga', 'inga', 'enga']
   },
   {
     canonical: 'Beira Linha',

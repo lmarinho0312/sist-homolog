@@ -69,7 +69,7 @@ async function verificarJaDespachadoNaPlataforma(origem, orderId) {
       const ev = await db.queryOne(
         `SELECT id, type FROM food99_events 
          WHERE order_id = ? 
-           AND type IN ('orderDelivering', 'orderDispatch', 'orderFinish', 'orderCancel', 'orderDispatchedAuto')
+           AND type IN ('orderReady', 'orderDelivering', 'orderDispatch', 'orderFinish', 'orderCancel', 'orderDispatchedAuto')
          LIMIT 1`,
         [String(orderId)]
       );
@@ -202,34 +202,55 @@ async function executarDespachoPlataformaInterno(pedido, motoboy = null) {
     }
   }
 
-  // ── 2. DESPACHO AUTOMÁTICO 99FOOD (1 única chamada limpa) ────────────────────
+  // ── 2. DESPACHO AUTOMÁTICO 99FOOD (orderReady + selfdelivery/dispatch) ──────
   if (origem === '99FOOD') {
     const courier = montarCourierMotoboy(motoboy);
+    let readySuccess = false;
+    let dispatchSuccess = false;
+    let lastErrorMsg = '';
+
+    // 2.1. Notifica na 99Food que o pedido está pronto / despachado pela loja (/v1/order/order/ready)
+    try {
+      await ninetyNineFoodService.orderReady(orderId, appShopId);
+      readySuccess = true;
+      console.log(`✅ [Auto-Dispatch 99Food] orderReady enviado com sucesso para #${pedido.numero_pedido} (${orderId} | Loja: ${appShopId || 'padrão'})!`);
+    } catch (errReady) {
+      lastErrorMsg = errReady.message || '';
+      console.log(`ℹ️ [Auto-Dispatch 99Food] Retorno orderReady #${pedido.numero_pedido} (${orderId}): ${lastErrorMsg}`);
+    }
+
+    // 2.2. Envia também o vínculo do entregador na modalidade entrega própria (/v1/order/selfdelivery/dispatch)
     try {
       await ninetyNineFoodService.dispatchOrder(orderId, courier, appShopId);
+      dispatchSuccess = true;
+      console.log(`🚀 [Auto-Dispatch 99Food] selfdelivery/dispatch enviado para #${pedido.numero_pedido} (${orderId}) com entregador ${courier.name}!`);
+    } catch (errDisp) {
+      lastErrorMsg = errDisp.message || lastErrorMsg;
+      console.log(`ℹ️ [Auto-Dispatch 99Food] Retorno selfdelivery/dispatch #${pedido.numero_pedido} (${orderId}): ${errDisp.message}`);
+    }
+
+    if (readySuccess || dispatchSuccess) {
       await marcarComoDespachadoLocalmente('99FOOD', orderId, appShopId);
-      console.log(`🚀 [Auto-Dispatch 99Food] Pedido #${pedido.numero_pedido} (${orderId} | Loja: ${appShopId || 'padrão'}) despachado na 99Food com entregador ${courier.name}!`);
       return {
         attempted: true,
         dispatched: true,
+        readySuccess,
+        dispatchSuccess,
         platform: '99FOOD',
         orderId,
         appShopId
       };
-    } catch (errFirst) {
-      // Marca localmente para nunca repetir chamadas caso a cozinha já tenha despachado antes na 99Food
-      await marcarComoDespachadoLocalmente('99FOOD', orderId, appShopId);
-      console.log(`ℹ️ [Auto-Dispatch 99Food] Pedido #${pedido.numero_pedido} (${orderId}) já havia sido despachado pela cozinha ou não requer transição: ${errFirst.message}`);
-      return {
-        attempted: true,
-        dispatched: false,
-        alreadyDispatchedOrIgnored: true,
-        platform: '99FOOD',
-        orderId,
-        appShopId,
-        detail: errFirst.message
-      };
     }
+
+    return {
+      attempted: true,
+      dispatched: false,
+      alreadyDispatchedOrIgnored: true,
+      platform: '99FOOD',
+      orderId,
+      appShopId,
+      detail: lastErrorMsg
+    };
   }
 
   return { attempted: false, dispatched: false, platform: origem };
@@ -238,7 +259,7 @@ async function executarDespachoPlataformaInterno(pedido, motoboy = null) {
 /**
  * Wrapper seguro com timeout máximo (não trava o app do motoboy mesmo se a API externa oscilar).
  */
-async function despacharPedidoPlataformaSeguro(pedido, motoboy = null, timeoutMs = 2600) {
+async function despacharPedidoPlataformaSeguro(pedido, motoboy = null, timeoutMs = 4500) {
   try {
     let timer = null;
     const timeoutPromise = new Promise((resolve) => {

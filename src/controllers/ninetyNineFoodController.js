@@ -38,7 +38,7 @@ async function injectOrderToDb(payload) {
 
     // 1. Busca pedido ÚNICA E EXCLUSIVAMENTE pelo ID global único da 99Food (19 dígitos)
     let existe = await db.queryOne(
-      `SELECT id, numero_pedido, status, motoboy_id FROM pedidos 
+      `SELECT id, numero_pedido, status, motoboy_id, grupo, taxa_entrega FROM pedidos 
        WHERE origem = '99FOOD' AND pedido_id_origem = ?
        ORDER BY id DESC LIMIT 1`,
       [orderId]
@@ -48,7 +48,7 @@ async function injectOrderToDb(payload) {
     if (!existe && numeroPedido) {
       const hojeInicio = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) + ' 00:00:00';
       existe = await db.queryOne(
-        `SELECT id, numero_pedido, status, motoboy_id FROM pedidos 
+        `SELECT id, numero_pedido, status, motoboy_id, grupo, taxa_entrega FROM pedidos 
          WHERE origem = '99FOOD' 
            AND numero_pedido IN (?, ?)
            AND criado_em >= ?
@@ -63,9 +63,9 @@ async function injectOrderToDb(payload) {
     const addr = orderInfo.receive_address || null;
     const temEnderecoValido = addr && (addr.street_name || addr.poi_address || addr.name || addr.phone || addr.locator);
 
-    if (payload.event_type === 'orderConfirm' || (!temEnderecoValido && existe)) {
+    if (payload.event_type === 'orderConfirm' || payload.type === 'orderConfirm' || (!temEnderecoValido && existe)) {
       if (!temEnderecoValido) {
-        console.log(`ℹ️ [99Food] Evento orderConfirm sem dados de endereço. Ignorado para preservar integridade da comanda.`);
+        console.log(`ℹ️ [99Food] Evento ${payload.type || payload.event_type || 'webhook'} sem dados de endereço. Ignorado para preservar integridade da comanda.`);
         return;
       }
     }
@@ -76,17 +76,25 @@ async function injectOrderToDb(payload) {
     const loc = safeAddr.locator ? String(safeAddr.locator).trim() : null;
     
     // Concatena endereço completo incluindo número, complemento e ponto de referência
-    const refComp = [addr.complement, addr.reference || addr.house_number].filter(Boolean).join(' - ');
-    const ruaCompleta = [addr.street_name, addr.street_number, refComp].filter(Boolean).join(', ')
-      || addr.poi_address
-      || addr.poi_display_name
+    const refComp = [safeAddr.complement, safeAddr.reference || safeAddr.house_number].filter(Boolean).join(' - ');
+    const ruaCompleta = [safeAddr.street_name, safeAddr.street_number, refComp].filter(Boolean).join(', ')
+      || safeAddr.poi_address
+      || safeAddr.poi_display_name
       || 'Consulte o app';
     
-    const bairro = addr.district || '';
-    // Taxa de entrega da loja ou taxa cobrada
-    const taxaCents = orderInfo.price?.store_charged_delivery_price || orderInfo.price?.delivery_price || orderInfo.price?.delivery_fee || 0;
-    const taxa = taxaCents ? (taxaCents / 100) : 0;
+    const bairro = safeAddr.district || '';
     const rawText = JSON.stringify(payload, null, 2);
+
+    const { obterTaxaRepasse, obterNomeBairroCanonica, sincronizarTaxasDb } = require('../utils/rateResolver');
+    await sincronizarTaxasDb(db);
+    const bairroFormatado = obterNomeBairroCanonica(bairro, ruaCompleta, rawText) || bairro;
+
+    // Taxa de repasse SEMPRE calculada pela tabela oficial de bairros da Ao Ponto (NUNCA usar taxa promocional de cliente da 99Food)
+    const grupoRef = (existe && existe.grupo === 'SPEED') ? 'SPEED' : 'VELOZ';
+    const taxaOficial = obterTaxaRepasse(bairroFormatado, ruaCompleta, rawText, grupoRef) || (grupoRef === 'SPEED' ? 11.0 : 10.0);
+    const taxa = (existe && existe.taxa_entrega && Number(existe.taxa_entrega) >= 7)
+      ? Number(existe.taxa_entrega)
+      : taxaOficial;
 
     if (existe) {
       // Se o pedido já existia para este mesmo orderId ou hoje, atualiza com os dados oficiais sem perder rota
@@ -105,9 +113,9 @@ async function injectOrderToDb(payload) {
            criado_em = COALESCE(criado_em, DATETIME('now', '-3 hours')),
            texto_bruto = ?
          WHERE id = ?`,
-        [numeroPedido, orderId, cliente, ruaCompleta, bairro, taxa, tel, loc, novoStatus, rawText, existe.id]
+        [numeroPedido, orderId, cliente, ruaCompleta, bairroFormatado, taxa, tel, loc, novoStatus, rawText, existe.id]
       );
-      console.log(`🔄 [99Food] Pedido existente (ID ${existe.id}) atualizado com dados da API: #${numeroPedido} (${orderId}) [Status: ${novoStatus}]`);
+      console.log(`🔄 [99Food] Pedido existente (ID ${existe.id}) atualizado com dados da API: #${numeroPedido} (${orderId}) [Status: ${novoStatus} | Taxa: R$ ${taxa}]`);
       memoryCache.clear();
       return;
     }
@@ -117,7 +125,7 @@ async function injectOrderToDb(payload) {
       `INSERT INTO pedidos 
        (numero_pedido, origem, pedido_id_origem, cliente, endereco, bairro, taxa_entrega, telefone_cliente, localizador, status, criado_em, texto_bruto)
        VALUES (?, '99FOOD', ?, ?, ?, ?, ?, ?, ?, 'disponivel', DATETIME('now', '-3 hours'), ?)`,
-      [numeroPedido, orderId, cliente, ruaCompleta, bairro, taxa, tel, loc, rawText]
+      [numeroPedido, orderId, cliente, ruaCompleta, bairroFormatado, taxa, tel, loc, rawText]
     );
     console.log(`✅ [99Food] Novo pedido inserido via API no painel: #${numeroPedido} (${orderId})`);
     memoryCache.clear();

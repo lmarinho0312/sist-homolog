@@ -1,5 +1,5 @@
 // Service Worker leve para PWA Ao Ponto
-const CACHE_NAME = 'aoponto-cache-v1';
+const CACHE_NAME = 'aoponto-cache-v3';
 const ASSETS_TO_CACHE = [
   '/css/design-system.css',
   '/assets/logo-dark-theme.png',
@@ -23,9 +23,16 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
       );
-    })
+    }).then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: 'window' }))
+      .then((windowClients) => {
+        windowClients.forEach((client) => {
+          if (client.url && (client.url.includes('/motoboy') || client.url.includes('/admin'))) {
+            try { client.navigate(client.url); } catch (_) {}
+          }
+        });
+      }).catch(() => {})
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
@@ -37,9 +44,9 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Network First para páginas HTML, garantindo dados sempre frescos
-  if (event.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/motoboy' || url.pathname === '/fechamento') {
+  if (event.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/motoboy' || url.pathname === '/fechamento' || url.pathname === '/admin') {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
+      fetch(event.request, { cache: 'no-store' }).catch(() => caches.match(event.request))
     );
     return;
   }

@@ -726,11 +726,21 @@ async function assumirPedido(req, res) {
       return res.json(404, { success: false, message: 'Pedido não encontrado.' });
     }
 
-    // 3. Calcular a taxa oficial de repasse com base no grupo do motoboy que assumiu
-    // Se a cozinha já havia fixado/alterado uma taxa customizada > 0, mantém o valor definido pela cozinha.
-    let taxaRepasseCalculada = (pedidoAtual.taxa_entrega !== null && pedidoAtual.taxa_entrega !== undefined && Number(pedidoAtual.taxa_entrega) > 0)
-      ? Number(pedidoAtual.taxa_entrega)
-      : obterTaxaRepasse(pedidoAtual.bairro, pedidoAtual.endereco, pedidoAtual.texto_bruto, grupoMotoboy);
+    // 3. Sincronizar tabela de taxas e calcular a taxa oficial de repasse com base no grupo do motoboy que assumiu
+    await sincronizarTaxasDb(db);
+    const bairroCanonica = obterNomeBairroCanonica(pedidoAtual.bairro, pedidoAtual.endereco, pedidoAtual.texto_bruto) || pedidoAtual.bairro;
+    const taxaOficialGrupoMotoboy = obterTaxaRepasse(bairroCanonica, pedidoAtual.endereco, pedidoAtual.texto_bruto, grupoMotoboy);
+    const taxaOficialVeloz = obterTaxaRepasse(bairroCanonica, pedidoAtual.endereco, pedidoAtual.texto_bruto, 'VELOZ');
+    const taxaOficialSpeed = obterTaxaRepasse(bairroCanonica, pedidoAtual.endereco, pedidoAtual.texto_bruto, 'SPEED');
+    const taxaSalva = (pedidoAtual.taxa_entrega !== null && pedidoAtual.taxa_entrega !== undefined) ? Number(pedidoAtual.taxa_entrega) : 0;
+
+    // Se a taxa salva era automática padrão (ou menor que R$ 7 vinda de frete promocional), aplica a taxa oficial do grupo do motoboy.
+    // Só mantém taxaSalva se a cozinha tiver definido manualmente um valor customizado diferente da tabela.
+    const ehTaxaAutomaticaOuInvalida = (taxaSalva < 7)
+      || (Math.abs(taxaSalva - taxaOficialVeloz) < 0.01)
+      || (Math.abs(taxaSalva - taxaOficialSpeed) < 0.01);
+
+    const taxaRepasseCalculada = ehTaxaAutomaticaOuInvalida ? taxaOficialGrupoMotoboy : taxaSalva;
 
     // 4. Atualização atômica para colocar em rota sob responsabilidade do motoboy
     const result = await db.execute(
@@ -738,10 +748,11 @@ async function assumirPedido(req, res) {
        SET motoboy_id = ?, 
            status = 'em_rota', 
            grupo = ?, 
+           bairro = ?,
            taxa_entrega = ?, 
-           data_inicio = COALESCE(data_inicio, DATETIME('now', '-3 hours')) 
+           data_inicio = DATETIME('now', '-3 hours') 
        WHERE id = ? AND (status IN ('disponivel', 'aguardando_retirada', 'pronto', 'em_preparo', 'confirmado') OR status IS NULL) AND (motoboy_id IS NULL OR motoboy_id = ?)`,
-      [motoboyIdNum, grupoMotoboy, taxaRepasseCalculada, pedidoIdNum, motoboyIdNum]
+      [motoboyIdNum, grupoMotoboy, bairroCanonica, taxaRepasseCalculada, pedidoIdNum, motoboyIdNum]
     );
 
     if (result.changes === 0) {
@@ -1145,7 +1156,7 @@ async function atualizarStatusPedido(req, res) {
     memoryCache.clear();
 
     let dispatchInfo = null;
-    if (status === 'em_rota') {
+    if (status === 'em_rota' && pedidoAtualizado.motoboy_id) {
       dispatchInfo = await despacharPedidoPlataformaSeguro(pedidoAtualizado, {
         id: pedidoAtualizado.motoboy_id,
         nome: pedidoAtualizado.motoboy_nome,

@@ -1037,7 +1037,7 @@ async function atribuirPedidoMotoboy(req, res) {
 
     // 2. Obter pedido
     const pedido = await db.queryOne(
-      `SELECT id, numero_pedido, cliente, bairro, grupo, status, motoboy_id FROM pedidos WHERE id = ?`,
+      `SELECT id, numero_pedido, cliente, endereco, bairro, taxa_entrega, texto_bruto, grupo, status, motoboy_id FROM pedidos WHERE id = ?`,
       [pedidoIdNum]
     );
 
@@ -1045,18 +1045,30 @@ async function atribuirPedidoMotoboy(req, res) {
       return res.json(404, { success: false, message: 'Pedido não encontrado.' });
     }
 
-    const grupoFinal = motoboy.grupo || 'VELOZ';
+    const grupoFinal = (motoboy.grupo && String(motoboy.grupo).toUpperCase() === 'SPEED') ? 'SPEED' : 'VELOZ';
+    await sincronizarTaxasDb(db);
+    const bairroCanonica = obterNomeBairroCanonica(pedido.bairro, pedido.endereco, pedido.texto_bruto) || pedido.bairro;
+    const taxaOficialGrupo = obterTaxaRepasse(bairroCanonica, pedido.endereco, pedido.texto_bruto, grupoFinal);
+    const taxaOficialVeloz = obterTaxaRepasse(bairroCanonica, pedido.endereco, pedido.texto_bruto, 'VELOZ');
+    const taxaOficialSpeed = obterTaxaRepasse(bairroCanonica, pedido.endereco, pedido.texto_bruto, 'SPEED');
+    const taxaSalva = (pedido.taxa_entrega !== null && pedido.taxa_entrega !== undefined) ? Number(pedido.taxa_entrega) : 0;
+    const ehTaxaAutomaticaOuInvalida = (taxaSalva < 7)
+      || (Math.abs(taxaSalva - taxaOficialVeloz) < 0.01)
+      || (Math.abs(taxaSalva - taxaOficialSpeed) < 0.01);
+    const taxaFinal = ehTaxaAutomaticaOuInvalida ? taxaOficialGrupo : taxaSalva;
 
     // 3. Atualizar o pedido para o entregador designado
     const statusFinal = (novoStatus && typeof novoStatus === 'string') ? novoStatus : 'em_rota';
     let updateSql = `UPDATE pedidos 
                      SET motoboy_id = ?, 
                          grupo = ?, 
+                         bairro = ?,
+                         taxa_entrega = ?,
                          status = ?`;
-    const params = [motoboyIdNum, grupoFinal, statusFinal];
+    const params = [motoboyIdNum, grupoFinal, bairroCanonica, taxaFinal, statusFinal];
 
     if (statusFinal === 'em_rota') {
-      updateSql += `, data_inicio = COALESCE(data_inicio, DATETIME('now', '-3 hours')), data_fim = NULL`;
+      updateSql += `, data_inicio = DATETIME('now', '-3 hours'), data_fim = NULL`;
     } else if (statusFinal === 'entregue') {
       updateSql += `, data_inicio = COALESCE(data_inicio, DATETIME('now', '-3 hours')), data_fim = DATETIME('now', '-3 hours')`;
     }

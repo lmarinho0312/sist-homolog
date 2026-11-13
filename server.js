@@ -1,3 +1,15 @@
+// Proteção Global 64-bit Integer (19 dígitos da 99Food):
+// No runtime @vercel/node, o stream HTTP é lido antes do handler e req.body invoca JSON.parse internamente.
+// Interceptamos JSON.parse na inicialização para converter IDs de 15+ dígitos em string antes do parse IEEE-754.
+const _nativeJsonParse = JSON.parse;
+JSON.parse = function safeJsonParse64Bit(text, reviver) {
+  if (typeof text === 'string' && text.length > 15 && text.includes('_id')) {
+    const safeText = text.replace(/"(order_id|app_id|shop_id|event_id|app_shop_id)":\s*(\d{15,})/g, '"$1":"$2"');
+    return _nativeJsonParse.call(this, safeText, reviver);
+  }
+  return _nativeJsonParse.call(this, text, reviver);
+};
+
 const fs = require('node:fs');
 const path = require('node:path');
 const config = require('./src/config/env');
