@@ -67,14 +67,22 @@ async function verificarJaDespachadoNaPlataforma(origem, orderId) {
       }
     } else if (origem === '99FOOD') {
       const cleanId = String(orderId).trim();
-      const prefix = (cleanId.length >= 18 && cleanId.endsWith('000')) ? `${cleanId.slice(0, 15)}%` : cleanId;
-      const ev = await db.queryOne(
+      let ev = await db.queryOne(
         `SELECT id, type FROM food99_events 
-         WHERE (order_id = ? OR order_id LIKE ?)
+         WHERE order_id = ?
            AND type IN ('orderReady', 'orderDelivering', 'orderDispatch', 'orderFinish', 'orderCancel', 'orderDispatchedAuto')
          LIMIT 1`,
-        [cleanId, prefix]
+        [cleanId]
       );
+      if (!ev && cleanId.length >= 18 && cleanId.endsWith('000')) {
+        ev = await db.queryOne(
+          `SELECT id, type FROM food99_events 
+           WHERE order_id LIKE ?
+             AND type IN ('orderReady', 'orderDelivering', 'orderDispatch', 'orderFinish', 'orderCancel', 'orderDispatchedAuto')
+           LIMIT 1`,
+          [`${cleanId.slice(0, 15)}%`]
+        );
+      }
       if (ev) {
         dispatchedOrderIdsMemory.add(cacheKey);
         return true;
