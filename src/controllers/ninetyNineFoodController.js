@@ -148,10 +148,11 @@ async function cancelOrderInDb(orderId) {
 async function finishOrderInDb(orderId) {
   try {
     const db = getDb();
-    // Apenas marca como entregue se NÃO estiver em rota com motoboy
+    // NUNCA fecha automaticamente pedidos que ainda estão no balcão sem motoboy atribuído (motoboy_id IS NULL),
+    // garantindo que toda entrega seja vinculada ao motoboy responsável para contabilizar sua taxa.
     await db.execute(
       `UPDATE pedidos SET status = 'entregue', data_fim = COALESCE(data_fim, DATETIME('now', '-3 hours'))
-       WHERE pedido_id_origem = ? AND origem = '99FOOD' AND status NOT IN ('em_rota', 'entregue')`,
+       WHERE pedido_id_origem = ? AND origem = '99FOOD' AND motoboy_id IS NOT NULL AND status NOT IN ('em_rota', 'entregue')`,
       [String(orderId)]
     );
     memoryCache.clear();

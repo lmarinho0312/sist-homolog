@@ -34,6 +34,21 @@ async function getAuthToken(forceRefresh = false, customAppShopId = null) {
     return cached.token;
   }
 
+  // Consulta cache persistente no Turso (evita chamada extra em cold start serverless da Vercel)
+  if (!forceRefresh) {
+    try {
+      const db = getDb();
+      const row = await db.queryOne("SELECT value FROM app_cache WHERE key = ?", [`food99_token_${appShopId}`]);
+      if (row && row.value) {
+        const parsed = JSON.parse(row.value);
+        if (parsed && parsed.token && parsed.expiresAt > now + 60000) {
+          tokenCacheByShop.set(appShopId, parsed);
+          return parsed.token;
+        }
+      }
+    } catch (_) {}
+  }
+
   const appId = env.FOOD99_APP_ID;
   const appSecret = env.FOOD99_APP_SECRET;
 
@@ -61,7 +76,16 @@ async function getAuthToken(forceRefresh = false, customAppShopId = null) {
     ? data.data.token_expiration_time * 1000
     : now + (180 * 1000);
 
-  tokenCacheByShop.set(appShopId, { token, expiresAt });
+  const tokenRecord = { token, expiresAt };
+  tokenCacheByShop.set(appShopId, tokenRecord);
+  try {
+    const db = getDb();
+    await db.execute(
+      "INSERT OR REPLACE INTO app_cache (key, value, updated_at) VALUES (?, ?, ?)",
+      [`food99_token_${appShopId}`, JSON.stringify(tokenRecord), now]
+    );
+  } catch (_) {}
+
   console.log(`✅ [99Food] Token ativo para loja ${appShopId}! Expira em: ${new Date(expiresAt).toISOString()}`);
   return token;
 }
@@ -109,6 +133,11 @@ async function ninetyNineRequest(endpoint, body = {}, method = 'POST', customApp
       const qParams = new URLSearchParams({ auth_token: authToken, ...body });
       url += `?${qParams.toString()}`;
     } else {
+      // Compatibilidade total com Swagger v1 (query params) e OpenAPI doc (POST JSON body)
+      if (body && body.order_id && (endpoint.includes('/order/ready') || endpoint.includes('/order/confirm') || endpoint.includes('/order/delivered'))) {
+        const qParams = new URLSearchParams({ auth_token: authToken, order_id: String(body.order_id) });
+        url += `?${qParams.toString()}`;
+      }
       options.body = JSON.stringify({
         auth_token: authToken,
         ...body
@@ -120,7 +149,7 @@ async function ninetyNineRequest(endpoint, body = {}, method = 'POST', customApp
     const text = await res.text();
     let json;
     try {
-      const safeText = text.replace(/"(order_id|app_id|shop_id|event_id)":\s*(\d{15,})/g, '"$1":"$2"');
+      const safeText = text.replace(/"(order_id|app_id|shop_id|event_id|app_shop_id)":\s*(\d{15,})/g, '"$1":"$2"');
       json = JSON.parse(safeText);
     } catch (e) {
       json = { raw: text };
@@ -135,6 +164,13 @@ async function ninetyNineRequest(endpoint, body = {}, method = 'POST', customApp
   if (response.data?.errno === 10100 || response.data?.errno === 10102) {
     console.warn(`⚠️ [99Food API] Token expirado (${response.data.errno}). Renovando e repetindo chamada...`);
     token = await getAuthToken(true, customAppShopId);
+    response = await execute(token);
+  }
+
+  // Se atingiu rate limit de janela de 10s (errno 10005), aguarda 1.1s e repete automaticamente
+  if (response.data?.errno === 10005) {
+    console.warn(`⏳ [99Food API] Rate limit 10005 em ${endpoint}. Aguardando 1.1s para repetir...`);
+    await new Promise((r) => setTimeout(r, 1100));
     response = await execute(token);
   }
 

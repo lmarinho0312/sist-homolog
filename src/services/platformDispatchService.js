@@ -66,12 +66,14 @@ async function verificarJaDespachadoNaPlataforma(origem, orderId) {
         return true;
       }
     } else if (origem === '99FOOD') {
+      const cleanId = String(orderId).trim();
+      const prefix = (cleanId.length >= 18 && cleanId.endsWith('000')) ? `${cleanId.slice(0, 15)}%` : cleanId;
       const ev = await db.queryOne(
         `SELECT id, type FROM food99_events 
-         WHERE order_id = ? 
+         WHERE (order_id = ? OR order_id LIKE ?)
            AND type IN ('orderReady', 'orderDelivering', 'orderDispatch', 'orderFinish', 'orderCancel', 'orderDispatchedAuto')
          LIMIT 1`,
-        [String(orderId)]
+        [cleanId, prefix]
       );
       if (ev) {
         dispatchedOrderIdsMemory.add(cacheKey);
@@ -204,40 +206,64 @@ async function executarDespachoPlataformaInterno(pedido, motoboy = null) {
 
   // ── 2. DESPACHO AUTOMÁTICO 99FOOD (orderReady + selfdelivery/dispatch) ──────
   if (origem === '99FOOD') {
+    let targetOrderId = String(orderId).trim();
+
+    // Fallback de recuperação de precisão: se o orderId no pedido terminava em '000' (criado antes do fix de 64-bit),
+    // busca o order_id real de 19 dígitos na tabela food99_events pelo prefixo de 15 dígitos.
+    if (targetOrderId.length >= 18 && targetOrderId.endsWith('000')) {
+      try {
+        const db = getDb();
+        const prefix = targetOrderId.slice(0, 15);
+        const evReal = await db.queryOne(
+          `SELECT order_id, shop_id FROM food99_events 
+           WHERE order_id LIKE ? AND order_id NOT LIKE '%000' 
+           ORDER BY created_at DESC LIMIT 1`,
+          [`${prefix}%`]
+        );
+        if (evReal && evReal.order_id) {
+          targetOrderId = String(evReal.order_id).trim();
+          console.log(`🔧 [Auto-Dispatch 99Food] order_id recuperado de food99_events para #${pedido.numero_pedido}: ${targetOrderId}`);
+        }
+      } catch (_) {}
+    }
+
     const courier = montarCourierMotoboy(motoboy);
     let readySuccess = false;
     let dispatchSuccess = false;
     let lastErrorMsg = '';
 
-    // 2.1. Notifica na 99Food que o pedido está pronto / despachado pela loja (/v1/order/order/ready)
+    // 2.1. Notifica na 99Food que o pedido saiu para entrega (/v1/order/order/ready -> status 400: Order picked up by courier / In transit)
     try {
-      await ninetyNineFoodService.orderReady(orderId, appShopId);
+      await ninetyNineFoodService.orderReady(targetOrderId, appShopId);
       readySuccess = true;
-      console.log(`✅ [Auto-Dispatch 99Food] orderReady enviado com sucesso para #${pedido.numero_pedido} (${orderId} | Loja: ${appShopId || 'padrão'})!`);
+      console.log(`✅ [Auto-Dispatch 99Food] orderReady enviado com sucesso para #${pedido.numero_pedido} (${targetOrderId} | Loja: ${appShopId || 'padrão'})!`);
     } catch (errReady) {
       lastErrorMsg = errReady.message || '';
-      console.log(`ℹ️ [Auto-Dispatch 99Food] Retorno orderReady #${pedido.numero_pedido} (${orderId}): ${lastErrorMsg}`);
+      console.log(`ℹ️ [Auto-Dispatch 99Food] Retorno orderReady #${pedido.numero_pedido} (${targetOrderId}): ${lastErrorMsg}`);
     }
 
     // 2.2. Envia também o vínculo do entregador na modalidade entrega própria (/v1/order/selfdelivery/dispatch)
     try {
-      await ninetyNineFoodService.dispatchOrder(orderId, courier, appShopId);
+      await ninetyNineFoodService.dispatchOrder(targetOrderId, courier, appShopId);
       dispatchSuccess = true;
-      console.log(`🚀 [Auto-Dispatch 99Food] selfdelivery/dispatch enviado para #${pedido.numero_pedido} (${orderId}) com entregador ${courier.name}!`);
+      console.log(`🚀 [Auto-Dispatch 99Food] selfdelivery/dispatch enviado para #${pedido.numero_pedido} (${targetOrderId}) com entregador ${courier.name}!`);
     } catch (errDisp) {
       lastErrorMsg = errDisp.message || lastErrorMsg;
-      console.log(`ℹ️ [Auto-Dispatch 99Food] Retorno selfdelivery/dispatch #${pedido.numero_pedido} (${orderId}): ${errDisp.message}`);
+      console.log(`ℹ️ [Auto-Dispatch 99Food] Retorno selfdelivery/dispatch #${pedido.numero_pedido} (${targetOrderId}): ${errDisp.message}`);
     }
 
     if (readySuccess || dispatchSuccess) {
-      await marcarComoDespachadoLocalmente('99FOOD', orderId, appShopId);
+      await marcarComoDespachadoLocalmente('99FOOD', targetOrderId, appShopId);
+      if (targetOrderId !== orderId) {
+        await marcarComoDespachadoLocalmente('99FOOD', orderId, appShopId);
+      }
       return {
         attempted: true,
         dispatched: true,
         readySuccess,
         dispatchSuccess,
         platform: '99FOOD',
-        orderId,
+        orderId: targetOrderId,
         appShopId
       };
     }
@@ -247,7 +273,7 @@ async function executarDespachoPlataformaInterno(pedido, motoboy = null) {
       dispatched: false,
       alreadyDispatchedOrIgnored: true,
       platform: '99FOOD',
-      orderId,
+      orderId: targetOrderId,
       appShopId,
       detail: lastErrorMsg
     };
@@ -259,7 +285,7 @@ async function executarDespachoPlataformaInterno(pedido, motoboy = null) {
 /**
  * Wrapper seguro com timeout máximo (não trava o app do motoboy mesmo se a API externa oscilar).
  */
-async function despacharPedidoPlataformaSeguro(pedido, motoboy = null, timeoutMs = 4500) {
+async function despacharPedidoPlataformaSeguro(pedido, motoboy = null, timeoutMs = 8000) {
   try {
     let timer = null;
     const timeoutPromise = new Promise((resolve) => {
