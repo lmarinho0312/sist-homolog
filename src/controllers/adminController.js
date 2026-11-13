@@ -1,7 +1,7 @@
 const { getDb } = require('../database/db');
 const { getPosicoesMotoboys } = require('../services/traccarService');
 const { expirarPedidosPendentesDiasAnteriores, obterLimitesTurnoOperacional } = require('./pedidosController');
-const { obterTaxaRepasse, obterNomeBairroCanonica } = require('../utils/rateResolver');
+const { obterTaxaRepasse, obterNomeBairroCanonica, sincronizarTaxasDb } = require('../utils/rateResolver');
 const memoryCache = require('../utils/memoryCache');
 const { extrairItensEPagamentoPedido } = require('../utils/orderParser');
 const { despacharPedidoPlataformaSeguro } = require('../services/platformDispatchService');
