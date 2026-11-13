@@ -1,5 +1,9 @@
 const ifoodService = require('./ifoodService');
 const ninetyNineFoodService = require('./ninetyNineFoodService');
+const { getDb } = require('../database/db');
+
+// Cache em memória de pedidos já despachados na plataforma (evita qualquer chamada duplicada no mesmo processo)
+const dispatchedOrderIdsMemory = new Set();
 
 /**
  * Extrai metadados da plataforma (orderId oficial e appShopId da 99Food) a partir do registro do pedido.
@@ -36,6 +40,78 @@ function extrairMetadadosPlataforma(pedido) {
 }
 
 /**
+ * Verifica no banco de eventos dos webhooks (e no cache em memória) se o pedido JÁ foi despachado
+ * pela cozinha na plataforma (ou por uma retirada anterior), evitando enviar requisições redundantes/inválidas
+ * para a API do iFood ou da 99Food.
+ */
+async function verificarJaDespachadoNaPlataforma(origem, orderId) {
+  if (!orderId) return false;
+  const cacheKey = `${origem}:${orderId}`;
+  if (dispatchedOrderIdsMemory.has(cacheKey)) {
+    return true;
+  }
+
+  try {
+    const db = getDb();
+    if (origem === 'IFOOD') {
+      const ev = await db.queryOne(
+        `SELECT id, code FROM ifood_events 
+         WHERE order_id = ? 
+           AND code IN ('DSP', 'DISPATCHED', 'CON', 'CONCLUDED', 'CAN', 'CANCELLED', 'DSP_AUTO')
+         LIMIT 1`,
+        [String(orderId)]
+      );
+      if (ev) {
+        dispatchedOrderIdsMemory.add(cacheKey);
+        return true;
+      }
+    } else if (origem === '99FOOD') {
+      const ev = await db.queryOne(
+        `SELECT id, type FROM food99_events 
+         WHERE order_id = ? 
+           AND type IN ('orderDelivering', 'orderDispatch', 'orderFinish', 'orderCancel', 'orderDispatchedAuto')
+         LIMIT 1`,
+        [String(orderId)]
+      );
+      if (ev) {
+        dispatchedOrderIdsMemory.add(cacheKey);
+        return true;
+      }
+    }
+  } catch (_) {}
+
+  return false;
+}
+
+/**
+ * Registra localmente que o pedido já teve seu despacho enviado, garantindo que
+ * (mesmo se o motoboy abandonar e outro retirar) NUNCA seja enviada uma segunda requisição para a plataforma.
+ */
+async function marcarComoDespachadoLocalmente(origem, orderId, appShopId = '') {
+  if (!orderId) return;
+  const cacheKey = `${origem}:${orderId}`;
+  dispatchedOrderIdsMemory.add(cacheKey);
+
+  try {
+    const db = getDb();
+    const nowIso = new Date().toISOString();
+    if (origem === 'IFOOD') {
+      await db.execute(
+        `INSERT OR REPLACE INTO ifood_events (id, code, order_id, merchant_id, payload, created_at)
+         VALUES (?, 'DSP_AUTO', ?, '', ?, ?)`,
+        [`auto-dsp-${orderId}`, String(orderId), JSON.stringify({ autoDispatched: true, timestamp: nowIso }), nowIso]
+      );
+    } else if (origem === '99FOOD') {
+      await db.execute(
+        `INSERT OR REPLACE INTO food99_events (id, type, order_id, shop_id, payload, created_at)
+         VALUES (?, 'orderDispatchedAuto', ?, ?, ?, ?)`,
+        [`auto-dsp-99-${orderId}`, String(orderId), String(appShopId || ''), JSON.stringify({ autoDispatched: true, timestamp: nowIso }), nowIso]
+      );
+    }
+  } catch (_) {}
+}
+
+/**
  * Monta objeto courier_info do entregador para envio à 99Food
  */
 function montarCourierMotoboy(motoboy) {
@@ -56,8 +132,10 @@ function montarCourierMotoboy(motoboy) {
 
 /**
  * Executa o despacho na API externa (APENAS iFood e 99Food; CardápioWeb e Manual são ignorados).
- * - Se a cozinha já tiver despachado o pedido antes na plataforma (para proteger o ranqueamento/tempo),
- *   a rejeição de transição da plataforma é tratada de forma transparente, sem quebrar nem travar a retirada.
+ * - Antes de enviar qualquer requisição HTTP para a plataforma, verifica se a cozinha já despachou o pedido
+ *   (via eventos recebidos no Webhook ou registro de despacho anterior).
+ * - Se já foi despachado pela cozinha, NÃO envia nenhuma requisição repetida à API da plataforma (zero risco de erro 4xx ou penalidade).
+ * - Se ainda não foi despachado, envia UMA ÚNICA requisição limpa de despacho e grava o estado.
  */
 async function executarDespachoPlataformaInterno(pedido, motoboy = null) {
   const { origem, orderId, appShopId } = extrairMetadadosPlataforma(pedido);
@@ -82,10 +160,26 @@ async function executarDespachoPlataformaInterno(pedido, motoboy = null) {
     };
   }
 
-  // ── 1. DESPACHO AUTOMÁTICO IFOOD ─────────────────────────────────────────────
+  // 0. Proteção Anti-Requisição Duplicada: se a cozinha já despachou na plataforma (ou já foi despachado antes),
+  // NÃO faz nenhuma chamada HTTP externa para não gerar erros 4xx nas plataformas!
+  const jaDespachado = await verificarJaDespachadoNaPlataforma(origem, orderId);
+  if (jaDespachado) {
+    console.log(`ℹ️ [Auto-Dispatch ${origem}] Pedido #${pedido.numero_pedido} (${orderId}) já consta como despachado pela cozinha/plataforma. Nenhuma requisição extra enviada.`);
+    return {
+      attempted: false,
+      dispatched: false,
+      alreadyDispatchedOrIgnored: true,
+      skippedExternalRequest: true,
+      platform: origem,
+      orderId
+    };
+  }
+
+  // ── 1. DESPACHO AUTOMÁTICO IFOOD (1 única chamada limpa) ─────────────────────
   if (origem === 'IFOOD') {
     try {
       await ifoodService.dispatchOrder(orderId);
+      await marcarComoDespachadoLocalmente('IFOOD', orderId);
       console.log(`🚀 [Auto-Dispatch iFood] Pedido #${pedido.numero_pedido} (${orderId}) despachado com sucesso no iFood!`);
       return {
         attempted: true,
@@ -94,42 +188,26 @@ async function executarDespachoPlataformaInterno(pedido, motoboy = null) {
         orderId
       };
     } catch (errFirst) {
-      // Caso o pedido ainda estivesse em PLACED (não confirmado), tenta confirmar e despachar em seguida
-      try {
-        await ifoodService.confirmOrder(orderId);
-        await ifoodService.dispatchOrder(orderId);
-        console.log(`🚀 [Auto-Dispatch iFood] Pedido #${pedido.numero_pedido} (${orderId}) confirmado e despachado com sucesso no iFood!`);
-        return {
-          attempted: true,
-          dispatched: true,
-          platform: 'IFOOD',
-          orderId
-        };
-      } catch (errSecond) {
-        // Cenário esperado quando a cozinha já despachou antes no Gestor iFood para não atrasar o pedido
-        console.log(`ℹ️ [Auto-Dispatch iFood] Pedido #${pedido.numero_pedido} (${orderId}) já havia sido despachado pela cozinha ou não requer transição: ${errFirst.message}`);
-        return {
-          attempted: true,
-          dispatched: false,
-          alreadyDispatchedOrIgnored: true,
-          platform: 'IFOOD',
-          orderId,
-          detail: errFirst.message
-        };
-      }
+      // Marca localmente para nunca insistir nem repetir chamadas se a cozinha já havia despachado segundos antes
+      await marcarComoDespachadoLocalmente('IFOOD', orderId);
+      console.log(`ℹ️ [Auto-Dispatch iFood] Pedido #${pedido.numero_pedido} (${orderId}) já havia sido despachado pela cozinha ou não requer transição: ${errFirst.message}`);
+      return {
+        attempted: true,
+        dispatched: false,
+        alreadyDispatchedOrIgnored: true,
+        platform: 'IFOOD',
+        orderId,
+        detail: errFirst.message
+      };
     }
   }
 
-  // ── 2. DESPACHO AUTOMÁTICO 99FOOD ────────────────────────────────────────────
+  // ── 2. DESPACHO AUTOMÁTICO 99FOOD (1 única chamada limpa) ────────────────────
   if (origem === '99FOOD') {
     const courier = montarCourierMotoboy(motoboy);
     try {
-      // Notifica orderReady silenciosamente caso a plataforma exija antes do selfdelivery/dispatch
-      try {
-        await ninetyNineFoodService.orderReady(orderId, appShopId);
-      } catch (_) {}
-
       await ninetyNineFoodService.dispatchOrder(orderId, courier, appShopId);
+      await marcarComoDespachadoLocalmente('99FOOD', orderId, appShopId);
       console.log(`🚀 [Auto-Dispatch 99Food] Pedido #${pedido.numero_pedido} (${orderId} | Loja: ${appShopId || 'padrão'}) despachado na 99Food com entregador ${courier.name}!`);
       return {
         attempted: true,
@@ -139,32 +217,18 @@ async function executarDespachoPlataformaInterno(pedido, motoboy = null) {
         appShopId
       };
     } catch (errFirst) {
-      // Se o pedido ainda estava aguardando confirmação na 99Food, tenta confirmar -> ready -> dispatch
-      try {
-        await ninetyNineFoodService.confirmOrder(orderId, appShopId).catch(() => {});
-        await ninetyNineFoodService.orderReady(orderId, appShopId).catch(() => {});
-        await ninetyNineFoodService.dispatchOrder(orderId, courier, appShopId);
-        console.log(`🚀 [Auto-Dispatch 99Food] Pedido #${pedido.numero_pedido} (${orderId}) confirmado e despachado na 99Food!`);
-        return {
-          attempted: true,
-          dispatched: true,
-          platform: '99FOOD',
-          orderId,
-          appShopId
-        };
-      } catch (errSecond) {
-        // Cenário esperado quando a cozinha já despachou antes na 99Food para proteger o ranqueamento da loja
-        console.log(`ℹ️ [Auto-Dispatch 99Food] Pedido #${pedido.numero_pedido} (${orderId}) já havia sido despachado pela cozinha ou não requer transição: ${errFirst.message}`);
-        return {
-          attempted: true,
-          dispatched: false,
-          alreadyDispatchedOrIgnored: true,
-          platform: '99FOOD',
-          orderId,
-          appShopId,
-          detail: errFirst.message
-        };
-      }
+      // Marca localmente para nunca repetir chamadas caso a cozinha já tenha despachado antes na 99Food
+      await marcarComoDespachadoLocalmente('99FOOD', orderId, appShopId);
+      console.log(`ℹ️ [Auto-Dispatch 99Food] Pedido #${pedido.numero_pedido} (${orderId}) já havia sido despachado pela cozinha ou não requer transição: ${errFirst.message}`);
+      return {
+        attempted: true,
+        dispatched: false,
+        alreadyDispatchedOrIgnored: true,
+        platform: '99FOOD',
+        orderId,
+        appShopId,
+        detail: errFirst.message
+      };
     }
   }
 
@@ -207,6 +271,8 @@ async function despacharPedidoPlataformaSeguro(pedido, motoboy = null, timeoutMs
 
 module.exports = {
   extrairMetadadosPlataforma,
+  verificarJaDespachadoNaPlataforma,
+  marcarComoDespachadoLocalmente,
   montarCourierMotoboy,
   despacharPedidoPlataformaSeguro
 };
